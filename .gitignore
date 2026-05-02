@@ -1,0 +1,59 @@
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# Next.js
+app/.next/
+app/out/
+app/.vercel/
+app/next-env.d.ts
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude — entire dir is local dev tooling, not code
+.claude/
+
+# Planning + docs — kept local, never pushed (per repo policy: code + assets only)
+CLAUDE.md
+PLAN.md
+README.md
+plans/
+Documents/
+rehearsals/
+memory/
+
+# Loose markdown at repo root — same policy
+/*.md
+!app/**/*.md  # but markdown INSIDE app/ (e.g., app/manual content) is allowed
+
+# Rehearsal artifacts (large mp4 recordings — keep out of git)
+rehearsals/*.mp4
+rehearsals/*.mov
+
+# Audio assets (plan #16 polish — large)
+app/public/audio/
+
+# Local DB / dumps
+*.sqlite
+*.dump
