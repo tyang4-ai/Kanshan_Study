@@ -1,0 +1,41 @@
+{
+  "userId": "guwanxi",
+  "computedAt": "2026-05-02T09:38:17.699Z",
+  "articleCount": 4,
+  "features": {
+    "avgSentenceLength": 43.1094674556213,
+    "sentenceLengthCV": 0.734611832256415,
+    "idiomDensity": 0,
+    "genericFunctionWordRate": 0.2696871628910464,
+    "rhetoricalQuestionRate": 1.6181229773462784,
+    "paragraphLengthCV": 0.8841560415283292,
+    "openingDistribution": {
+      "rhetoricalQuestion": 0,
+      "firstPersonAnecdote": 0,
+      "specificFact": 0.5,
+      "generalClaim": 0,
+      "enumeration": 0,
+      "other": 0.5
+    },
+    "citationDensity": 1.8878101402373249,
+    "charCount": 14832,
+    "sentenceCount": 338
+  },
+  "thresholdReport": {
+    "sentenceLengthCV": {
+      "value": 0.734611832256415,
+      "gate": 0.4,
+      "passed": true
+    },
+    "idiomDensity": {
+      "value": 0,
+      "gate": 2.5,
+      "passed": true
+    },
+    "genericFunctionWordRate": {
+      "value": 0.2696871628910464,
+      "gate": 2,
+      "passed": true
+    }
+  }
+}

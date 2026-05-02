@@ -1,0 +1,20 @@
+{
+  "id": "me",
+  "displayName": "Tyang4",
+  "handle": "@me",
+  "school": "四川大学 生物医学工程",
+  "credentials": "本科 · 在读",
+  "bio": "用 Claude Code 搭 看山书房 的人。本人。",
+  "stats": {
+    "answers": 0,
+    "articles": 0,
+    "followers": 0,
+    "borrows": 0
+  },
+  "voiceRegisterNotes": {
+    "_note": "User will paste real articles into content/corpus/me/articles/ later. voiceFingerprintStatus stays 'pending' until then; plan #6 (voice writer) MUST handle 'pending' gracefully (fall back to guwanxi fingerprint or skip 'me' branch entirely)."
+  },
+  "voiceFingerprintStatus": "pending",
+  "voiceFingerprintPath": null,
+  "articleCount": 0
+}
