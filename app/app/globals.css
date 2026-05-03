@@ -128,3 +128,37 @@
     @apply font-sans;
   }
 }
+
+.rail-resize:hover .rail-grip { opacity: 1 !important; }
+.rail-resize:active .rail-grip { opacity: 1 !important; background: #1772F6 !important; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@keyframes auroraDrift {
+  0%   { transform: translateX(-8%) scaleY(1); opacity: 0.7; }
+  100% { transform: translateX(8%)  scaleY(1.15); opacity: 1; }
+}
+@keyframes starTwinkle {
+  0%   { opacity: 0.2; transform: scale(0.6); }
+  100% { opacity: 1;   transform: scale(1.2); }
+}
+@keyframes snowFall {
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(var(--drift), 105vh); }
+}
+@keyframes foxWalk {
+  0%   { transform: translateX(-10vw); }
+  50%  { transform: translateX(110vw) scaleX(1); }
+  51%  { transform: translateX(110vw) scaleX(-1); }
+  100% { transform: translateX(-10vw) scaleX(-1); }
+}
+@keyframes smokeRise {
+  0%, 100% { transform: translateY(0) scaleY(1); opacity: 0.4; }
+  50%      { transform: translateY(-6px) scaleY(1.2); opacity: 0.7; }
+}
+@keyframes envelopePulse {
+  0%, 100% { transform: rotate(-26deg) scale(1);   filter: drop-shadow(0 0 0 transparent); }
+  50%      { transform: rotate(-26deg) scale(1.05); filter: drop-shadow(0 0 6px rgba(255, 215, 168, 0.6)); }
+}
