@@ -44,14 +44,17 @@ describe('TabbedFloatingWindow', () => {
     const tab = baseTab('x', 'vault', '看典 · 档案库');
     resetStore({ open: true, tabs: [tab], activeTabId: 'x' });
     render(<TabbedFloatingWindow />);
-    expect(screen.getByText('看典 · 档案库')).toBeInTheDocument();
+    // Pill text appears in the header — VaultTab body title also says 看典 · 档案库
+    // once dynamic loads, so just ensure at least one match.
+    expect(screen.getAllByText('看典 · 档案库').length).toBeGreaterThan(0);
   });
 
   it('renders body content asynchronously via next/dynamic', async () => {
     const tab = baseTab('x', 'vault', '看典 · 档案库');
     resetStore({ open: true, tabs: [tab], activeTabId: 'x' });
     render(<TabbedFloatingWindow />);
-    expect(await screen.findByText(/TODO: vault/)).toBeInTheDocument();
+    // VaultTab body renders its own meta line `VAULT · 共 N 卷 · 沙狐当值`
+    expect(await screen.findByText(/共 \d+ 卷/)).toBeInTheDocument();
   });
 
   it('clicking a tab pill switches active tab', () => {
@@ -98,8 +101,9 @@ describe('TabbedFloatingWindow', () => {
     const tab = baseTab('x', 'vault', '看典 · 档案库');
     resetStore({ open: true, tabs: [tab], activeTabId: 'x', pos: { x: 100, y: 100 } });
     render(<TabbedFloatingWindow />);
-    const pillText = screen.getByText('看典 · 档案库');
-    const header = pillText.closest('div')!.parentElement!.parentElement!;
+    // Reach the header via the close-tab button (lives inside the pill, inside the header).
+    const closeTabBtn = screen.getByTitle('关闭标签');
+    const header = closeTabBtn.closest('div')!.parentElement!.parentElement!;
     act(() => {
       fireEvent.mouseDown(header, { clientX: 100, clientY: 100 });
     });
