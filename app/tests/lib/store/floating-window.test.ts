@@ -22,16 +22,20 @@ describe('useFloatingWindowStore', () => {
     expect(state.activeTabId).toBe(state.tabs[0].id);
   });
 
-  it('singleton kinds dedup (vault/settings/stats/trends)', () => {
+  it('reopening any kind dedups to one tab and refreshes title + props', () => {
     useFloatingWindowStore.getState().openTab('vault', 'A');
     useFloatingWindowStore.getState().openTab('vault', 'B');
     expect(useFloatingWindowStore.getState().tabs).toHaveLength(1);
+    expect(useFloatingWindowStore.getState().tabs[0].title).toBe('B');
   });
 
-  it('non-singleton kinds spawn new tabs', () => {
-    useFloatingWindowStore.getState().openTab('persona', 'A');
-    useFloatingWindowStore.getState().openTab('persona', 'B');
-    expect(useFloatingWindowStore.getState().tabs).toHaveLength(2);
+  it('reopening a multi-instance kind also dedups (one tab per kind)', () => {
+    useFloatingWindowStore.getState().openTab('persona', 'A', { mode: 'first' });
+    useFloatingWindowStore.getState().openTab('persona', 'B', { mode: 'second' });
+    const tabs = useFloatingWindowStore.getState().tabs;
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0].title).toBe('B');
+    expect(tabs[0].props).toEqual({ mode: 'second' });
   });
 
   it('closeTab on active tab focuses last remaining', () => {

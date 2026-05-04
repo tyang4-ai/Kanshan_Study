@@ -29,7 +29,6 @@ interface FloatingWindowState {
 
 const DEFAULT_POS = { x: 240, y: 80 };
 const DEFAULT_SIZE = { w: 480, h: 600 };
-const SINGLETON_KINDS: TabKind[] = ['vault', 'settings', 'stats', 'trends'];
 
 const tabId = (kind: TabKind) =>
   `${kind}:${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -43,9 +42,19 @@ export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
 
   openTab: (kind, title, props = {}) =>
     set((state) => {
-      if (SINGLETON_KINDS.includes(kind)) {
-        const existing = state.tabs.find((t) => t.kind === kind);
-        if (existing) return { open: true, activeTabId: existing.id };
+      // One tab per kind: if a tab of this kind is already open, focus it and
+      // refresh its title + props (so the existing instance picks up the new
+      // selection / context). Avoids the "long list of duplicate tabs" the
+      // multi-instance variant was producing.
+      const existing = state.tabs.find((t) => t.kind === kind);
+      if (existing) {
+        return {
+          open: true,
+          activeTabId: existing.id,
+          tabs: state.tabs.map((t) =>
+            t.id === existing.id ? { ...t, title, props } : t,
+          ),
+        };
       }
       const tab: Tab = { id: tabId(kind), kind, title, props };
       return { open: true, tabs: [...state.tabs, tab], activeTabId: tab.id };
