@@ -28,7 +28,25 @@ interface FloatingWindowState {
 }
 
 const DEFAULT_POS = { x: 240, y: 80 };
-const DEFAULT_SIZE = { w: 480, h: 600 };
+// Default size = the resize clamp max so the window opens as wide as it's
+// allowed to grow. Per-open computeDefaultSize tightens this to the actual
+// viewport on first openTab so we don't spawn offscreen on narrower screens.
+const DEFAULT_SIZE = { w: 1100, h: 600 };
+
+function computeDefaultSize(): { w: number; h: number } {
+  if (typeof window === 'undefined') return DEFAULT_SIZE;
+  const margin = 280; // leave room for the LeftRail + RightToolbar pill
+  const w = Math.max(340, Math.min(1100, window.innerWidth - margin));
+  const h = Math.max(360, Math.min(window.innerHeight - 60, 600));
+  return { w, h };
+}
+
+function computeDefaultPos(size: { w: number; h: number }): { x: number; y: number } {
+  if (typeof window === 'undefined') return DEFAULT_POS;
+  // Center horizontally; bias to left so the LeftRail isn't covered.
+  const x = Math.max(160, Math.floor((window.innerWidth - size.w) / 2));
+  return { x, y: 80 };
+}
 
 const tabId = (kind: TabKind) =>
   `${kind}:${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -57,7 +75,13 @@ export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
         };
       }
       const tab: Tab = { id: tabId(kind), kind, title, props };
-      return { open: true, tabs: [...state.tabs, tab], activeTabId: tab.id };
+      // First open in a session: re-fit the window to the current viewport so
+      // it spawns as wide as the resize clamp allows. Existing tabs (already
+      // open) keep whatever size the user dragged it to.
+      const isFirstOpen = state.tabs.length === 0;
+      const size = isFirstOpen ? computeDefaultSize() : state.size;
+      const pos = isFirstOpen ? computeDefaultPos(size) : state.pos;
+      return { open: true, tabs: [...state.tabs, tab], activeTabId: tab.id, size, pos };
     }),
 
   closeTab: (id) =>
