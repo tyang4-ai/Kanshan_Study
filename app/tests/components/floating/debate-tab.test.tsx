@@ -188,7 +188,7 @@ describe('DebateTab', () => {
     });
     expect(screen.getByText('fallback 反方发言')).toBeInTheDocument();
 
-    const compliance = screen.getByTestId('voice-compliance-line');
+    const compliance = screen.getByTestId('compliance-line');
     expect(compliance.textContent ?? '').toMatch(/余额|mock data/);
   });
 
@@ -198,7 +198,7 @@ describe('DebateTab', () => {
     render(<DebateTab selection={{ text: '示例选段。' }} />);
 
     await waitFor(() => {
-      const compliance = screen.getByTestId('voice-compliance-line');
+      const compliance = screen.getByTestId('compliance-line');
       expect(compliance.textContent ?? '').toContain('辩论由模型扮演 · 不代表真实立场');
     });
   });

@@ -10,7 +10,7 @@ import { MaskChipRow } from '@/components/persona/MaskChipRow';
 import { RoundSelector } from '@/components/persona/RoundSelector';
 import { RoundDivider } from '@/components/persona/RoundDivider';
 import { UserBubble } from '@/components/persona/UserBubble';
-import { ComplianceLine } from '@/components/voice/ComplianceLine';
+import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 
 interface PersonaTabProps {

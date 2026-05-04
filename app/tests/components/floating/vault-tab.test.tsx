@@ -46,7 +46,7 @@ describe('VaultTab', () => {
   it('renders 看典 · 档案库 title and ComplianceLine', () => {
     render(<VaultTab />);
     expect(screen.getByText('看典 · 档案库')).toBeInTheDocument();
-    expect(screen.getByTestId('vault-compliance-line')).toHaveTextContent(
+    expect(screen.getByTestId('compliance-line')).toHaveTextContent(
       '档案不入第三方训练集 · 仅你可见'
     );
   });

@@ -4,6 +4,7 @@ import { useAccountStore } from '@/lib/store/account';
 import { VaultEntry, type VaultEntryData } from '@/components/floating/VaultEntry';
 import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 import meSeed from '@/content/seed/vault-me.json';
+import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 
 const VAULT_FILTERS: { id: string; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -453,23 +454,7 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
         </div>
       )}
 
-      {/* ComplianceLine (locked text per .claude/rules/compliance-strings.md) */}
-      <div
-        data-testid="vault-compliance-line"
-        style={{
-          flexShrink: 0,
-          padding: '6px 16px',
-          background: '#F4F7FB',
-          borderTop: '1px solid rgba(23,114,246,0.10)',
-          fontSize: 10,
-          color: '#5A6B7E',
-          fontFamily: '"Noto Serif SC", serif',
-          letterSpacing: 0.6,
-          textAlign: 'center',
-        }}
-      >
-        {COMPLIANCE_TEXT}
-      </div>
+      <ComplianceLine>{COMPLIANCE_TEXT}</ComplianceLine>
     </div>
   );
 }

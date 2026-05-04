@@ -113,7 +113,7 @@ describe('PersonaTab', () => {
     );
     expect(fixedIds.length).toBe(4);
 
-    expect(screen.getByTestId('voice-compliance-line')).toHaveTextContent(
+    expect(screen.getByTestId('compliance-line')).toHaveTextContent(
       '仿真读者 · 非真人 · 不可作为审稿依据'
     );
     expect(screen.getByTestId('persona-typing-indicator')).toBeInTheDocument();
@@ -262,7 +262,7 @@ describe('PersonaTab', () => {
     });
     expect(screen.getByText('fallback 行家发言')).toBeInTheDocument();
 
-    const compliance = screen.getByTestId('voice-compliance-line');
+    const compliance = screen.getByTestId('compliance-line');
     expect(compliance.textContent ?? '').toMatch(/余额|mock data/);
   });
 

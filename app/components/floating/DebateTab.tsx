@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { PersonaMessage } from '@/components/persona/PersonaMessage';
 import { TypewriterText } from '@/components/persona/TypewriterText';
-import { ComplianceLine } from '@/components/voice/ComplianceLine';
+import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 import type { DebateTurn } from '@/lib/agents/debate';
 

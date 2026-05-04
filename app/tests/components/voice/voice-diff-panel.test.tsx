@@ -144,7 +144,7 @@ describe('VoiceDiffPanel', () => {
     ]);
     render(<VoiceDiffPanel selection="x" bullets="—" mode="polish" />);
     await waitFor(() => {
-      expect(screen.getByTestId('voice-compliance-line')).toHaveTextContent(
+      expect(screen.getByTestId('compliance-line')).toHaveTextContent(
         '输出已添加 GB 45438 标识 · AI 生成可追溯'
       );
     });

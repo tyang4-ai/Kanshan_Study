@@ -169,3 +169,61 @@
   0%, 100% { transform: rotate(-26deg) scale(1);   filter: drop-shadow(0 0 0 transparent); }
   50%      { transform: rotate(-26deg) scale(1.05); filter: drop-shadow(0 0 6px rgba(255, 215, 168, 0.6)); }
 }
+
+/* ==== Phase #10: 看心 InlineMark + MarginSeal (rev 2) ==== */
+
+/* InlineMark variants — colors per compliance brand palette */
+.inline-mark-ai-touched {
+  background: rgba(63, 180, 140, 0.12);
+  border-bottom: 1px solid #3FB48C;
+  padding: 0 1px;
+  cursor: help;
+}
+.inline-mark-claim {
+  background: rgba(184, 85, 67, 0.10);
+  border-bottom: 1px solid #B85543;
+  padding: 0 1px;
+  cursor: help;
+}
+.inline-mark-hedge {
+  background: transparent;
+  border-bottom: 1px dashed #1F8B66;
+  padding: 0 1px;
+  cursor: help;
+}
+.inline-mark-ai-touched::after,
+.inline-mark-claim::after,
+.inline-mark-hedge::after {
+  content: '';
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-left: 2px;
+  vertical-align: super;
+  background-image: var(--mark-glyph);
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.inline-mark-ai-touched { --mark-glyph: url(/glyphs/check.svg); }
+.inline-mark-claim      { --mark-glyph: url(/glyphs/flag.svg); }
+.inline-mark-hedge      { --mark-glyph: url(/glyphs/fox.svg); }
+
+/* Margin chits — absolute positioned to the LEFT of the prose column */
+.margin-seal {
+  position: absolute;
+  left: -52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #FAF8F3;
+  border: 1px solid;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-family: "Noto Serif SC", serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  pointer-events: none;
+  user-select: none;
+}
+.margin-seal-reviewed { color: #1F8B66; border-color: rgba(31,139,102,0.33); }
+.margin-seal-flag     { color: #B85543; border-color: rgba(184,85,67,0.33); }
+.margin-seal-sourced  { color: #1F8B66; border-color: rgba(31,139,102,0.33); }

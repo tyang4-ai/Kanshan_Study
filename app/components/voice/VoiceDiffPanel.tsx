@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { DiffColumn } from './DiffColumn';
 import { SignalsRow } from './SignalsRow';
 import { InlineVoiceMark } from './InlineVoiceMark';
-import { ComplianceLine } from './ComplianceLine';
+import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { GENERIC_SYSTEM_PROMPT, VOICE_SYSTEM_PROMPT } from '@/lib/llm/deepseek';
 import type { VoiceSpan, IterStep, VoiceFillFinal } from '@/lib/voice/rewriter';
 import type { ScoreResult } from '@/lib/voice/scorer';
