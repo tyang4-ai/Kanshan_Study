@@ -4,6 +4,8 @@ import { useEffect, useRef, type CSSProperties, type MouseEvent } from 'react';
 import { Tab } from './Tab';
 import { DefaultDocument } from './DefaultDocument';
 import { ComplianceStamp } from './ComplianceStamp';
+import { ToolbarIcon, BudgetChip, ProfileChip, useToolbarOpeners } from '@/components/chrome/TitleBar';
+import { RightToolbar } from '@/components/chrome/RightToolbar';
 
 export type SelectionPayload = {
   text: string;
@@ -13,6 +15,8 @@ export type SelectionPayload = {
 export type WritingSurfaceProps = {
   onContextMenu?: (e: MouseEvent<HTMLDivElement>) => void;
   onSelectionChange?: (sel: SelectionPayload | null) => void;
+  /** Selection passed back into the floating toolbar so AI dispatches carry it. */
+  floatingToolbarSelection?: SelectionPayload | null;
 };
 
 type TabEntry = {
@@ -85,6 +89,7 @@ const documentColumnStyle: CSSProperties = {
 export function WritingSurface({
   onContextMenu,
   onSelectionChange,
+  floatingToolbarSelection,
 }: WritingSurfaceProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef<boolean>(false);
@@ -129,9 +134,11 @@ export function WritingSurface({
     };
   }, []);
 
+  const openers = useToolbarOpeners();
   return (
     <div onContextMenu={onContextMenu} style={outerStyle}>
-      {/* Tab strip — Obsidian-style */}
+      {/* Merged top bar — file tabs on the left, separator, then chrome (toolbar
+          icons + budget + profile) on the right. Replaces the old dark TitleBar. */}
       <div style={tabStripStyle}>
         {TABS.map((t) => (
           <Tab key={t.filename} filename={t.filename} active={t.active} dirty={t.dirty} />
@@ -149,6 +156,16 @@ export function WritingSurface({
           />
           已自动保存 · 16:42
         </div>
+        {/* Vertical line separating file tabs from chrome controls */}
+        <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 12px' }} />
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12 }}>
+          <ToolbarIcon kind="vault" onClick={openers.onOpenVault} />
+          <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} />
+          <ToolbarIcon kind="stats" onClick={openers.onOpenStats} />
+          <ToolbarIcon kind="settings" onClick={openers.onOpenSettings} />
+          <BudgetChip />
+          <ProfileChip />
+        </div>
       </div>
 
       {/* Scrollable document region — TipTap mounted here in plan #10; contentEditable placeholder for now. */}
@@ -165,6 +182,10 @@ export function WritingSurface({
       </div>
 
       <ComplianceStamp />
+
+      {/* Floating left-anchored format + AI toolbar — positioned absolutely over
+          the editor body, NOT over the LeftRail. */}
+      <RightToolbar selection={floatingToolbarSelection ?? null} />
     </div>
   );
 }

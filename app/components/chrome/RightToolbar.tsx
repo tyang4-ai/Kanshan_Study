@@ -106,15 +106,23 @@ export function RightToolbar({ selection }: RightToolbarProps) {
       role="toolbar"
       aria-label="格式与 AI 工具栏"
       style={{
-        flexShrink: 0,
-        width: 36,
-        height: '100%',
-        background: 'linear-gradient(180deg, #2C2825 0%, #221F1C 100%)',
-        borderLeft: '1px solid #1A1815',
+        // Floating pill island on the LEFT, aesthetic matched to FoxRail
+        // (rgba(26,31,42,0.72) bg, blur, rounded). Vertical column.
+        position: 'absolute',
+        left: 12,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 50,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        padding: '8px 0',
-        gap: 4,
-        overflow: 'visible',
+        gap: 2,
+        padding: '6px 5px',
+        background: 'rgba(26,31,42,0.72)',
+        backdropFilter: 'blur(8px)',
+        borderRadius: 22,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        scrollbarWidth: 'none',
       }}
     >
       {FORMAT_TOOLS.map((t) => <ToolButton key={t.id} tool={t} hasSelection={hasSel} selection={selection} />)}
@@ -125,7 +133,7 @@ export function RightToolbar({ selection }: RightToolbarProps) {
 }
 
 function Spacer() {
-  return <div style={{ height: 1, width: 20, background: 'rgba(168,155,126,0.25)', margin: '6px 0' }} />;
+  return <div style={{ height: 1, width: 18, background: 'rgba(255,255,255,0.15)', margin: '4px 0' }} />;
 }
 
 function ToolButton({ tool, hasSelection, selection }: { tool: ToolItem; hasSelection: boolean; selection: { text: string; rect: DOMRect } | null }) {
@@ -150,16 +158,17 @@ function ToolButton({ tool, hasSelection, selection }: { tool: ToolItem; hasSele
         aria-label={tool.label}
         aria-disabled={disabled}
         style={{
-          width: 28, height: 28, borderRadius: 5,
+          width: 26, height: 26, borderRadius: 13,
           border: 'none',
-          background: hover && !disabled ? 'rgba(255,255,255,0.10)' : 'transparent',
-          color: disabled ? 'rgba(168,155,126,0.35)' : '#E8DCC4',
+          background: hover && !disabled ? 'rgba(255,255,255,0.12)' : 'transparent',
+          color: disabled ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.85)',
           cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: '"Noto Serif SC", serif',
-          fontSize: 14, lineHeight: 1,
+          fontSize: 13, lineHeight: 1,
           padding: 0,
           transition: 'background 0.15s, color 0.15s',
+          flexShrink: 0,
         }}
       >
         {tool.icon}
@@ -168,7 +177,7 @@ function ToolButton({ tool, hasSelection, selection }: { tool: ToolItem; hasSele
         <div
           style={{
             position: 'absolute',
-            right: 'calc(100% + 8px)',
+            left: 'calc(100% + 10px)',
             top: '50%',
             transform: 'translateY(-50%)',
             background: '#1A1815',

@@ -3,7 +3,18 @@ import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
 
-type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings';
+export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings';
+
+// Helper: opens each panel with the locked title.
+export function useToolbarOpeners() {
+  const openTab = useFloatingWindowStore((s) => s.openTab);
+  return {
+    onOpenVault:    () => openTab('vault', '看典 · 档案库'),
+    onOpenTrends:   () => openTab('trends', '看势 · 热榜雷达'),
+    onOpenStats:    () => openTab('stats', '看镜 · 数据看板'),
+    onOpenSettings: () => openTab('settings', '看山书房 · 设置'),
+  };
+}
 
 export function TitleBar() {
   const openTab = useFloatingWindowStore((s) => s.openTab);
@@ -39,7 +50,7 @@ export function TitleBar() {
   );
 }
 
-function ToolbarIcon({ kind, onClick }: { kind: ToolbarKind; onClick: () => void }) {
+export function ToolbarIcon({ kind, onClick }: { kind: ToolbarKind; onClick: () => void }) {
   const icons: Record<ToolbarKind, React.ReactNode> = {
     vault:    <path d="M3 5h12v9H3z M5 5V3h8v2 M3 9h12" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round"/>,
     stats:    <path d="M3 14V8 M7 14V4 M11 14V10 M15 14V6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>,
@@ -53,7 +64,7 @@ function ToolbarIcon({ kind, onClick }: { kind: ToolbarKind; onClick: () => void
   );
 }
 
-function BudgetChip() {
+export function BudgetChip() {
   const remaining = useZhihuBudgetStore((s) => s.remaining);
   const shi = remaining('hot_list');
   const sou = remaining('zhihu_search');
@@ -77,7 +88,7 @@ function BudgetChip() {
   );
 }
 
-function ProfileChip() {
+export function ProfileChip() {
   const active = useAccountStore((s) => s.active);
   const switchTo = useAccountStore((s) => s.switchTo);
   const label = active === 'guwanxi' ? '顾婉昔' : '我';

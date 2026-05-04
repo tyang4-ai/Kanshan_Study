@@ -1,13 +1,11 @@
 'use client';
 import { useState } from 'react';
-import { TitleBar } from '@/components/chrome/TitleBar';
 import { LeftRail } from '@/components/rail/LeftRail';
 import { LoreEnvelope } from '@/components/rail/LoreEnvelope';
 import { WritingSurface } from '@/components/editor/WritingSurface';
 import { ContextMenu } from '@/components/menu/ContextMenu';
 import { TabbedFloatingWindow } from '@/components/floating/TabbedFloatingWindow';
 import { LorePortal } from '@/components/lore/LorePortal';
-import { RightToolbar } from '@/components/chrome/RightToolbar';
 
 export default function Page() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -16,7 +14,6 @@ export default function Page() {
 
   return (
     <div className="flex h-screen w-screen flex-col" style={{ background: '#2A2724' }}>
-      <TitleBar />
       <div className="flex min-h-0 flex-1" style={{ background: '#FAF8F3' }}>
         <LeftRail />
         <WritingSurface
@@ -25,8 +22,8 @@ export default function Page() {
             setMenu({ x: e.clientX, y: e.clientY });
           }}
           onSelectionChange={setSelection}
+          floatingToolbarSelection={selection}
         />
-        <RightToolbar selection={selection} />
       </div>
 
       <LoreEnvelope onClick={() => setLoreOpen(true)} />
