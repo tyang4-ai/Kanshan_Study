@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 import meSeed from '@/content/seed/vault-me.json';
 
+export const runtime = 'edge';
+
 interface SeedEntry {
   id: string;
   title: string;

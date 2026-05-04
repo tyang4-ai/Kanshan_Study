@@ -1,0 +1,11 @@
+name = "kanshan-shufang"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+main = ".open-next/worker.js"
+
+# Static assets directory produced by `pnpm dlx @opennextjs/cloudflare build`
+assets = { directory = ".open-next/assets", binding = "ASSETS" }
+
+# Env vars: set in Cloudflare Pages dashboard under Settings → Environment Variables.
+# Mirror the values from app/.env.local. NEXT_PUBLIC_* are baked at build time;
+# server-only secrets (SUPABASE_DB_URL, DEEPSEEK_API_KEY, etc.) are runtime bindings.

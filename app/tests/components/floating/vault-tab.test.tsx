@@ -33,6 +33,8 @@ describe('VaultTab', () => {
     setAccount('guwanxi');
     // default fetch returns the full seed so debounce flushes don't blank the view
     mockFetchHits(guwanxiSeed as SeedEntry[]);
+    // jsdom doesn't ship scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
   });
 
   afterEach(() => {
@@ -166,6 +168,23 @@ describe('VaultTab', () => {
       vi.advanceTimersByTime(250);
     });
     expect(screen.getByText('馆中无此书 · 请换一关键字')).toBeInTheDocument();
+  });
+
+  it('scrollToArticleId matching an entry → scrollIntoView called once', () => {
+    const seed = guwanxiSeed as SeedEntry[];
+    const target = seed[0];
+    render(<VaultTab scrollToArticleId={target.id} />);
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it('scrollToArticleId with unknown id → scrollIntoView not called', () => {
+    render(<VaultTab scrollToArticleId="does-not-exist" />);
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('without scrollToArticleId prop → scrollIntoView not called', () => {
+    render(<VaultTab />);
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
   });
 
   it('network error → graceful fallback (no crash, keeps current entries)', async () => {

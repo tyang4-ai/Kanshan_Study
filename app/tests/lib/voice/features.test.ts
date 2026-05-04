@@ -14,8 +14,8 @@ import {
   classifyOpening,
   extractFeatures,
   createJieba,
+  type Jieba,
 } from '@/lib/voice/features';
-import type { Jieba } from '@node-rs/jieba';
 
 let jieba: Jieba;
 

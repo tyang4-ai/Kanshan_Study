@@ -72,8 +72,20 @@ function normalizeHit(hit: ApiHit): VaultEntryData | null {
   return null;
 }
 
-export function VaultTab() {
+interface VaultTabProps {
+  scrollToArticleId?: string;
+}
+
+export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
   const account = useAccountStore((s) => s.active);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!scrollToArticleId || !containerRef.current) return;
+    const el = containerRef.current.querySelector(`[data-article-id="${scrollToArticleId}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [scrollToArticleId]);
+
   const initialEntries = useMemo<VaultEntryData[]>(
     () => (account === 'guwanxi' ? (guwanxiSeed as VaultEntryData[]) : (meSeed as VaultEntryData[])),
     [account]
@@ -324,6 +336,7 @@ export function VaultTab() {
 
       {/* Catalog body */}
       <div
+        ref={containerRef}
         style={{
           flex: 1,
           overflowY: 'auto',

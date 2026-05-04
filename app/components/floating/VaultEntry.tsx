@@ -24,6 +24,7 @@ export function VaultEntry({ entry, onOpen }: VaultEntryProps) {
   return (
     <div
       data-testid={`vault-entry-${entry.id}`}
+      data-article-id={entry.id}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

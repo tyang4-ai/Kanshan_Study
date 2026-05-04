@@ -1,5 +1,11 @@
-import { Jieba } from '@node-rs/jieba';
-import { dict } from '@node-rs/jieba/dict';
+import { cut } from 'jieba-wasm';
+
+// Thin wrapper around jieba-wasm so the rest of the codebase keeps a Jieba-like
+// instance shape (matches the prior @node-rs/jieba API) — single .cut() method.
+// jieba-wasm bakes the dictionary into the WASM blob, so no init step is needed.
+export interface Jieba {
+  cut(text: string): string[];
+}
 
 export type OpeningKind =
   | 'rhetoricalQuestion'
@@ -203,5 +209,5 @@ export function extractFeatures(articles: ArticleInput[], jieba: Jieba): VoiceFe
 }
 
 export function createJieba(): Jieba {
-  return Jieba.withDict(dict);
+  return { cut: (text: string) => cut(text) };
 }
