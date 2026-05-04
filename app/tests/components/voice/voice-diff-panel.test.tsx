@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { VoiceDiffPanel } from '@/components/voice/VoiceDiffPanel';
 
+const openTabMock = vi.fn();
+
+vi.mock('@/lib/store/floating-window', () => ({
+  useFloatingWindowStore: (selector: (s: { openTab: typeof openTabMock }) => unknown) =>
+    selector({ openTab: openTabMock }),
+}));
+
 interface SseEvent {
   event: string;
   data: unknown;
@@ -141,6 +148,28 @@ describe('VoiceDiffPanel', () => {
         '输出已添加 GB 45438 标识 · AI 生成可追溯'
       );
     });
+  });
+
+  it('renders voice-sources row with CitationLink badges after final event', async () => {
+    mockSseFetch([
+      { event: 'generic', data: { text: 'g' } },
+      FINAL_EVENT,
+    ]);
+    render(<VoiceDiffPanel selection="x" bullets="—" mode="polish" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('voice-diff-voice-text')).toBeInTheDocument();
+    });
+
+    const sourcesRow = screen.getByTestId('voice-sources');
+    expect(sourcesRow).toBeInTheDocument();
+    // FINAL_EVENT has 2 voiceSources → 2 CitationLink elements inside the row.
+    const links = sourcesRow.querySelectorAll('[data-testid="citation-link"]');
+    expect(links.length).toBe(2);
+    // Each link should embed a vault-kind CitationBadge.
+    const badges = sourcesRow.querySelectorAll('[data-testid="citation-badge"]');
+    expect(badges.length).toBe(2);
+    expect(badges[0]).toHaveAttribute('data-kind', 'vault');
   });
 
   it('rapid double-click on 重生成 → fetch called twice without crash', async () => {

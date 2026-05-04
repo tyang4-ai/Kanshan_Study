@@ -1,4 +1,9 @@
 // TipTap marks (InlineMark / MarginSeal / CitationMark) land in plan #10; rendering plain spans for now.
+import { CitationLink } from '@/components/citation/CitationLink';
+import demoCitationsJson from '@/content/seed/citations-demo.json';
+import type { Citation } from '@/lib/citation/types';
+
+const DEMO_CITATIONS = demoCitationsJson as Citation[];
 
 export function DefaultDocument() {
   return (
@@ -63,9 +68,9 @@ export function DefaultDocument() {
         。基因组学的引入，提供了一种可能的解决方案：如果某个影像特征能稳定映射到某条
         <span data-mark-kind="hedge" data-mark-hint="看心 · 已软化：『某些』而非『全部』">某些</span>
         已知通路的表达水平（比如缺氧通路、EMT 通路），那么这个特征就有了生物学锚点，模型也就有了可解释性
-        <span data-cite-kind="web">[3]</span>
-        <span data-cite-kind="vault">[7]</span>
-        <span data-cite-kind="zhihu">[@冷泉]</span>
+        <CitationLink citation={DEMO_CITATIONS[0]} />
+        <CitationLink citation={DEMO_CITATIONS[1]} />
+        <CitationLink citation={DEMO_CITATIONS[2]} />
         。
         <span style={{ position: 'absolute', left: -56, top: 4 }}>
           <span data-margin-seal data-kind="flag">疑</span>

@@ -1,0 +1,25 @@
+[
+  {
+    "kind": "web",
+    "id": "cite-w-3",
+    "index": 3,
+    "url": "https://arxiv.org/abs/2024.12345",
+    "title": "Radiomics–Genomics Linkage in Lung Cancer"
+  },
+  {
+    "kind": "vault",
+    "id": "cite-v-7",
+    "index": 7,
+    "articleId": "01-imaging-genomics-turn",
+    "sourceTitle": "影像组学的基因组学转向",
+    "preview": "如果某个影像特征能稳定映射到某条已知通路（比如缺氧通路、EMT 通路），那么这个特征就有了生物学锚点，模型也就有了可解释性。"
+  },
+  {
+    "kind": "zhihu",
+    "id": "cite-z-leng",
+    "handle": "leng-quan",
+    "displayName": "冷泉",
+    "answerUrl": "https://www.zhihu.com/people/leng-quan",
+    "bio": "临床医生 / 影像组学研究者"
+  }
+]

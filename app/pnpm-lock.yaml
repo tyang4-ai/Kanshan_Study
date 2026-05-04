@@ -17,6 +17,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.105.1
         version: 2.105.1
+      '@tiptap/core':
+        specifier: ^3.22.5
+        version: 3.22.5(@tiptap/pm@3.22.5)
       '@tiptap/pm':
         specifier: ^3.22.5
         version: 3.22.5

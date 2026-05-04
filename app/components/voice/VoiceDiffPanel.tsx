@@ -8,6 +8,8 @@ import { ComplianceLine } from './ComplianceLine';
 import { GENERIC_SYSTEM_PROMPT, VOICE_SYSTEM_PROMPT } from '@/lib/llm/deepseek';
 import type { VoiceSpan, IterStep, VoiceFillFinal } from '@/lib/voice/rewriter';
 import type { ScoreResult } from '@/lib/voice/scorer';
+import { CitationLink } from '@/components/citation/CitationLink';
+import { vaultCitation } from '@/lib/citation/types';
 
 interface VoiceSourceMeta {
   id: string;
@@ -317,7 +319,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
       )}
 
       {/* Voice-source row */}
-      <div style={{
+      <div data-testid="voice-sources" style={{
         flexShrink: 0,
         borderTop: '1px solid rgba(23,114,246,0.18)',
         background: '#F4F7FB',
@@ -332,15 +334,16 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           <span style={{ color: '#7A8B9F' }}>—</span>
         )}
         {state.voiceSources.map((s, i) => (
-          <span key={s.id} title={`${s.title} · ${s.date}`} style={{
-            flexShrink: 0,
-            background: '#fff',
-            border: '1px solid rgba(23,114,246,0.18)',
-            padding: '2px 8px', borderRadius: 3,
-            fontFamily: '"Noto Sans SC", sans-serif',
-            color: '#1772F6', fontSize: 10.5,
-            cursor: 'default',
-          }}>v{i + 1} · {s.title}</span>
+          <CitationLink
+            key={s.id}
+            citation={vaultCitation({
+              id: `voice-src-${s.id}`,
+              index: i + 1,
+              articleId: s.id,
+              sourceTitle: s.title,
+              preview: s.date,
+            })}
+          />
         ))}
       </div>
 
