@@ -1,0 +1,101 @@
+{
+  "title": "影像组学外部验证 跨机构泛化的真实成绩",
+  "query": "影像组学外部验证",
+  "scope": "deep",
+  "outline": [
+    "一 · 现状",
+    "二 · 关键论文",
+    "三 · 数据集对照",
+    "四 · 限制 & 反例",
+    "五 · 参考"
+  ],
+  "sections": [
+    {
+      "heading": "一、现状概览",
+      "body": "<p>影像组学的\"外部验证\"问题在 2014 年 Aerts 那篇 NCOMM<sup data-cite-id=\"r-w-1\">[1]</sup> 之后已被反复确认：单中心训练的模型，换中心后 AUC 下滑 0.08—0.15 是常态<sup data-cite-id=\"r-w-2\">[2]</sup>。Park 2020 综述统计了 77 项研究，<span class=\"research-mark\">仅 6% 提供了真正独立的外部验证</span><sup data-cite-id=\"r-w-3\">[3]</sup>。</p>"
+    },
+    {
+      "heading": "二、关键论文",
+      "body": "<ul><li>Aerts H J W L et al., <i>Nat Commun</i> 2014<sup data-cite-id=\"r-w-1\">[1]</sup></li><li>Park J E et al., <i>Eur Radiol</i> 2020<sup data-cite-id=\"r-w-3\">[3]</sup></li><li>Wang H et al., <i>Radiology</i> 2023<sup data-cite-id=\"r-w-4\">[4]</sup></li><li>知乎 答主 <i>@影像 AI 老王</i> 的复盘文章<sup data-cite-id=\"r-z-laowang\">[@影像 AI 老王]</sup></li></ul>"
+    },
+    {
+      "heading": "三、数据集对照",
+      "body": "<p>常用的公开队列里，<span class=\"research-mark\">NSCLC-Radiomics</span>（422 例）与 <span class=\"research-mark\">LUNG1</span>（318 例）训练域接近，外部验证 AUC 通常停在 0.70—0.74<sup data-cite-id=\"r-v-3\">[v3]</sup>。换到 RIDER Lung CT 队列后掉到 0.62<sup data-cite-id=\"r-w-4\">[4]</sup>。</p>"
+    },
+    {
+      "heading": "四、限制与反例",
+      "body": "<p>反例值得记一笔：Hosny 2018 在四个独立队列上做联合训练，AUC 维持在 0.71—0.78<sup data-cite-id=\"r-w-5\">[5]</sup>——证明问题不是\"影像组学不行\"，而是\"单中心训练 + 全靠特征工程\"不行。</p>"
+    },
+    {
+      "heading": "五、可下钻问题",
+      "body": "<ul><li>是否要补一段关于\"成像协议差异\"的子分析？</li><li>是否引入 IBSI 标准化建议？<sup data-cite-id=\"r-w-6\">[6]</sup></li><li>是否援引你 2024-11 那篇 TCIA 踩坑文做交叉引用？<sup data-cite-id=\"r-v-3\">[v3]</sup></li></ul>"
+    }
+  ],
+  "sources": [
+    {
+      "kind": "web",
+      "id": "r-w-1",
+      "label": "[1]",
+      "text": "Aerts et al. — Nature Communications, 2014",
+      "host": "nature.com",
+      "url": "https://www.nature.com/articles/ncomms5006"
+    },
+    {
+      "kind": "web",
+      "id": "r-w-2",
+      "label": "[2]",
+      "text": "Lambin et al. — Nat Rev Clin Oncol, 2017",
+      "host": "nature.com",
+      "url": "https://www.nature.com/articles/nrclinonc.2017.141"
+    },
+    {
+      "kind": "web",
+      "id": "r-w-3",
+      "label": "[3]",
+      "text": "Park et al. — Eur Radiol, 2020",
+      "host": "springer.com",
+      "url": "https://link.springer.com/article/10.1007/s00330-020-06802-z"
+    },
+    {
+      "kind": "web",
+      "id": "r-w-4",
+      "label": "[4]",
+      "text": "Wang et al. — Radiology, 2023",
+      "host": "pubs.rsna.org",
+      "url": "https://pubs.rsna.org/journal/radiology"
+    },
+    {
+      "kind": "web",
+      "id": "r-w-5",
+      "label": "[5]",
+      "text": "Hosny et al. — PLOS Medicine, 2018",
+      "host": "journals.plos.org",
+      "url": "https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1002711"
+    },
+    {
+      "kind": "web",
+      "id": "r-w-6",
+      "label": "[6]",
+      "text": "Zwanenburg et al. — IBSI standardization, Radiology 2020",
+      "host": "pubs.rsna.org",
+      "url": "https://pubs.rsna.org/doi/10.1148/radiol.2020191145"
+    },
+    {
+      "kind": "vault",
+      "id": "r-v-3",
+      "label": "[v3]",
+      "text": "TCIA 数据集踩坑指北 (2024-11)",
+      "host": "档案库",
+      "articleId": "v3"
+    },
+    {
+      "kind": "zhihu",
+      "id": "r-z-laowang",
+      "label": "[@影像 AI 老王]",
+      "text": "为什么我不再信外部 AUC",
+      "host": "zhihu.com",
+      "url": "https://www.zhihu.com/question/example"
+    }
+  ],
+  "tokenCount": 1400
+}

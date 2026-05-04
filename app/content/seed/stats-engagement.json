@@ -1,0 +1,14 @@
+{
+  "behavior": [
+    { "label": "完读", "ratio": 0.42, "color": "#1772F6" },
+    { "label": "点赞", "ratio": 0.28, "color": "#1F8B66" },
+    { "label": "评论", "ratio": 0.08, "color": "#BC13FE" },
+    { "label": "收藏", "ratio": 0.15, "color": "#E8B533" },
+    { "label": "关注", "ratio": 0.07, "color": "#C03028" }
+  ],
+  "comments": [
+    { "user": "@骨科李医生", "text": "第三段那个 AUC 0.82 的论文我读过，外部验证集换中心后掉到 0.71 了，作者说得对。", "time": "2h" },
+    { "user": "@Marko_R", "text": "关于 NSCLC-Radiomics 队列那段，能再展开聊聊样本异质性吗？", "time": "5h" },
+    { "user": "@看见的眼睛", "text": "\"灰度共生矩阵的逆差矩\"——这种特征名字本身就是问题。", "time": "1d" }
+  ]
+}

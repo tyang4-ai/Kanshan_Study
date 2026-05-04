@@ -1,0 +1,24 @@
+{
+  "sample": 12402,
+  "readerTypes": [
+    { "label": "临床医生", "ratio": 0.34 },
+    { "label": "生物信息 / AI", "ratio": 0.22 },
+    { "label": "影像 / 放射科", "ratio": 0.18 },
+    { "label": "学生 · 在读", "ratio": 0.14 },
+    { "label": "其他领域", "ratio": 0.12 }
+  ],
+  "wordCloud": [
+    { "term": "可解释性", "weight": 28 },
+    { "term": "外部验证", "weight": 24 },
+    { "term": "TCIA", "weight": 20 },
+    { "term": "基因组学", "weight": 18 },
+    { "term": "过拟合", "weight": 16 },
+    { "term": "ROC", "weight": 15 },
+    { "term": "临床决策", "weight": 14 },
+    { "term": "影像特征", "weight": 12 },
+    { "term": "多组学", "weight": 11 },
+    { "term": "深度学习", "weight": 10 },
+    { "term": "数据偏差", "weight": 9 },
+    { "term": "EMT 通路", "weight": 8 }
+  ]
+}

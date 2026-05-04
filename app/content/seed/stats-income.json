@@ -1,0 +1,15 @@
+{
+  "kpis": [
+    { "label": "本月收益", "value": "¥4,820", "delta": "+18.2%", "tone": "good" },
+    { "label": "付费阅读", "value": "¥3,140", "delta": "+24%", "tone": "good" },
+    { "label": "赞赏", "value": "¥1,680", "delta": "+6%", "tone": "good" }
+  ],
+  "monthly": [
+    { "month": "12月", "amount": 1820 },
+    { "month": "1月", "amount": 2240 },
+    { "month": "2月", "amount": 2680 },
+    { "month": "3月", "amount": 3120 },
+    { "month": "4月", "amount": 4080 },
+    { "month": "5月", "amount": 4820 }
+  ]
+}
