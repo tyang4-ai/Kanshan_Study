@@ -41,9 +41,14 @@ describe('ContextMenu', () => {
     expect(menu.style.top).toBe('200px');
   });
 
-  it('clamps position when (x, y) would overflow viewport', () => {
+  it('flips up when click point + menu height would overflow viewport bottom', () => {
     Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
     Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true });
+    // Mock measured menu height = 480 (actual menu has many items now)
+    const origRect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      return { x: 0, y: 0, width: 240, height: 480, top: 0, left: 0, right: 240, bottom: 480, toJSON: () => ({}) } as DOMRect;
+    };
     render(
       <ContextMenu
         x={300}
@@ -54,9 +59,11 @@ describe('ContextMenu', () => {
       />,
     );
     const menu = screen.getByRole('menu');
-    // 400 - 240 - 8 = 152, 500 - 380 - 8 = 112
+    // x: 400 - 240 - 8 = 152 (flipped left)
+    // y: 400 + 480 + 8 = 888 > 500 → flip up to 400 - 480 = -80, clamped to VIEWPORT_PAD = 8
     expect(menu.style.left).toBe('152px');
-    expect(menu.style.top).toBe('112px');
+    expect(menu.style.top).toBe('8px');
+    Element.prototype.getBoundingClientRect = origRect;
   });
 
   it('marks selection-required items as aria-disabled when no selection', () => {

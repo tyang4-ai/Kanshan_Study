@@ -7,6 +7,7 @@ import { WritingSurface } from '@/components/editor/WritingSurface';
 import { ContextMenu } from '@/components/menu/ContextMenu';
 import { TabbedFloatingWindow } from '@/components/floating/TabbedFloatingWindow';
 import { LorePortal } from '@/components/lore/LorePortal';
+import { RightToolbar } from '@/components/chrome/RightToolbar';
 
 export default function Page() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -25,6 +26,7 @@ export default function Page() {
           }}
           onSelectionChange={setSelection}
         />
+        <RightToolbar selection={selection} />
       </div>
 
       <LoreEnvelope onClick={() => setLoreOpen(true)} />

@@ -22,12 +22,8 @@ export function TitleBar() {
       flexShrink: 0,
       fontFamily: '"Noto Sans SC", sans-serif',
     }}>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <span style={{ width: 12, height: 12, borderRadius: 6, background: '#FF5F57' }}/>
-        <span style={{ width: 12, height: 12, borderRadius: 6, background: '#FEBC2E' }}/>
-        <span style={{ width: 12, height: 12, borderRadius: 6, background: '#28C840' }}/>
-      </div>
-      <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#A89B7E',
+      {/* Mac-style traffic-light buttons removed per user direction (Windows themed). */}
+      <div style={{ flex: 1, textAlign: 'left', fontSize: 12, color: '#A89B7E',
         fontFamily: '"Noto Serif SC", serif', letterSpacing: 2 }}>
         看山书房 — 影像组学与基因组学.md
       </div>

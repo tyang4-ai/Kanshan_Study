@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { Divider } from './Divider';
@@ -39,11 +39,14 @@ interface ContextMenuProps {
 }
 
 const MENU_W = 240;
-const MENU_H = 380;
+const VIEWPORT_PAD = 8;
 
 export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [submenuOpenIndex, setSubmenuOpenIndex] = useState<number | null>(null);
+  // Render off-screen first; useLayoutEffect measures actual height + repositions
+  // before paint so the user never sees a truncated menu.
+  const [pos, setPos] = useState<{ x: number; y: number }>({ x, y });
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -52,7 +55,6 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    // setTimeout 0 so the same right-click doesn't immediately close us
     const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -62,8 +64,24 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
     };
   }, [onClose]);
 
-  const adjX = Math.min(x, window.innerWidth - MENU_W - 8);
-  const adjY = Math.min(y, window.innerHeight - MENU_H - 8);
+  // Measure rendered menu height after first paint and flip up if it overflows the
+  // viewport bottom. Same idea horizontally — flip left if it overflows right edge.
+  useLayoutEffect(() => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const viewW = window.innerWidth;
+    const viewH = window.innerHeight;
+    let nextX = x;
+    let nextY = y;
+    if (x + rect.width + VIEWPORT_PAD > viewW) {
+      nextX = Math.max(VIEWPORT_PAD, viewW - rect.width - VIEWPORT_PAD);
+    }
+    if (y + rect.height + VIEWPORT_PAD > viewH) {
+      // Flip up: anchor menu's bottom edge at click point
+      nextY = Math.max(VIEWPORT_PAD, y - rect.height);
+    }
+    if (nextX !== pos.x || nextY !== pos.y) setPos({ x: nextX, y: nextY });
+  }, [x, y, pos.x, pos.y]);
 
   const openTab = useFloatingWindowStore((s) => s.openTab);
 
@@ -74,6 +92,25 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
   const exec = (cmd: 'cut' | 'copy' | 'paste' | 'selectAll') => {
     try {
       document.execCommand(cmd);
+    } catch {
+      /* no-op */
+    }
+    onClose();
+  };
+
+  // ---- Formatting commands (work via document.execCommand on contentEditable) ----
+  const execFormat = (cmd: 'bold' | 'italic' | 'underline', value?: string) => {
+    try {
+      document.execCommand(cmd, false, value);
+    } catch {
+      /* no-op */
+    }
+    onClose();
+  };
+  const execHighlight = () => {
+    try {
+      // hiliteColor sets background of selection; yellow per common editor convention
+      document.execCommand('hiliteColor', false, '#FFF59D');
     } catch {
       /* no-op */
     }
@@ -132,8 +169,8 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
       onContextMenu={(e) => e.preventDefault()}
       style={{
         position: 'fixed',
-        left: adjX,
-        top: adjY,
+        left: pos.x,
+        top: pos.y,
         width: MENU_W,
         background: 'rgba(248,248,247,0.96)',
         backdropFilter: 'blur(20px) saturate(1.4)',
@@ -149,10 +186,18 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
       }}
     >
       {/* Native section */}
-      <MenuItem label="剪切" shortcut="⌘X" disabled={!hasSelection} onClick={() => exec('cut')} />
-      <MenuItem label="复制" shortcut="⌘C" disabled={!hasSelection} onClick={() => exec('copy')} />
-      <MenuItem label="粘贴" shortcut="⌘V" onClick={() => exec('paste')} />
-      <MenuItem label="全选" shortcut="⌘A" onClick={() => exec('selectAll')} />
+      <MenuItem label="剪切" shortcut="Ctrl+X" disabled={!hasSelection} onClick={() => exec('cut')} />
+      <MenuItem label="复制" shortcut="Ctrl+C" disabled={!hasSelection} onClick={() => exec('copy')} />
+      <MenuItem label="粘贴" shortcut="Ctrl+V" onClick={() => exec('paste')} />
+      <MenuItem label="全选" shortcut="Ctrl+A" onClick={() => exec('selectAll')} />
+
+      <Divider />
+
+      {/* Formatting section */}
+      <MenuItem label="加粗" shortcut="Ctrl+B" disabled={!hasSelection} onClick={() => execFormat('bold')} />
+      <MenuItem label="斜体" shortcut="Ctrl+I" disabled={!hasSelection} onClick={() => execFormat('italic')} />
+      <MenuItem label="下划线" shortcut="Ctrl+U" disabled={!hasSelection} onClick={() => execFormat('underline')} />
+      <MenuItem label="高亮" shortcut="Ctrl+H" disabled={!hasSelection} onClick={execHighlight} />
 
       <Divider />
 
@@ -173,7 +218,7 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
       <MenuItem
         icon={<FoxDot id="mo" enabled={hasSelection} />}
         label="让看墨润色"
-        shortcut="⌘⇧M"
+        shortcut="Ctrl+Shift+M"
         disabled={!hasSelection}
         accentColor={FOX_BY_ID.mo.glow}
         onClick={dispatchPolish}
@@ -196,7 +241,7 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
         <MenuItem
           icon={<FoxDot id="wen" enabled={hasSelection} />}
           label="召集读者团"
-          shortcut="⌘⇧R"
+          shortcut="Ctrl+Shift+R"
           disabled={!hasSelection}
           accentColor={FOX_BY_ID.wen.glow}
           onClick={() => {
@@ -232,7 +277,7 @@ export function ContextMenu({ x, y, hasSelection, selection, onClose }: ContextM
       <MenuItem
         icon={<FoxDot id="shui" enabled={hasSelection} />}
         label="让看水查证"
-        shortcut="⌘⇧F"
+        shortcut="Ctrl+Shift+F"
         disabled={!hasSelection}
         accentColor={FOX_BY_ID.shui.glow}
         onClick={dispatchResearch}
