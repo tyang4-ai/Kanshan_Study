@@ -106,10 +106,10 @@ export function RightToolbar({ selection }: RightToolbarProps) {
       role="toolbar"
       aria-label="格式与 AI 工具栏"
       style={{
-        // Floating pill island on the LEFT, aesthetic matched to FoxRail
-        // (rgba(26,31,42,0.72) bg, blur, rounded). Vertical column.
+        // Floating pill island on the RIGHT edge of the editor, aesthetic matched to
+        // FoxRail (rgba(26,31,42,0.72) bg, blur, rounded). Vertical column.
         position: 'absolute',
-        left: 12,
+        right: 12,
         top: '50%',
         transform: 'translateY(-50%)',
         zIndex: 50,
@@ -176,8 +176,10 @@ function ToolButton({ tool, hasSelection, selection }: { tool: ToolItem; hasSele
       {hover && (
         <div
           style={{
+            // Pill is on the right edge — tooltip shows on the LEFT of the pill so
+            // it doesn't overflow off-screen.
             position: 'absolute',
-            left: 'calc(100% + 10px)',
+            right: 'calc(100% + 10px)',
             top: '50%',
             transform: 'translateY(-50%)',
             background: '#1A1815',
