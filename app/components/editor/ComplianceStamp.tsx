@@ -61,6 +61,9 @@ export function ComplianceStamp() {
   // Time is computed client-side only to avoid SSR/CSR hydration mismatch.
   const [time, setTime] = useState<string | null>(null);
   useEffect(() => {
+    // Initial set + interval. setState inside effect is intentional —
+    // SSR snapshot must omit time to avoid hydration mismatch with client clock.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTime(formatTime(new Date()));
     const id = setInterval(() => setTime(formatTime(new Date())), 30_000);
     return () => clearInterval(id);

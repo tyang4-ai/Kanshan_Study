@@ -170,7 +170,16 @@
   50%      { transform: rotate(-26deg) scale(1.05); filter: drop-shadow(0 0 6px rgba(255, 215, 168, 0.6)); }
 }
 
-/* ==== Phase #10: 看心 InlineMark + MarginSeal (rev 2) ==== */
+/* ==== Phase #10: 看心 InlineMark + MarginSeal + editor polish (rev 3) ==== */
+
+/* Remove the browser default focus outline on the editor body. */
+.ProseMirror,
+.ProseMirror:focus,
+.ProseMirror:focus-visible,
+.ProseMirror-focused {
+  outline: none !important;
+}
+
 
 /* InlineMark variants — colors per compliance brand palette */
 .inline-mark-ai-touched {

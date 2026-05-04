@@ -7,6 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
+import { FontFamily } from '@tiptap/extension-font-family';
 import { InlineMark } from './InlineMark';
 import { MarginSeal } from './MarginSeal';
 import { buildMatches } from './margin-seal-from-seeds';
@@ -65,6 +66,7 @@ export function TipTapEditor({
       Highlight.configure({ multicolor: true }),
       TextStyle,
       Color,
+      FontFamily,
       FontSize,
       InlineMark,
       MarginSeal.configure({
