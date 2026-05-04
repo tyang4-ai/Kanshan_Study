@@ -170,14 +170,21 @@
   50%      { transform: rotate(-26deg) scale(1.05); filter: drop-shadow(0 0 6px rgba(255, 215, 168, 0.6)); }
 }
 
-/* ==== Phase #10: 看心 InlineMark + MarginSeal + editor polish (rev 3) ==== */
+/* ==== Phase #10: 看心 InlineMark + MarginSeal + editor polish (rev 4) ==== */
 
-/* Remove the browser default focus outline on the editor body. */
+/* Remove the browser default focus outline on the editor body.
+   `.tiptap` is the class TipTap React adds alongside `.ProseMirror` on the
+   editable element — kill the focus ring on both. */
 .ProseMirror,
 .ProseMirror:focus,
 .ProseMirror:focus-visible,
-.ProseMirror-focused {
-  outline: none !important;
+.ProseMirror-focused,
+.tiptap,
+.tiptap:focus,
+.tiptap:focus-visible {
+  outline: 0 !important;
+  outline-style: none !important;
+  box-shadow: none !important;
 }
 
 
