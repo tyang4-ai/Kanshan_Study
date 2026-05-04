@@ -63,7 +63,10 @@ export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
     }),
 
   focusTab: (id) => set(() => ({ activeTabId: id, open: true })),
-  closeWindow: () => set(() => ({ open: false })),
+  // Closing the window clears tabs — next openTab starts fresh with only the
+  // newly-clicked panel (per user direction 2026-05-04: tabs are session-scoped to
+  // the current "open" instance, not cached across close/reopen).
+  closeWindow: () => set(() => ({ open: false, tabs: [], activeTabId: null })),
   movePos: (x, y) => set(() => ({ pos: { x, y } })),
   resize: (w, h) =>
     set(() => ({

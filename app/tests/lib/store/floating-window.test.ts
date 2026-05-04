@@ -80,11 +80,24 @@ describe('useFloatingWindowStore', () => {
     expect(useFloatingWindowStore.getState().activeTabId).toBe(id);
   });
 
-  it('closeWindow sets open=false but keeps tabs', () => {
+  it('closeWindow clears tabs and activeTabId so next openTab starts fresh', () => {
     useFloatingWindowStore.getState().openTab('vault', 'A');
+    useFloatingWindowStore.getState().openTab('settings', 'B');
     useFloatingWindowStore.getState().closeWindow();
     const s = useFloatingWindowStore.getState();
     expect(s.open).toBe(false);
+    expect(s.tabs).toEqual([]);
+    expect(s.activeTabId).toBeNull();
+  });
+
+  it('reopening after closeWindow shows only the newly-clicked tab', () => {
+    useFloatingWindowStore.getState().openTab('vault', 'A');
+    useFloatingWindowStore.getState().openTab('settings', 'B');
+    useFloatingWindowStore.getState().closeWindow();
+    useFloatingWindowStore.getState().openTab('stats', 'C');
+    const s = useFloatingWindowStore.getState();
+    expect(s.open).toBe(true);
     expect(s.tabs).toHaveLength(1);
+    expect(s.tabs[0].kind).toBe('stats');
   });
 });
