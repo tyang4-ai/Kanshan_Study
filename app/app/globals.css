@@ -123,9 +123,16 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Bump the inherited default from 16px → 17px per user direction (2026-05-04).
+       Tailwind text-* classes use rem so this scales them up one notch. Inline
+       px-tuned components (TitleBar, FoxRail, VaultEntry meta) get a per-element
+       audit in plan #16 testing-pass Task 4. */
+    font-size: 17px;
+    line-height: 1.55;
   }
   html {
     @apply font-sans;
+    font-size: 17px;
   }
 }
 
