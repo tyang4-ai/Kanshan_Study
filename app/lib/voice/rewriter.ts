@@ -93,7 +93,7 @@ async function loadSamples(userId: string, query: string): Promise<SourceSample[
   }
 }
 
-async function draftGeneric(bullets: string, mode: 'fill' | 'polish', selection: string): Promise<string> {
+async function draftGeneric(bullets: string, mode: 'fill' | 'polish', selection: string, apiKey?: string): Promise<string> {
   const userMsg =
     mode === 'fill'
       ? `请根据下列要点，写一段 200-350 字的中文段落：\n\n${bullets}`
@@ -102,7 +102,7 @@ async function draftGeneric(bullets: string, mode: 'fill' | 'polish', selection:
     { role: 'system', content: GENERIC_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
   ];
-  return chat(messages, { model: 'deepseek-chat', temperature: 0.6, maxTokens: 600 });
+  return chat(messages, { model: 'deepseek-chat', temperature: 0.6, maxTokens: 600, apiKey });
 }
 
 function buildSampleBlock(samples: SourceSample[]): string {
@@ -133,7 +133,8 @@ async function draftVoice(
   bullets: string,
   mode: 'fill' | 'polish',
   selection: string,
-  samples: SourceSample[]
+  samples: SourceSample[],
+  apiKey?: string
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
   const userMsg =
@@ -151,6 +152,7 @@ async function draftVoice(
       model: 'deepseek-chat',
       temperature: 0.85,
       maxTokens: 900,
+      apiKey,
     });
     return {
       text: result.text,
@@ -162,7 +164,7 @@ async function draftVoice(
         { role: 'system', content: VOICE_SYSTEM_PROMPT },
         { role: 'user', content: userMsg },
       ],
-      { model: 'deepseek-chat', temperature: 0.85, maxTokens: 900 }
+      { model: 'deepseek-chat', temperature: 0.85, maxTokens: 900, apiKey }
     );
     return { text, voiceSpans: [] };
   }
@@ -196,7 +198,8 @@ async function rewriteForVoice(
   prevDraft: string,
   bullets: string,
   samples: SourceSample[],
-  weakest: keyof SubScores
+  weakest: keyof SubScores,
+  apiKey?: string
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
   const userMsg = `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
@@ -209,6 +212,7 @@ async function rewriteForVoice(
       model: 'deepseek-chat',
       temperature: 0.85,
       maxTokens: 900,
+      apiKey,
     });
     return {
       text: result.text,
@@ -219,6 +223,7 @@ async function rewriteForVoice(
       model: 'deepseek-chat',
       temperature: 0.85,
       maxTokens: 900,
+      apiKey,
     });
     return { text, voiceSpans: [] };
   }
@@ -229,16 +234,17 @@ export async function* voiceFillStream(
   bullets: string,
   mode: 'fill' | 'polish',
   selection: string,
-  baseline: VoiceFeatures
+  baseline: VoiceFeatures,
+  apiKey?: string
 ): AsyncGenerator<VoiceFillEvent, void, unknown> {
   const query = `${bullets}\n${selection}`.trim();
   const samples = await loadSamples(userId, query);
   const sampleBodies = samples.map((s) => s.body);
 
-  const generic = await draftGeneric(bullets, mode, selection);
+  const generic = await draftGeneric(bullets, mode, selection, apiKey);
   yield { event: 'generic', data: { text: generic } };
 
-  const first = await draftVoice(bullets, mode, selection, samples);
+  const first = await draftVoice(bullets, mode, selection, samples, apiKey);
   let currentDraft = first.text;
   let currentSpans = first.voiceSpans;
   let currentScore = await scoreVoice(currentDraft, baseline, sampleBodies);
@@ -263,7 +269,7 @@ export async function* voiceFillStream(
   while (!accepted && iter < MAX_ITERS) {
     iter++;
     const weakest = pickWeakestSubScore(currentScore.sub);
-    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest);
+    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, apiKey);
     currentDraft = next.text;
     currentSpans = next.voiceSpans;
     currentScore = await scoreVoice(currentDraft, baseline, sampleBodies);

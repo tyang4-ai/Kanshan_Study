@@ -41,8 +41,8 @@ export function TitleBar() {
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: '#A89B7E', fontSize: 12 }}>
         <ToolbarIcon kind="vault" onClick={onOpenVault}/>
         <ToolbarIcon kind="trends" onClick={onOpenTrends}/>
-        <ToolbarIcon kind="stats" onClick={onOpenStats}/>
-        <ToolbarIcon kind="settings" onClick={onOpenSettings}/>
+        <ToolbarIcon kind="stats" onClick={onOpenStats} tourId="stats-button"/>
+        <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button"/>
         <BudgetChip />
         <ProfileChip />
       </div>
@@ -50,7 +50,7 @@ export function TitleBar() {
   );
 }
 
-export function ToolbarIcon({ kind, onClick }: { kind: ToolbarKind; onClick: () => void }) {
+export function ToolbarIcon({ kind, onClick, tourId }: { kind: ToolbarKind; onClick: () => void; tourId?: string }) {
   const icons: Record<ToolbarKind, React.ReactNode> = {
     vault:    <path d="M3 5h12v9H3z M5 5V3h8v2 M3 9h12" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round"/>,
     stats:    <path d="M3 14V8 M7 14V4 M11 14V10 M15 14V6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>,
@@ -58,7 +58,7 @@ export function ToolbarIcon({ kind, onClick }: { kind: ToolbarKind; onClick: () 
     settings: <><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M9 1v3 M9 14v3 M1 9h3 M14 9h3 M3.4 3.4l2 2 M12.6 12.6l2 2 M3.4 14.6l2-2 M12.6 5.4l2-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></>,
   };
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" onClick={onClick} style={{ cursor: 'pointer' }}>
+    <svg width="18" height="18" viewBox="0 0 18 18" onClick={onClick} style={{ cursor: 'pointer' }} data-tour-id={tourId}>
       {icons[kind]}
     </svg>
   );

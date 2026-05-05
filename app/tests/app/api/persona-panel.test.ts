@@ -11,6 +11,27 @@ vi.mock('@/lib/agents/persona-panel', async (importOriginal) => {
   };
 });
 
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(async () => ({
+    get: (name: string) =>
+      name === 'kanshan-guest-id' ? { value: 'guest-x' } : undefined,
+  })),
+}));
+
+const requireRateLimitOk = vi.fn<(req: Request) => Promise<Response | null>>();
+const releaseConcurrent = vi.fn<(ipHash: string) => Promise<void>>();
+vi.mock('@/lib/ratelimit/check', () => ({
+  requireRateLimitOk: (req: Request) => requireRateLimitOk(req),
+  releaseConcurrent: (id: string) => releaseConcurrent(id),
+}));
+
+const lookupCache = vi.fn<(kind: string, intent: string) => Promise<{ response: unknown; similarity: number } | null>>();
+const writeCache = vi.fn<(kind: string, intent: string, response: unknown) => Promise<void>>();
+vi.mock('@/lib/cache/store', () => ({
+  lookupCache: (kind: string, intent: string) => lookupCache(kind, intent),
+  writeCache: (kind: string, intent: string, response: unknown) => writeCache(kind, intent, response),
+}));
+
 import {
   runRound1,
   runRoundN,
@@ -25,10 +46,10 @@ const mockedRN = vi.mocked(runRoundN);
 const mockedRoute = vi.mocked(routeFollowup);
 const mockedFollow = vi.mocked(runFollowup);
 
-function req(body: unknown): Request {
+function req(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request('http://localhost/api/agents/persona-panel', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });
 }
@@ -66,6 +87,12 @@ function msg(round: 1 | 2 | 3, mask: string): PersonaMessage {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.DEEPSEEK_API_KEY = 'sk-test-fallback';
+  process.env.CACHE_MODE = 'auto';
+  requireRateLimitOk.mockResolvedValue(null);
+  releaseConcurrent.mockResolvedValue(undefined);
+  lookupCache.mockResolvedValue(null);
+  writeCache.mockResolvedValue(undefined);
 });
 
 describe('POST /api/agents/persona-panel — rounds mode', () => {
@@ -84,7 +111,8 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
       'round-end',
       'done',
     ]);
-  });
+    expect(writeCache).toHaveBeenCalled();
+  }, 15000);
 
   it('rounds=2 with 2 masks emits 2 round-start blocks', async () => {
     mockedR1.mockResolvedValue([msg(1, '路人读者'), msg(1, '业内行家')]);
@@ -97,7 +125,7 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
     expect(startEvents).toHaveLength(2);
     expect((startEvents[0].data as { round: number }).round).toBe(1);
     expect((startEvents[1].data as { round: number }).round).toBe(2);
-  });
+  }, 15000);
 
   it('single mask: only round 1 fires regardless of rounds=2', async () => {
     mockedR1.mockResolvedValue([msg(1, '路人读者')]);
@@ -108,7 +136,24 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
     const startEvents = events.filter((e) => e.event === 'round-start');
     expect(startEvents).toHaveLength(1);
     expect(mockedRN).not.toHaveBeenCalled();
-  });
+  }, 15000);
+
+  it('cache hit: live NOT called, replay emits buffered events', async () => {
+    lookupCache.mockResolvedValue({
+      response: [
+        { event: 'round-start', data: { round: 1 } },
+        { event: 'message', data: msg(1, '路人读者') },
+        { event: 'round-end', data: { round: 1 } },
+      ],
+      similarity: 0.95,
+    });
+    const res = await routeMod.POST(
+      req({ selection: '段落', fixedIds: ['passerby'], rounds: 1 })
+    );
+    const events = await readSse(res);
+    expect(events.map((e) => e.event)).toEqual(['round-start', 'message', 'round-end', 'done']);
+    expect(mockedR1).not.toHaveBeenCalled();
+  }, 15000);
 
   it('mid-stream throw → error event with fallback + done event', async () => {
     mockedR1.mockRejectedValue(new Error('DEEPSEEK_API_KEY is not set'));
@@ -124,7 +169,26 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
     expect(errData.fallback.length).toBeGreaterThan(0);
     const last = events[events.length - 1];
     expect(last.event).toBe('done');
+    expect(releaseConcurrent).toHaveBeenCalledWith('guest-x');
   });
+
+  it('rate-limited: returns 429', async () => {
+    requireRateLimitOk.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'rate-limit', mode: 'concurrent' }), { status: 429 }),
+    );
+    const res = await routeMod.POST(req({ selection: '段落', fixedIds: ['passerby'] }));
+    expect(res.status).toBe(429);
+    expect(mockedR1).not.toHaveBeenCalled();
+  });
+
+  it('BYO key: Authorization Bearer sk-... is forwarded to runRound1', async () => {
+    mockedR1.mockResolvedValue([msg(1, '路人读者')]);
+    const res = await routeMod.POST(
+      req({ selection: '段落', fixedIds: ['passerby'], rounds: 1 }, { Authorization: 'Bearer sk-byo-1' }),
+    );
+    await readSse(res);
+    expect(mockedR1).toHaveBeenCalledWith('段落', expect.any(Array), 'sk-byo-1');
+  }, 15000);
 });
 
 describe('POST /api/agents/persona-panel — followup mode', () => {
@@ -153,7 +217,7 @@ describe('POST /api/agents/persona-panel — followup mode', () => {
     expect((events[0].data as { chosenMaskLabel: string }).chosenMaskLabel).toBe(
       '业内行家'
     );
-  });
+  }, 15000);
 
   it('single mask: routing event fires with why="仅一位读者在场" then message', async () => {
     mockedFollow.mockResolvedValue({
@@ -177,13 +241,14 @@ describe('POST /api/agents/persona-panel — followup mode', () => {
     expect(r.chosenMaskLabel).toBe('路人读者');
     expect(events[1].event).toBe('message');
     expect(mockedRoute).not.toHaveBeenCalled();
-  });
+  }, 15000);
 });
 
 describe('POST /api/agents/persona-panel — validation', () => {
   it('returns 400 on missing selection', async () => {
     const res = await routeMod.POST(req({ fixedIds: ['passerby'] }));
     expect(res.status).toBe(400);
+    expect(releaseConcurrent).toHaveBeenCalledWith('guest-x');
   });
 
   it('returns 400 on rounds=4', async () => {
@@ -203,6 +268,7 @@ describe('POST /api/agents/persona-panel — validation', () => {
       })
     );
     expect(res.status).toBe(400);
+    expect(releaseConcurrent).toHaveBeenCalledWith('guest-x');
   });
 
   it('returns 400 on followup mode missing history', async () => {
@@ -224,7 +290,7 @@ describe('POST /api/agents/persona-panel — validation', () => {
 });
 
 describe('runtime export', () => {
-  it('runtime === "edge"', () => {
-    expect(routeMod.runtime).toBe('edge');
+  it('does not export edge runtime', () => {
+    expect((routeMod as unknown as { runtime?: string }).runtime).toBeUndefined();
   });
 });

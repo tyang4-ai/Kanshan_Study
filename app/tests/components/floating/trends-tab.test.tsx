@@ -13,6 +13,7 @@ vi.mock('@/lib/store/floating-window', () => ({
 
 beforeEach(() => {
   openTabMock.mockClear();
+  window.localStorage.clear();
 });
 afterEach(() => cleanup());
 
@@ -33,10 +34,22 @@ describe('TrendsTab', () => {
     expect(screen.getByTestId('trends-tab-relevant')).toHaveAttribute('data-active', 'false');
   });
 
-  it('clicking a trend item opens ResearchTab with the title as selection', () => {
+  it('clicking a trend without acknowledgement opens the modal and does NOT open research', () => {
     render(<TrendsTab />);
     const firstItem = screen.getAllByTestId('trend-item')[0];
     fireEvent.click(firstItem);
+    expect(openTabMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('trends-confirm-modal')).toBeInTheDocument();
+  });
+
+  it('confirming the modal sets localStorage and opens research with the title', () => {
+    render(<TrendsTab />);
+    const firstItem = screen.getAllByTestId('trend-item')[0];
+    fireEvent.click(firstItem);
+    fireEvent.click(screen.getByTestId('trends-confirm-checkbox'));
+    fireEvent.click(screen.getByTestId('trends-confirm-confirm'));
+
+    expect(window.localStorage.getItem('kanshan-trends-acknowledged')).toBeTruthy();
     expect(openTabMock).toHaveBeenCalledTimes(1);
     expect(openTabMock).toHaveBeenCalledWith(
       'research',
@@ -45,6 +58,24 @@ describe('TrendsTab', () => {
         selection: expect.objectContaining({ text: expect.any(String) }),
       }),
     );
+  });
+
+  it('clicking trend after acknowledgement opens research immediately, no modal', () => {
+    window.localStorage.setItem('kanshan-trends-acknowledged', new Date().toISOString());
+    render(<TrendsTab />);
+    const firstItem = screen.getAllByTestId('trend-item')[0];
+    fireEvent.click(firstItem);
+    expect(openTabMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('trends-confirm-modal')).not.toBeInTheDocument();
+  });
+
+  it('cancel in modal closes it without opening research', () => {
+    render(<TrendsTab />);
+    fireEvent.click(screen.getAllByTestId('trend-item')[0]);
+    fireEvent.click(screen.getByTestId('trends-confirm-cancel'));
+    expect(openTabMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('trends-confirm-modal')).not.toBeInTheDocument();
+    expect(window.localStorage.getItem('kanshan-trends-acknowledged')).toBeNull();
   });
 
   it('renders quota header text', () => {

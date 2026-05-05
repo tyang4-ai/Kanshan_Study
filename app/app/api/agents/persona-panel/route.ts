@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { cookies } from 'next/headers';
 import {
   runRound1,
   runRoundN,
@@ -10,8 +11,11 @@ import {
   type SelectedMask,
 } from '@/lib/agents/persona-panel';
 import { FIXED_MASKS, type MaskMeta } from '@/lib/personas';
-
-export const runtime = 'edge';
+import { withCache } from '@/lib/cache/wrap';
+import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
+import { personaRoundKey, personaFollowupKey } from '@/lib/cache/keys';
+import { proxyAuth } from '@/lib/apikey/proxy';
+import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
 
 const CustomMaskSchema = z.object({
   id: z.string(),
@@ -52,11 +56,42 @@ function sseHeaders(): ResponseInit {
   };
 }
 
+async function getGuestId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get('kanshan-guest-id')?.value ?? null;
+}
+
+function wrapRelease(
+  inner: ReadableStream<Uint8Array>,
+  guestId: string | null,
+): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const reader = inner.getReader();
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+        }
+      } finally {
+        if (guestId) await releaseConcurrent(guestId);
+        controller.close();
+      }
+    },
+  });
+}
+
 export async function POST(req: Request): Promise<Response> {
+  const blocked = await requireRateLimitOk(req);
+  if (blocked) return blocked;
+  const guestId = await getGuestId();
+
   let body: z.infer<typeof Body>;
   try {
     body = Body.parse(await req.json());
   } catch (err) {
+    if (guestId) await releaseConcurrent(guestId);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -68,104 +103,135 @@ export async function POST(req: Request): Promise<Response> {
     ? FIXED_MASKS.filter((m) => body.fixedIds!.includes(m.id))
     : FIXED_MASKS;
   const masks: SelectedMask[] = [...selectedFixed, ...(body.custom ?? [])];
+  const apiKey = proxyAuth(req);
 
   if (mode === 'rounds') {
-    return new Response(roundsStream(body.selection, masks, body.rounds ?? 1), sseHeaders());
+    const rounds = body.rounds ?? 1;
+    const inner = await roundsStream(body.selection, masks, rounds, apiKey);
+    return new Response(wrapRelease(inner, guestId), sseHeaders());
   }
 
   if (!body.userMessage || !body.history) {
+    if (guestId) await releaseConcurrent(guestId);
     return new Response(
       JSON.stringify({ error: 'followup requires history + userMessage' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }
-  return new Response(
-    followupStream(body.selection, body.history, body.userMessage, masks),
-    sseHeaders()
-  );
+  const inner = await followupStream(body.selection, body.history, body.userMessage, masks, apiKey);
+  return new Response(wrapRelease(inner, guestId), sseHeaders());
 }
 
-function roundsStream(
+async function roundsStream(
   selection: string,
   masks: SelectedMask[],
-  rounds: 1 | 2 | 3
-): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const enc = new TextEncoder();
-      const send = (event: string, data: unknown): void => {
-        controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-      };
-      const history: PersonaMessage[] = [];
-      try {
-        send('round-start', { round: 1 });
-        const r1 = await runRound1(selection, masks);
-        for (const m of r1) {
-          history.push(m);
-          send('message', m);
-          await new Promise((r) => setTimeout(r, 600));
-        }
-        send('round-end', { round: 1 });
+  rounds: 1 | 2 | 3,
+  apiKey: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const intent = personaRoundKey({
+    paragraph: selection,
+    maskIds: masks.map((m) => m.id),
+    round: rounds,
+  });
 
-        if (masks.length > 1) {
-          for (let r: 2 | 3 = 2; r <= rounds; r = (r + 1) as 2 | 3) {
-            send('round-start', { round: r });
-            const rN = await runRoundN(selection, masks, history, r);
-            for (const m of rN) {
-              history.push(m);
-              send('message', m);
-              await new Promise((r) => setTimeout(r, 600));
-            }
-            send('round-end', { round: r });
-            if (r === rounds) break;
-          }
-        }
-        send('done', {});
-      } catch (err) {
-        send('error', { message: (err as Error).message, fallback: PERSONA_FALLBACK });
-        send('done', {});
-      } finally {
-        controller.close();
+  let steps: ReplayStep[];
+  try {
+    steps = await withCache<ReplayStep[]>('persona-panel', intent, async () => {
+      const buffered: ReplayStep[] = [];
+      const history: PersonaMessage[] = [];
+      buffered.push({ event: 'round-start', data: { round: 1 } });
+      const r1 = await runRound1(selection, masks, apiKey);
+      for (const m of r1) {
+        history.push(m);
+        buffered.push({ event: 'message', data: m });
       }
-    },
+      buffered.push({ event: 'round-end', data: { round: 1 } });
+
+      if (masks.length > 1) {
+        for (let r: 2 | 3 = 2; r <= rounds; r = (r + 1) as 2 | 3) {
+          buffered.push({ event: 'round-start', data: { round: r } });
+          const rN = await runRoundN(selection, masks, history, r, apiKey);
+          for (const m of rN) {
+            history.push(m);
+            buffered.push({ event: 'message', data: m });
+          }
+          buffered.push({ event: 'round-end', data: { round: r } });
+          if (r === rounds) break;
+        }
+      }
+      return buffered;
+    });
+  } catch (err) {
+    return errorStream((err as Error).message, { fallback: PERSONA_FALLBACK });
+  }
+
+  return replayStream(steps, {
+    defaultGapMs: REPLAY_GAPS.personaMessage,
+    finalEvent: 'done',
+    finalData: {},
   });
 }
 
-function followupStream(
+async function followupStream(
   selection: string,
   history: PersonaMessage[],
   userMessage: string,
-  masks: SelectedMask[]
-): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const enc = new TextEncoder();
-      const send = (event: string, data: unknown): void => {
-        controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-      };
-      try {
-        let chosenMask: SelectedMask;
-        if (masks.length === 1) {
-          chosenMask = masks[0];
-          send('routing', { chosenMaskLabel: masks[0].label, why: '仅一位读者在场' });
-        } else {
-          const routed = await routeFollowup(history, userMessage, masks);
-          chosenMask = routed.mask;
-          send('routing', { chosenMaskLabel: routed.mask.label, why: routed.why });
-        }
-        const msg = await runFollowup(selection, history, userMessage, chosenMask);
-        send('message', msg);
-        send('done', {});
-      } catch (err) {
-        const fallbackMask = masks[0] ?? FIXED_MASKS[0];
-        send('error', {
-          message: (err as Error).message,
-          fallback: [FOLLOWUP_FALLBACK(userMessage, fallbackMask)],
+  masks: SelectedMask[],
+  apiKey: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const intent = personaFollowupKey({
+    paragraph: selection,
+    history: history.map((h) => ({ mask: h.mask, text: h.text })),
+    userMessage,
+    routedMask: masks.length === 1 ? masks[0].label : 'auto',
+  });
+
+  let steps: ReplayStep[];
+  try {
+    steps = await withCache<ReplayStep[]>('persona-followup', intent, async () => {
+      const buffered: ReplayStep[] = [];
+      let chosenMask: SelectedMask;
+      if (masks.length === 1) {
+        chosenMask = masks[0];
+        buffered.push({
+          event: 'routing',
+          data: { chosenMaskLabel: masks[0].label, why: '仅一位读者在场' },
         });
-        send('done', {});
-      } finally {
-        controller.close();
+      } else {
+        const routed = await routeFollowup(history, userMessage, masks, apiKey);
+        chosenMask = routed.mask;
+        buffered.push({
+          event: 'routing',
+          data: { chosenMaskLabel: routed.mask.label, why: routed.why },
+        });
       }
+      const msg = await runFollowup(selection, history, userMessage, chosenMask, apiKey);
+      buffered.push({ event: 'message', data: msg });
+      return buffered;
+    });
+  } catch (err) {
+    const fallbackMask = masks[0] ?? FIXED_MASKS[0];
+    return errorStream((err as Error).message, {
+      fallback: [FOLLOWUP_FALLBACK(userMessage, fallbackMask)],
+    });
+  }
+
+  return replayStream(steps, {
+    defaultGapMs: REPLAY_GAPS.personaMessage,
+    finalEvent: 'done',
+    finalData: {},
+  });
+}
+
+function errorStream(message: string, payload: Record<string, unknown>): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      const enc = new TextEncoder();
+      controller.enqueue(
+        enc.encode(`event: error\ndata: ${JSON.stringify({ message, ...payload })}\n\n`),
+      );
+      controller.enqueue(enc.encode(`event: done\ndata: {}\n\n`));
+      controller.close();
     },
   });
 }

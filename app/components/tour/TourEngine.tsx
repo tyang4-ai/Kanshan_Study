@@ -278,7 +278,7 @@ export function TourEngine({ onComplete, initialStep = 0 }: TourEngineProps) {
         style={card}
       >
         <div data-testid={`tour-step-${step.id}`} />
-        <div style={stepIndicator}>STEP {stepIdx + 1}/{TOUR_STEPS.length}</div>
+        <div style={stepIndicator}>STEP {Math.min(safeIdx + 1, TOUR_STEPS.length)}/{TOUR_STEPS.length}</div>
         <div style={titleStyle}>{step.title}</div>
         <div style={bodyStyle}>{step.body}</div>
         <div style={actions}>

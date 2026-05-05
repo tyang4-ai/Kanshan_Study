@@ -55,6 +55,8 @@ export function OnboardingGate() {
   };
 
   const submitGuest = () => {
+    // Default guest visitors to the guwanxi demo account so the vault is non-empty.
+    document.cookie = 'kanshan-account=guwanxi; path=/; max-age=31536000; SameSite=Lax';
     writeRecord({
       mode: 'guest',
       dismissedAt: new Date().toISOString(),

@@ -59,7 +59,8 @@ function roundNSystem(m: SelectedMask, history: PersonaMessage[]): string {
 
 export async function runRound1(
   selection: string,
-  masks: SelectedMask[]
+  masks: SelectedMask[],
+  apiKey?: string
 ): Promise<PersonaMessage[]> {
   const results = await Promise.all(
     masks.map(async (m) => {
@@ -68,7 +69,7 @@ export async function runRound1(
           { role: 'system', content: round1System(m) },
           { role: 'user', content: selection },
         ],
-        { model: 'deepseek-chat', temperature: 0.7 }
+        { model: 'deepseek-chat', temperature: 0.7, apiKey }
       );
       const msg: PersonaMessage = {
         id: crypto.randomUUID(),
@@ -88,7 +89,8 @@ export async function runRoundN(
   selection: string,
   masks: SelectedMask[],
   history: PersonaMessage[],
-  roundIdx: 2 | 3
+  roundIdx: 2 | 3,
+  apiKey?: string
 ): Promise<PersonaMessage[]> {
   const out: PersonaMessage[] = [];
   for (const m of masks) {
@@ -97,7 +99,7 @@ export async function runRoundN(
         { role: 'system', content: roundNSystem(m, history) },
         { role: 'user', content: selection },
       ],
-      { model: 'deepseek-chat', temperature: 0.7 }
+      { model: 'deepseek-chat', temperature: 0.7, apiKey }
     );
     if (json.skip) continue;
     const msg: PersonaMessage = {
@@ -118,7 +120,8 @@ export async function runRoundN(
 export async function routeFollowup(
   history: PersonaMessage[],
   userMessage: string,
-  masks: SelectedMask[]
+  masks: SelectedMask[],
+  apiKey?: string
 ): Promise<{ mask: SelectedMask; why: string }> {
   const labels = masks.map((m) => m.label);
   const historySerialized = history.map((h) => `「${h.mask}」: ${h.text}`).join('\n');
@@ -130,7 +133,7 @@ export async function routeFollowup(
       },
       { role: 'user', content: historySerialized },
     ],
-    { model: 'deepseek-chat', temperature: 0.2 }
+    { model: 'deepseek-chat', temperature: 0.2, apiKey }
   );
   const matched = masks.find((m) => m.label === json.chosenMaskLabel);
   return { mask: matched ?? masks[0], why: json.why };
@@ -140,7 +143,8 @@ export async function runFollowup(
   selection: string,
   history: PersonaMessage[],
   userMessage: string,
-  mask: SelectedMask
+  mask: SelectedMask,
+  apiKey?: string
 ): Promise<PersonaMessage> {
   const historySerialized = history.map((h) => `「${h.mask}」: ${h.text}`).join('\n');
   const system = isCustomMask(mask)
@@ -151,7 +155,7 @@ export async function runFollowup(
       { role: 'system', content: system },
       { role: 'user', content: `选中段落：${selection}\n\n此前讨论：\n${historySerialized}` },
     ],
-    { model: 'deepseek-chat', temperature: 0.7 }
+    { model: 'deepseek-chat', temperature: 0.7, apiKey }
   );
   return {
     id: crypto.randomUUID(),

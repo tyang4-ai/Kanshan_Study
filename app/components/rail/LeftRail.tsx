@@ -37,6 +37,7 @@ export function LeftRail() {
   return (
     <div
       data-testid="left-rail-root"
+      data-tour-id="left-rail"
       style={{
         width, height: '100%',
         display: 'flex', flexDirection: 'column',

@@ -1,10 +1,13 @@
 import { z } from 'zod';
+import { cookies } from 'next/headers';
 import { getCurrentUser } from '@/lib/account';
 import { loadBaseline } from '@/lib/voice/baseline';
-import { voiceFillStream, type VoiceFillEvent } from '@/lib/voice/rewriter';
-import { lookupCache, writeCache } from '@/lib/cache/store';
-
-export const runtime = 'edge';
+import { voiceFillStream } from '@/lib/voice/rewriter';
+import { withCache } from '@/lib/cache/wrap';
+import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
+import { voiceFillKey } from '@/lib/cache/keys';
+import { proxyAuth } from '@/lib/apikey/proxy';
+import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
 
 const BodySchema = z.object({
   bullets: z.string(),
@@ -20,19 +23,21 @@ function sseHeaders(): HeadersInit {
   };
 }
 
-function encodeEvent(ev: VoiceFillEvent): string {
-  return `event: ${ev.event}\ndata: ${JSON.stringify(ev.data)}\n\n`;
-}
-
-function encodeError(message: string): string {
-  return `event: error\ndata: ${JSON.stringify({ message })}\n\n`;
+async function getGuestId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get('kanshan-guest-id')?.value ?? null;
 }
 
 export async function POST(req: Request): Promise<Response> {
+  const blocked = await requireRateLimitOk(req);
+  if (blocked) return blocked;
+  const guestId = await getGuestId();
+
   let raw: unknown;
   try {
     raw = await req.json();
   } catch {
+    if (guestId) await releaseConcurrent(guestId);
     return new Response(JSON.stringify({ error: 'invalid JSON' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -40,6 +45,7 @@ export async function POST(req: Request): Promise<Response> {
   }
   const parsed = BodySchema.safeParse(raw);
   if (!parsed.success) {
+    if (guestId) await releaseConcurrent(guestId);
     return new Response(JSON.stringify({ error: 'invalid body' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -48,26 +54,52 @@ export async function POST(req: Request): Promise<Response> {
   const { bullets, selection, mode } = parsed.data;
   const user = getCurrentUser(req);
   const baseline = loadBaseline(user.id);
+  const apiKey = proxyAuth(req);
 
-  // TODO plan #13: real cache layer (Supabase table or KV namespace)
-  await lookupCache<VoiceFillEvent[]>('voice-fill', `${user.id}:${mode}:${bullets}:${selection}`);
+  const intent = voiceFillKey({ userId: user.id, mode, bullets, selection });
 
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline)) {
-          controller.enqueue(encoder.encode(encodeEvent(ev)));
-        }
-        await writeCache('voice-fill', `${user.id}:${mode}:${bullets}:${selection}`, null);
+  let steps: ReplayStep[];
+  try {
+    steps = await withCache<ReplayStep[]>('voice-fill', intent, async () => {
+      const buffered: ReplayStep[] = [];
+      for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline, apiKey)) {
+        buffered.push({ event: ev.event, data: ev.data });
+      }
+      return buffered;
+    });
+  } catch (err) {
+    if (guestId) await releaseConcurrent(guestId);
+    const msg = err instanceof Error ? err.message : String(err);
+    const encoder = new TextEncoder();
+    const errStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: msg })}\n\n`));
         controller.close();
+      },
+    });
+    return new Response(errStream, { headers: sseHeaders() });
+  }
+
+  const inner = replayStream(steps, { defaultGapMs: REPLAY_GAPS.voiceFillIter });
+  const released = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const reader = inner.getReader();
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        controller.enqueue(encoder.encode(encodeError(msg)));
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: msg })}\n\n`));
+      } finally {
+        if (guestId) await releaseConcurrent(guestId);
         controller.close();
       }
     },
   });
 
-  return new Response(stream, { headers: sseHeaders() });
+  return new Response(released, { headers: sseHeaders() });
 }

@@ -106,6 +106,35 @@ describe('TourEngine', () => {
     expect(getByTestId('tour-step-left-rail')).toBeTruthy();
   });
 
+  it('clamps step counter at last step (never N+1/N)', () => {
+    // Mount last step's anchor.
+    mountAnchor('lore-envelope');
+    const lastIdx = TOUR_STEPS.length - 1;
+    const { getByTestId } = render(<TourEngine onComplete={() => {}} initialStep={lastIdx} />);
+    const text = getByTestId('tour-card').textContent ?? '';
+    expect(text).toContain(`STEP ${TOUR_STEPS.length}/${TOUR_STEPS.length}`);
+    expect(text).not.toContain(`STEP ${TOUR_STEPS.length + 1}/${TOUR_STEPS.length}`);
+  });
+
+  it('clamps counter even when stepIdx overshoots (no anchors → safeIdx fallback)', () => {
+    // No anchors mounted; engine starts at 0 but immediately runs past last
+    // step via findValidStepIndex and then falls back to safeIdx = last.
+    const { getByTestId } = render(
+      <TourEngine onComplete={() => {}} initialStep={TOUR_STEPS.length} />
+    );
+    const text = getByTestId('tour-card').textContent ?? '';
+    expect(text).toContain(`STEP ${TOUR_STEPS.length}/${TOUR_STEPS.length}`);
+  });
+
+  it.each(TOUR_STEPS.map((_, i) => i))('displays Math.min(stepIdx+1, total) at idx %i', (idx) => {
+    const m = TOUR_STEPS[idx].selector.match(/data-tour-id="([^"]+)"/);
+    if (m) mountAnchor(m[1]);
+    const { getByTestId } = render(<TourEngine onComplete={() => {}} initialStep={idx} />);
+    const text = getByTestId('tour-card').textContent ?? '';
+    const expected = Math.min(idx + 1, TOUR_STEPS.length);
+    expect(text).toContain(`STEP ${expected}/${TOUR_STEPS.length}`);
+  });
+
   it('reflows on resize', () => {
     const el = mountAnchor('left-rail');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);

@@ -11,7 +11,7 @@ interface FoxRailProps {
 export function FoxRail({ activeIds, onPick, style = {} }: FoxRailProps) {
   const activeSet = useMemo(() => new Set(activeIds), [activeIds]);
   return (
-    <div style={{
+    <div data-tour-id="fox-tails" style={{
       display: 'flex', gap: 2, padding: '5px 6px',
       background: 'rgba(26,31,42,0.72)',
       backdropFilter: 'blur(8px)',
@@ -25,7 +25,7 @@ export function FoxRail({ activeIds, onPick, style = {} }: FoxRailProps) {
         return (
           <button key={f.id}
             onClick={(e) => { e.stopPropagation(); onPick(f.id); }}
-            title={`${f.name} · ${f.role}`}
+            title={`${f.name} · ${f.verb}`}
             aria-pressed={isActive}
             style={{
               width: 22, height: 22, borderRadius: 11,

@@ -1,11 +1,9 @@
 // Cache lookup + write against the `demo_cache` Postgres table.
-// Cosine similarity ≥ HIT_THRESHOLD counts as a hit; otherwise null.
+// Cosine similarity ≥ kind-specific threshold counts as a hit; otherwise null.
 
 import { sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { embed } from '../embeddings';
-
-export const HIT_THRESHOLD = 0.85;
 
 export type CacheKind =
   | 'voice-fill'
@@ -20,6 +18,36 @@ export type CacheKind =
   | 'tail-click'
   | 'lore'
   | 'chat';
+
+const FALLBACK_THRESHOLD = 0.85;
+
+// Back-compat: `HIT_THRESHOLD` is the fallback used when the kind is an
+// unknown string. Per-kind thresholds live in `THRESHOLD_BY_KIND` below.
+export const HIT_THRESHOLD = FALLBACK_THRESHOLD;
+
+const THRESHOLD_BY_KIND: Record<CacheKind, number> = {
+  // Strict — false positive matters most for compliance (medical claims)
+  compliance: 0.85,
+  // Loose — voice fingerprint paraphrases land 0.75-0.85 typically
+  'voice-fill': 0.75,
+  'voice-diff': 0.78,
+  // History-sensitive — small text changes mean different intent
+  'persona-followup': 0.80,
+  // Default mid-band
+  'persona-panel': 0.78,
+  'persona-debate': 0.78,
+  research: 0.80,
+  'custom-mask': 0.80,
+  // Kinds not in the proposed map — sensible default
+  'account-switch': 0.78,
+  'tail-click': 0.78,
+  lore: 0.78,
+  chat: 0.78,
+};
+
+export function thresholdFor(kind: CacheKind | string): number {
+  return THRESHOLD_BY_KIND[kind as CacheKind] ?? FALLBACK_THRESHOLD;
+}
 
 export interface LookupHit<T = unknown> {
   response: T;
@@ -43,7 +71,7 @@ export async function lookupCache<T = unknown>(
   if (list.length === 0) return null;
   const top = list[0];
   const sim = typeof top.similarity === 'string' ? Number(top.similarity) : top.similarity;
-  if (sim < HIT_THRESHOLD) return null;
+  if (sim < thresholdFor(kind)) return null;
   return { response: top.response, similarity: sim };
 }
 

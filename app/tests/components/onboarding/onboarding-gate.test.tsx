@@ -7,6 +7,8 @@ const STORAGE_KEY = 'kanshan-onboarding';
 describe('OnboardingGate', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    // Wipe any residual kanshan-account cookie between tests
+    document.cookie = 'kanshan-account=; path=/; max-age=0';
   });
   afterEach(() => cleanup());
 
@@ -82,6 +84,12 @@ describe('OnboardingGate', () => {
     expect(parsed.apiKey).toBeUndefined();
     expect(typeof parsed.dismissedAt).toBe('string');
     expect(queryByTestId('onboarding-gate')).toBeNull();
+  });
+
+  it('guest submit: also writes kanshan-account=guwanxi cookie', () => {
+    const { getByTestId } = render(<OnboardingGate />);
+    fireEvent.click(getByTestId('onboarding-guest-submit'));
+    expect(document.cookie).toContain('kanshan-account=guwanxi');
   });
 
   it('after submit and re-render: gate stays unmounted', () => {

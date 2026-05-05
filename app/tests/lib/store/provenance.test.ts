@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useProvenanceStore } from '@/lib/store/provenance';
+import {
+  useProvenanceStore,
+  getProvenance,
+  findProvenanceForChit,
+} from '@/lib/store/provenance';
 
 describe('useProvenanceStore', () => {
   beforeEach(() => {
@@ -45,5 +49,43 @@ describe('useProvenanceStore', () => {
     add({ kind: 'hedge', excerpt: 'three', fox: 'xin' });
     const entries = useProvenanceStore.getState().entries;
     expect(entries.map((e) => e.excerpt)).toEqual(['one', 'two', 'three']);
+  });
+
+  describe('getProvenance', () => {
+    it('returns the entry by id', () => {
+      const { add } = useProvenanceStore.getState();
+      add({ kind: 'hedge', excerpt: 'A', fox: 'xin' });
+      const id = useProvenanceStore.getState().entries[0].id;
+      expect(getProvenance(id)?.excerpt).toBe('A');
+    });
+    it('returns null for an unknown id', () => {
+      expect(getProvenance('does-not-exist')).toBeNull();
+    });
+  });
+
+  describe('findProvenanceForChit', () => {
+    it('maps reviewed → hedge by exact excerpt', () => {
+      const { add } = useProvenanceStore.getState();
+      add({ kind: 'hedge', excerpt: '此药对癌症有效', fox: 'xin' });
+      const found = findProvenanceForChit('reviewed', '此药对癌症有效');
+      expect(found?.kind).toBe('hedge');
+      expect(found?.excerpt).toBe('此药对癌症有效');
+    });
+    it('maps flag → flagged by substring containment', () => {
+      const { add } = useProvenanceStore.getState();
+      add({ kind: 'flagged', excerpt: '神药包治百病', fox: 'xin' });
+      const found = findProvenanceForChit('flag', '神药');
+      expect(found?.kind).toBe('flagged');
+    });
+    it('maps sourced → sourced; falls back to most recent when nothing matches', () => {
+      const { add } = useProvenanceStore.getState();
+      add({ kind: 'sourced', excerpt: 'X', fox: 'shui' });
+      add({ kind: 'sourced', excerpt: 'Y', fox: 'shui' });
+      const found = findProvenanceForChit('sourced', 'unrelated');
+      expect(found?.excerpt).toBe('Y');
+    });
+    it('returns null when no entries of the mapped kind exist', () => {
+      expect(findProvenanceForChit('flag', 'any')).toBeNull();
+    });
   });
 });

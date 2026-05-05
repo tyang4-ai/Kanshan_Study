@@ -129,7 +129,7 @@ export function TipTapEditor({
   }, [editor, setEditor]);
 
   return (
-    <div data-testid="tiptap-editor" style={style}>
+    <div data-testid="tiptap-editor" data-tour-id="editor" style={style}>
       <div style={documentColumnStyle}>
         <EditorContent editor={editor} />
       </div>

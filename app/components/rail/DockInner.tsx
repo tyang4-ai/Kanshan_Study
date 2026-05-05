@@ -1,15 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { FOXES, type FoxId } from '@/lib/foxes/registry';
 import { Tail } from '@/components/atoms/Tail';
 import { ShanFigure } from '@/components/atoms/ShanFigure';
 import { FoxRail } from '@/components/atoms/FoxRail';
+import { useFloatingWindowStore, type TabKind } from '@/lib/store/floating-window';
 
 interface DockInnerProps {
   activeArr: FoxId[];
   onToggleFox: (id: FoxId) => void;
 }
+
+// Map a fox click to the tab it should open (or null = selection only).
+// 看山 = orchestrator (no tab); 看心 = silent compliance monitor (no dedicated
+// tab kind exists, so selection only).
+const FOX_TAB: Record<FoxId, { kind: TabKind; title: string } | null> = {
+  shan: null,
+  mo: { kind: 'voice-diff', title: '看墨 · 语风' },
+  wen: { kind: 'debate', title: '看文 · 看纹辩论' },
+  wen2: { kind: 'debate', title: '看文 · 看纹辩论' },
+  shui: { kind: 'research', title: '看水 · 深度研究' },
+  dian: { kind: 'vault', title: '看典 · 档案库' },
+  shi: { kind: 'trends', title: '看势 · 热点雷达' },
+  jing: { kind: 'stats', title: '看镜 · 数据复盘' },
+  xin: null,
+};
 
 // Inline dock — simplified version of HybridDock for the rail.
 // Same logic but tuned for 320px width.
@@ -17,6 +33,14 @@ export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
   const [hover, setHover] = useState(false);
   const [pinned, setPinned] = useState(false);
   const expanded = hover || pinned;
+  const openTab = useFloatingWindowStore((s) => s.openTab);
+
+  const handleFoxClick = (id: FoxId) => (e: MouseEvent) => {
+    e.stopPropagation();
+    onToggleFox(id);
+    const target = FOX_TAB[id];
+    if (target) openTab(target.kind, target.title);
+  };
 
   const figSize = 70;
   const figH = figSize * 1.24;
@@ -79,11 +103,14 @@ export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
             angle = 0; opacity = 0; size = 100;
           }
           return (
-            <div key={f.id} style={{
-              position: 'absolute', left: offsetX, top: 0, opacity,
-              transition: 'opacity .35s, left .35s',
-              pointerEvents: opacity > 0 ? 'auto' : 'none'
-            }}>
+            <div key={f.id}
+              title={`${f.name} · ${f.verb}`}
+              onClick={handleFoxClick(f.id)}
+              style={{
+                position: 'absolute', left: offsetX, top: 0, opacity,
+                transition: 'opacity .35s, left .35s',
+                pointerEvents: opacity > 0 ? 'auto' : 'none'
+              }}>
               <Tail fox={f} active={isActive} size={size} rotate={angle}
                 zIndex={isActive ? 5 + activeIdx : 1} />
             </div>
@@ -107,27 +134,7 @@ export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
         <FoxRail activeIds={activeArr} onPick={onToggleFox} />
       </div>
 
-      {/* Orchestrator chat — bottom of rail */}
-      <div style={{
-        position: 'absolute', bottom: 10, left: 12, right: 12,
-        background: 'rgba(242,245,249,0.96)',
-        borderRadius: 8, padding: '7px 10px',
-        display: 'flex', alignItems: 'center', gap: 8,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(23,114,246,0.18)',
-        fontFamily: '"Noto Sans SC", sans-serif',
-        zIndex: 30
-      }}>
-        <div style={{
-          width: 18, height: 18, borderRadius: 9,
-          background: '#1772F6', color: '#fff', fontSize: 10, fontWeight: 700,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: '"Noto Serif SC", serif'
-        }}>山</div>
-        <div style={{ flex: 1, fontSize: 10.5, color: '#7A8595' }}>让看山想想……</div>
-        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#1772F6" strokeWidth="1.6" strokeLinecap="round">
-          <path d="M2 7h10M7 2l5 5-5 5" />
-        </svg>
-      </div>
+      {/* Orchestrator chat input removed — not wired in MVP, returns in plan #14 */}
     </>
   );
 }

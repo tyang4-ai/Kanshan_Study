@@ -33,6 +33,7 @@ export const DEBATE_FALLBACK: DebateTurn[] = [
 export async function* debateStream(
   selection: string,
   turns: number = 6,
+  apiKey?: string,
 ): AsyncGenerator<DebateTurn, void, void> {
   const history: DebateTurn[] = [];
   for (let i = 0; i < turns; i++) {
@@ -47,7 +48,7 @@ export async function* debateStream(
         { role: 'system', content: sys },
         { role: 'user', content: '请回复' },
       ],
-      { temperature: 0.85, maxTokens: 400 },
+      { temperature: 0.85, maxTokens: 400, apiKey },
     );
     const turn: DebateTurn = {
       id: crypto.randomUUID(),

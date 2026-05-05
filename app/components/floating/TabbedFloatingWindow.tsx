@@ -58,6 +58,7 @@ export function TabbedFloatingWindow() {
 
   return (
     <div
+      data-tour-id="floating-window"
       className="fixed z-[1500] flex flex-col overflow-hidden rounded-[10px] bg-slate-50 shadow-[0_24px_64px_rgba(0,0,0,0.30),0_0_0_0.5px_rgba(0,0,0,0.18)]"
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
     >

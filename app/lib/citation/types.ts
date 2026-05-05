@@ -1,7 +1,7 @@
 // Locked union per CLAUDE.md "3 citation kinds" — matches mockup CiteBadge + plan #10 SealStamp + plan #11 ResearchTab.
 export type CitationKind = 'web' | 'vault' | 'zhihu';
 
-export type WebCitation =   { kind: 'web';   id: string; index: number; url: string; title?: string };
+export type WebCitation =   { kind: 'web';   id: string; index: number; url: string; title?: string; demo?: boolean };
 export type VaultCitation = { kind: 'vault'; id: string; index: number; articleId: string; sourceTitle: string; preview: string };
 export type ZhihuCitation = { kind: 'zhihu'; id: string; handle: string; displayName: string; answerUrl: string; bio?: string };
 

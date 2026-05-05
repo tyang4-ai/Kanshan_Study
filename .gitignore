@@ -37,15 +37,16 @@ Thumbs.db
 # Planning + docs — kept local, never pushed (per repo policy: code + assets only)
 CLAUDE.md
 PLAN.md
-README.md
 plans/
 Documents/
 rehearsals/
 memory/
 
-# Loose markdown at repo root — same policy
+# Loose markdown at repo root — same policy.
+# Note: gitignore does NOT support inline `#` comments; keep these lines pattern-only.
 /*.md
-!app/**/*.md  # but markdown INSIDE app/ (e.g., app/manual content) is allowed
+!app/**/*.md
+!/README.md
 
 # Rehearsal artifacts (large mp4 recordings — keep out of git)
 rehearsals/*.mp4

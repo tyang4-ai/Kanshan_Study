@@ -2,6 +2,11 @@
 import { useState, type CSSProperties } from 'react';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { TrendItem } from '@/components/trends/TrendItem';
+import {
+  TrendsConfirmModal,
+  isTrendsAcknowledged,
+  markTrendsAcknowledged,
+} from '@/components/floating/TrendsConfirmModal';
 import { FOX_BY_ID } from '@/lib/foxes/registry';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
@@ -33,16 +38,35 @@ type TabId = 'relevant' | 'all';
 
 export function TrendsTab() {
   const [tab, setTab] = useState<TabId>('relevant');
+  const [pendingTrend, setPendingTrend] = useState<TrendSeed | null>(null);
   const remaining = useZhihuBudgetStore((s) => s.remaining('hot_list'));
   const used = 100 - remaining;
 
   const shi = FOX_BY_ID.shi;
   const list = tab === 'relevant' ? RELEVANT_TRENDS : ALL_TRENDS;
 
-  const onTrendClick = (t: TrendSeed) => {
+  const runOpenResearch = (t: TrendSeed) => {
     useFloatingWindowStore.getState().openTab('research', '看水 · 考据卷', {
       selection: { text: t.title, rect: ZERO_RECT },
     });
+  };
+
+  const onTrendClick = (t: TrendSeed) => {
+    if (isTrendsAcknowledged()) {
+      runOpenResearch(t);
+      return;
+    }
+    setPendingTrend(t);
+  };
+
+  const handleConfirm = () => {
+    markTrendsAcknowledged();
+    if (pendingTrend) runOpenResearch(pendingTrend);
+    setPendingTrend(null);
+  };
+
+  const handleCancel = () => {
+    setPendingTrend(null);
   };
 
   const containerStyle: CSSProperties = {
@@ -182,6 +206,12 @@ export function TrendsTab() {
       </div>
 
       <ComplianceLine>看势仅供选题灵感 · 不做热点自动扩写</ComplianceLine>
+
+      <TrendsConfirmModal
+        open={pendingTrend !== null}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }

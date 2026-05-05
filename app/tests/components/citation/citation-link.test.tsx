@@ -123,6 +123,32 @@ describe('CitationLink', () => {
     expect(screen.queryByTestId('citation-hover-card')).toBeNull();
   });
 
+  it('demo:true web citation: click → alert called, no window.open', () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    const demoWeb: WebCitation = {
+      kind: 'web',
+      id: 'w-demo',
+      index: 9,
+      url: 'https://arxiv.org/abs/2024.99999',
+      title: 'Placeholder demo',
+      demo: true,
+    };
+    render(<CitationLink citation={demoWeb} />);
+    fireEvent.click(screen.getByTestId('citation-badge'));
+    expect(alertSpy).toHaveBeenCalledWith('[示例数据] 这是演示链接，未做实际跳转');
+    expect(openSpy).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('demo:false (or undefined) web citation: click → window.open as usual', () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    render(<CitationLink citation={{ ...web, demo: false }} />);
+    fireEvent.click(screen.getByTestId('citation-badge'));
+    expect(openSpy).toHaveBeenCalledWith(web.url, '_blank', 'noopener,noreferrer');
+    expect(alertSpy).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
   it('rapid mouseEnter+mouseLeave before 150ms → card never opens', () => {
     render(<CitationLink citation={vault} />);
     const wrap = screen.getByTestId('citation-link');

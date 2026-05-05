@@ -3,6 +3,11 @@ import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { SourceRow } from '@/components/research/SourceRow';
+import {
+  TrendsConfirmModal,
+  isTrendsAcknowledged,
+  markTrendsAcknowledged,
+} from '@/components/floating/TrendsConfirmModal';
 import { useEditorStore } from '@/lib/store/editor';
 import researchDataJson from '@/content/seed/research-radiogenomics.json';
 
@@ -71,6 +76,7 @@ const scopeButtonStyle = (active: boolean): CSSProperties => ({
 
 export function ResearchTab({ selection }: ResearchTabProps) {
   const [scope, setScope] = useState<ResearchScope>(researchData.scope);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const queryText = selection?.text || researchData.query;
 
   const handleBodyClick = (e: MouseEvent<HTMLDivElement>) => {
@@ -85,11 +91,29 @@ export function ResearchTab({ selection }: ResearchTabProps) {
     }
   };
 
-  const handleInsert = () => {
+  const performInsert = () => {
     const editor = useEditorStore.getState().editor;
     if (!editor) return;
     const html = researchData.sections.map((s) => `<h3>${s.heading}</h3>${s.body}`).join('\n');
     editor.chain().focus().insertContent(html).run();
+  };
+
+  const handleInsert = () => {
+    if (isTrendsAcknowledged()) {
+      performInsert();
+      return;
+    }
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmInsert = () => {
+    markTrendsAcknowledged();
+    setConfirmOpen(false);
+    performInsert();
+  };
+
+  const handleCancelInsert = () => {
+    setConfirmOpen(false);
   };
 
   return (
@@ -259,6 +283,12 @@ export function ResearchTab({ selection }: ResearchTabProps) {
         >插入正文 ↵</button>
       </div>
       <ComplianceLine>引用全部实时检索 · 不入训练集</ComplianceLine>
+
+      <TrendsConfirmModal
+        open={confirmOpen}
+        onConfirm={handleConfirmInsert}
+        onCancel={handleCancelInsert}
+      />
     </div>
   );
 }

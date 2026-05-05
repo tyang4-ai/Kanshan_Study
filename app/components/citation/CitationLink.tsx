@@ -109,9 +109,20 @@ export function CitationLink({ citation, className }: CitationLinkProps) {
   const [open, setOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onClick = buildCitationOnClick(citation, (props) =>
+  const baseOnClick = buildCitationOnClick(citation, (props) =>
     openTab('vault', '看典 · 档案库', props),
   );
+
+  const onClick = (e?: { preventDefault?: () => void }) => {
+    if (citation.kind === 'web' && citation.demo === true) {
+      e?.preventDefault?.();
+      if (typeof window !== 'undefined') {
+        window.alert('[示例数据] 这是演示链接，未做实际跳转');
+      }
+      return;
+    }
+    baseOnClick(e);
+  };
 
   const clearHoverTimer = () => {
     if (timerRef.current !== null) {

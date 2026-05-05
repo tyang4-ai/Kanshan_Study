@@ -5,6 +5,7 @@ import { Tab } from './Tab';
 import { ComplianceStamp } from './ComplianceStamp';
 import { TipTapEditor, type SelectionPayload } from './TipTapEditor';
 import { FormatRibbon } from './FormatRibbon';
+import { MarginSealPopover } from '@/components/compliance/MarginSealPopover';
 import { ToolbarIcon, BudgetChip, ProfileChip, useToolbarOpeners } from '@/components/chrome/TitleBar';
 import { RightToolbar } from '@/components/chrome/RightToolbar';
 import { DEFAULT_DOC_HTML } from '@/content/seed/default-document.html';
@@ -129,6 +130,7 @@ export function WritingSurface({
       <ComplianceStamp />
 
       <RightToolbar selection={floatingToolbarSelection ?? null} />
+      <MarginSealPopover />
     </div>
   );
 }

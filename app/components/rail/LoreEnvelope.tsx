@@ -12,6 +12,7 @@ export function LoreEnvelope({ onClick }: LoreEnvelopeProps) {
   return (
     <button
       onClick={onClick}
+      data-tour-id="lore-envelope"
       title="北极小镇 · 九狐之家"
       style={{
         position: 'fixed',

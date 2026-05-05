@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
-import type { FoxMeta } from '@/lib/foxes/registry';
+import type { FoxMeta, FoxId } from '@/lib/foxes/registry';
+import { useFloatingWindowStore } from '@/lib/store/floating-window';
 
 // Mock atoms with attribute-rich placeholders so we can assert dock geometry.
 vi.mock('@/components/atoms/Tail', () => ({
@@ -73,5 +74,65 @@ describe('DockInner', () => {
       const wrapper = tail.parentElement!;
       expect(wrapper.style.opacity).toBe('1');
     });
+  });
+
+  it('does not render the static 看山想想 placeholder input', () => {
+    const { container } = render(<DockInner activeArr={['mo']} onToggleFox={() => {}} />);
+    expect(container.textContent ?? '').not.toContain('让看山想想');
+    expect(container.textContent ?? '').not.toContain('看山想想……');
+  });
+
+  it('each tail wrapper has title with fox name + verb', () => {
+    const { container } = render(<DockInner activeArr={['mo']} onToggleFox={() => {}} />);
+    const moTail = container.querySelector('[data-fox="mo"]')!;
+    const moWrapper = moTail.parentElement!;
+    expect(moWrapper.getAttribute('title')).toBe('刘看墨 · 内容精加工');
+
+    const shuiTail = container.querySelector('[data-fox="shui"]')!;
+    expect(shuiTail.parentElement!.getAttribute('title')).toBe('刘看水 · 灵感激发');
+  });
+
+  describe('click → toggleFox + open tab', () => {
+    beforeEach(() => {
+      useFloatingWindowStore.setState({
+        open: false,
+        tabs: [],
+        activeTabId: null,
+      });
+    });
+
+    const cases: Array<{ id: FoxId; expectedKind: string | null }> = [
+      { id: 'mo', expectedKind: 'voice-diff' },
+      { id: 'wen', expectedKind: 'debate' },
+      { id: 'wen2', expectedKind: 'debate' },
+      { id: 'shui', expectedKind: 'research' },
+      { id: 'dian', expectedKind: 'vault' },
+      { id: 'shi', expectedKind: 'trends' },
+      { id: 'jing', expectedKind: 'stats' },
+      { id: 'shan', expectedKind: null },
+      { id: 'xin', expectedKind: null },
+    ];
+
+    for (const { id, expectedKind } of cases) {
+      it(`click on ${id} → toggleFox(${id}) and ${expectedKind ?? 'no tab'}`, () => {
+        const onToggle = vi.fn();
+        // Render with an active set wide enough that the clicked fox is visible.
+        const { container, getByTestId } = render(
+          <DockInner activeArr={['mo']} onToggleFox={onToggle} />,
+        );
+        // Expand the dock so all tails get pointer-events
+        fireEvent.mouseEnter(getByTestId('dock-tails-hover'));
+        const tail = container.querySelector(`[data-fox="${id}"]`)!;
+        fireEvent.click(tail.parentElement!);
+        expect(onToggle).toHaveBeenCalledWith(id);
+        const tabs = useFloatingWindowStore.getState().tabs;
+        if (expectedKind === null) {
+          expect(tabs).toHaveLength(0);
+        } else {
+          expect(tabs).toHaveLength(1);
+          expect(tabs[0].kind).toBe(expectedKind);
+        }
+      });
+    }
   });
 });

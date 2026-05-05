@@ -13,8 +13,14 @@ const fakeEditor = { chain: () => chainMock } as unknown as Parameters<typeof us
 beforeEach(() => {
   useEditorStore.setState({ editor: null });
   insertContentMock.mockClear();
+  // Pre-acknowledge the trends-confirm gate so click handlers run their original path.
+  // Phase #13.5 added a 清朗 gate that intercepts uncacked inserts.
+  window.localStorage.setItem('kanshan-trends-acknowledged', new Date().toISOString());
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  window.localStorage.removeItem('kanshan-trends-acknowledged');
+  cleanup();
+});
 
 describe('ResearchTab', () => {
   it('renders title, query, outline chips', () => {
