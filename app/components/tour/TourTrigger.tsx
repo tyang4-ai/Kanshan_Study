@@ -4,8 +4,7 @@ import { TourEngine } from './TourEngine';
 
 type AutoState = 'pending' | 'auto' | 'manual' | 'done';
 
-function readInitialAuto(): AutoState {
-  if (typeof window === 'undefined') return 'pending';
+function readPostMountAuto(): AutoState {
   const onb = window.localStorage.getItem('kanshan-onboarding');
   const tourDone = window.localStorage.getItem('kanshan-tour-done');
   if (onb && !tourDone) return 'auto';
@@ -13,17 +12,16 @@ function readInitialAuto(): AutoState {
 }
 
 export function TourTrigger() {
-  // Initialize from localStorage in the lazy initializer so we never call
-  // setState within an effect — this is what avoids cascading renders.
-  const [auto, setAuto] = useState<AutoState>(readInitialAuto);
+  // Hydration-safe: server + client first render BOTH return 'pending'
+  // (so neither renders the engine). A post-mount effect then reads
+  // localStorage and flips state accordingly.
+  const [auto, setAuto] = useState<AutoState>('pending');
   const active = auto === 'auto' || auto === 'manual';
 
-  // Keep the read SSR-safe: re-check after mount in case the lazy initializer
-  // ran on the server with a typeof-window guard.
   useEffect(() => {
     if (auto !== 'pending') return;
-    const raf = requestAnimationFrame(() => setAuto(readInitialAuto()));
-    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAuto(readPostMountAuto());
   }, [auto]);
 
   return (

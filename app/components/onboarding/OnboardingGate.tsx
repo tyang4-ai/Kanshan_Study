@@ -1,6 +1,6 @@
 'use client';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
@@ -20,18 +20,18 @@ function validateKey(k: string): string | null {
   return null;
 }
 
-function hasExistingRecord(): boolean {
-  if (typeof window === 'undefined') return true; // SSR: render nothing
-  return window.localStorage.getItem(STORAGE_KEY) !== null;
-}
-
 export function OnboardingGate() {
-  // Lazy initializer reads localStorage exactly once at first render. Avoids
-  // useEffect+setState cascading-render lint rule. SSR returns true so the gate
-  // renders nothing on the server; client first paint reads localStorage.
-  const [hidden, setHidden] = useState<boolean>(hasExistingRecord);
+  // Hydration-safe pattern: server + client first render BOTH return null,
+  // then a post-mount effect sets the real visibility from localStorage.
+  // Avoids hydration mismatch between SSR (no localStorage) and CSR.
+  const [hidden, setHidden] = useState<boolean>(true);
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHidden(window.localStorage.getItem(STORAGE_KEY) !== null);
+  }, []);
 
   if (hidden) return null;
 
