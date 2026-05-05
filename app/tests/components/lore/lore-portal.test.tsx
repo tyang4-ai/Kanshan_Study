@@ -79,4 +79,21 @@ describe('LorePortal', () => {
     fireEvent.mouseEnter(houses[0]);
     expect(getByTestId('lore-hint').style.opacity).toBe('0');
   });
+
+  it('still renders exactly 9 houses (signpost is not a house)', () => {
+    const { getAllByTestId } = render(<LorePortal onClose={() => {}} />);
+    expect(getAllByTestId('house').length).toBe(9);
+  });
+
+  it('renders the signpost at the end of the village row', () => {
+    const { getByTestId } = render(<LorePortal onClose={() => {}} />);
+    expect(getByTestId('lore-signpost')).toBeTruthy();
+  });
+
+  it('clicking signpost reveals the tech details panel', () => {
+    const { getByTestId, queryByTestId } = render(<LorePortal onClose={() => {}} />);
+    expect(queryByTestId('tech-details-panel')).toBeNull();
+    fireEvent.click(getByTestId('lore-signpost'));
+    expect(getByTestId('tech-details-panel')).toBeTruthy();
+  });
 });

@@ -59,7 +59,7 @@ export async function POST(req: Request): Promise<Response> {
         for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline)) {
           controller.enqueue(encoder.encode(encodeEvent(ev)));
         }
-        await writeCache<unknown>('voice-fill', `${user.id}:${mode}:${bullets}:${selection}`, null);
+        await writeCache('voice-fill', `${user.id}:${mode}:${bullets}:${selection}`, null);
         controller.close();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

@@ -8,6 +8,8 @@ import { Ridge } from './Ridge';
 import { FoxWalker } from './FoxWalker';
 import { House, type VillageEntry } from './House';
 import { FoxLoreCard } from './FoxLoreCard';
+import { Signpost } from './Signpost';
+import { TechDetailsPanel } from './TechDetailsPanel';
 import { getFox } from '@/lib/foxes/registry';
 import type { FoxId } from '@/lib/foxes/registry';
 import villageData from '@/content/lore/village.json';
@@ -37,6 +39,7 @@ export function LorePortal({ onClose }: LorePortalProps) {
   const [hoveredFox, setHoveredFoxState] = useState<FoxId | null>(null);
   const [hintDismissed, setHintDismissed] = useState(false);
   const [met, setMet] = useState<MetMark | null>(null);
+  const [techOpen, setTechOpen] = useState(false);
 
   // Mount → arrive → here. Single rAF tick is enough for the browser to commit
   // the initial 0/0.96 frame before transitioning to 1/1.
@@ -152,19 +155,24 @@ export function LorePortal({ onClose }: LorePortalProps) {
           maxWidth: '94vw',
         }}
       >
-        {VILLAGE.length === 0 ? null : VILLAGE.map((entry, i) => (
-          <div
-            key={entry.foxId}
-            style={{ marginLeft: i === 0 ? 0 : HOUSE_OFFSETS[i] }}
-          >
-            <House
-              entry={entry}
-              hovered={hoveredFox === entry.foxId}
-              onHover={setHoveredFox}
-              onClick={() => setMet({ id: entry.foxId, t: Date.now() })}
-            />
-          </div>
-        ))}
+        {VILLAGE.length === 0 ? null : (
+          <>
+            {VILLAGE.map((entry, i) => (
+              <div
+                key={entry.foxId}
+                style={{ marginLeft: i === 0 ? 0 : HOUSE_OFFSETS[i] }}
+              >
+                <House
+                  entry={entry}
+                  hovered={hoveredFox === entry.foxId}
+                  onHover={setHoveredFox}
+                  onClick={() => setMet({ id: entry.foxId, t: Date.now() })}
+                />
+              </div>
+            ))}
+            <Signpost onOpen={() => setTechOpen(true)} />
+          </>
+        )}
       </div>
 
       {/* Layer 6: walking fox silhouettes (in front of village row but behind snow particles) */}
@@ -356,6 +364,8 @@ export function LorePortal({ onClose }: LorePortalProps) {
       >
         {ipFooterText}
       </div>
+
+      {techOpen && <TechDetailsPanel onClose={() => setTechOpen(false)} />}
     </div>
   );
 }
