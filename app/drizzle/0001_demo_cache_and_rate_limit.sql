@@ -24,3 +24,12 @@ CREATE TABLE IF NOT EXISTS "rate_limit" (
   "concurrent" integer DEFAULT 0 NOT NULL,
   "updated_at" timestamp DEFAULT now() NOT NULL
 );
+
+-- These tables are infrastructure (cache + rate-limit), not user data.
+-- Supabase's rls_auto_enable cron flips RLS on after table creation,
+-- which causes "relation does not exist" errors for our service-role
+-- queries. Explicitly disable so the cron sees configured-state and
+-- leaves them alone. Safe: we connect via SUPABASE_DB_URL with full
+-- credentials; RLS adds no real security here.
+ALTER TABLE "demo_cache" DISABLE ROW LEVEL SECURITY;
+ALTER TABLE "rate_limit" DISABLE ROW LEVEL SECURITY;
