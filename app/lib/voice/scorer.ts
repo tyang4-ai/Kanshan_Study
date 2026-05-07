@@ -1,5 +1,5 @@
 import { extractFeatures, createJieba, type VoiceFeatures, type Jieba } from './features';
-import { extractKeyTerms, nounJaccard } from './terms';
+import { extractKeyTerms, nounJaccard, extractCitations, citationRecall } from './terms';
 import { chatJson } from '@/lib/llm';
 import { embed } from '@/lib/embeddings';
 
@@ -18,6 +18,7 @@ export interface SubScores {
   wordAlignment: number;
   sentenceVar: number;
   scopeFidelity: number;
+  citationFidelity: number;
 }
 
 export interface ScoreResult {
@@ -30,6 +31,34 @@ export interface ScoreResult {
   rationale: string;
 }
 
+/**
+ * Deterministic hard-signal sub-scores. No LLM, no embedding — pure functions
+ * of the draft + corpus + source. Used both as part of `scoreVoice` (for the
+ * VOICE column) and on its own for the GENERIC column where we want the same
+ * 4-metric panel without paying for LLM judge + embedding.
+ */
+export function computeHardSubScores(
+  draft: string,
+  userBaseline: VoiceFeatures,
+  userSamples: string[],
+  sourceText?: string,
+  jiebaInstance?: Jieba,
+): SubScores {
+  const jieba = jiebaInstance ?? createJieba();
+  const draftFeatures = extractFeatures([{ id: '_draft', body: draft }], jieba);
+  const aiTaste = clamp(1 - Math.min(1, draftFeatures.genericFunctionWordRate / AI_TASTE_DIVISOR));
+  const wordAlignment = jaccardTop50(draft, userSamples.join('\n\n'), jieba);
+  const baselineCV = userBaseline.sentenceLengthCV || 0.4;
+  const sentenceVar = clamp(draftFeatures.sentenceLengthCV / baselineCV);
+  const sourceTerms = sourceText ? extractKeyTerms(sourceText, jieba) : [];
+  const draftTerms = extractKeyTerms(draft, jieba);
+  const scopeFidelity = sourceText ? nounJaccard(sourceTerms, draftTerms) : 1;
+  const sourceCitations = sourceText ? extractCitations(sourceText) : [];
+  const draftCitations = extractCitations(draft);
+  const citationFidelity = citationRecall(sourceCitations, draftCitations);
+  return { aiTaste, wordAlignment, sentenceVar, scopeFidelity, citationFidelity };
+}
+
 export async function scoreVoice(
   draft: string,
   userBaseline: VoiceFeatures,
@@ -37,18 +66,10 @@ export async function scoreVoice(
   sourceText?: string
 ): Promise<ScoreResult> {
   const jieba = createJieba();
-  const draftFeatures = extractFeatures([{ id: '_draft', body: draft }], jieba);
-  const aiTaste = clamp(1 - Math.min(1, draftFeatures.genericFunctionWordRate / AI_TASTE_DIVISOR));
-  const wordAlignment = jaccardTop50(draft, userSamples.join('\n\n'), jieba);
-  const baselineCV = userBaseline.sentenceLengthCV || 0.4;
-  const sentenceVar = clamp(draftFeatures.sentenceLengthCV / baselineCV);
+  const sub = computeHardSubScores(draft, userBaseline, userSamples, sourceText, jieba);
+  const hardSignal = (sub.aiTaste + sub.wordAlignment + sub.sentenceVar + sub.scopeFidelity + sub.citationFidelity) / 5;
 
   const sourceTerms = sourceText ? extractKeyTerms(sourceText, jieba) : [];
-  const draftTerms = extractKeyTerms(draft, jieba);
-  const scopeFidelity = sourceText ? nounJaccard(sourceTerms, draftTerms) : 1;
-
-  const hardSignal = (aiTaste + wordAlignment + sentenceVar + scopeFidelity) / 4;
-
   const judgeResult = await scoreLLMJudge(draft, userSamples, sourceText, sourceTerms);
   const llmJudge = judgeResult.style;
   const termFidelity = judgeResult.termFidelity;
@@ -63,7 +84,7 @@ export async function scoreVoice(
     llmJudge,
     termFidelity,
     embedding,
-    sub: { aiTaste, wordAlignment, sentenceVar, scopeFidelity },
+    sub,
     rationale,
   };
 }

@@ -59,7 +59,7 @@ const FINAL_EVENT = {
       llmJudge: 0.83,
       termFidelity: 0.95,
       embedding: 0.82,
-      sub: { aiTaste: 0.18, wordAlignment: 0.84, sentenceVar: 0.71, scopeFidelity: 0.78 },
+      sub: { aiTaste: 0.18, wordAlignment: 0.84, sentenceVar: 0.71, scopeFidelity: 0.78, citationFidelity: 1 },
       rationale: 'cadence aligned',
     },
     trace: [],

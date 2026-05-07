@@ -9,7 +9,16 @@ vi.mock('@/lib/llm', () => ({
   GENERIC_SYSTEM_PROMPT: 'g',
   VOICE_SYSTEM_PROMPT: 'v',
 }));
-vi.mock('@/lib/voice/scorer', () => ({ scoreVoice: vi.fn() }));
+vi.mock('@/lib/voice/scorer', () => ({
+  scoreVoice: vi.fn(),
+  computeHardSubScores: vi.fn(() => ({
+    aiTaste: 0.8,
+    wordAlignment: 0.5,
+    sentenceVar: 0.6,
+    scopeFidelity: 0.9,
+    citationFidelity: 1,
+  })),
+}));
 
 import { searchVault } from '@/lib/vault/search';
 import { chat, chatJson } from '@/lib/llm';
@@ -56,7 +65,7 @@ function makeScore(total: number): ScoreResult {
     llmJudge: total,
     termFidelity: 1,
     embedding: total,
-    sub: { aiTaste: total, wordAlignment: total, sentenceVar: total, scopeFidelity: total },
+    sub: { aiTaste: total, wordAlignment: total, sentenceVar: total, scopeFidelity: total, citationFidelity: 1 },
     rationale: `hard ${total.toFixed(2)} | judge ${total.toFixed(2)} | term 1.00 | emb ${total.toFixed(2)}`,
   };
 }
@@ -111,14 +120,17 @@ beforeEach(() => {
 
 describe('pickWeakestSubScore', () => {
   it('returns key with smallest value', () => {
-    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.3, sentenceVar: 0.7, scopeFidelity: 0.8 })).toBe(
+    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.3, sentenceVar: 0.7, scopeFidelity: 0.8, citationFidelity: 1 })).toBe(
       'wordAlignment'
     );
-    expect(pickWeakestSubScore({ aiTaste: 0.1, wordAlignment: 0.5, sentenceVar: 0.9, scopeFidelity: 0.7 })).toBe(
+    expect(pickWeakestSubScore({ aiTaste: 0.1, wordAlignment: 0.5, sentenceVar: 0.9, scopeFidelity: 0.7, citationFidelity: 1 })).toBe(
       'aiTaste'
     );
-    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.5, sentenceVar: 0.9, scopeFidelity: 0.2 })).toBe(
+    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.5, sentenceVar: 0.9, scopeFidelity: 0.2, citationFidelity: 1 })).toBe(
       'scopeFidelity'
+    );
+    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.7, sentenceVar: 0.9, scopeFidelity: 0.8, citationFidelity: 0.4 })).toBe(
+      'citationFidelity'
     );
   });
 });

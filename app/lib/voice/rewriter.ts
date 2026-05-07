@@ -6,9 +6,9 @@ import {
   type ChatMessage,
   type Provider,
 } from '@/lib/llm';
-import { scoreVoice, type ScoreResult, type SubScores } from '@/lib/voice/scorer';
+import { scoreVoice, computeHardSubScores, type ScoreResult, type SubScores } from '@/lib/voice/scorer';
 import { createJieba, type VoiceFeatures } from '@/lib/voice/features';
-import { extractKeyTerms } from '@/lib/voice/terms';
+import { extractKeyTerms, extractCitations } from '@/lib/voice/terms';
 import { searchVault, type VaultHit } from '@/lib/vault/search';
 import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 
@@ -35,6 +35,7 @@ export interface VoiceFillFinal {
   voice: string;
   voiceSpans: VoiceSpan[];
   voiceScore: ScoreResult;
+  genericScore?: SubScores;
   trace: IterStep[];
   voiceSources: { id: string; title: string; date: string }[];
 }
@@ -100,6 +101,7 @@ async function draftGeneric(
   mode: 'fill' | 'polish',
   selection: string,
   mustPreserveTerms: string[],
+  mustPreserveCitations: string[],
   apiKey?: string,
   provider?: Provider,
 ): Promise<string> {
@@ -107,10 +109,14 @@ async function draftGeneric(
     mustPreserveTerms.length > 0
       ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中）`
       : '';
+  const citationLine =
+    mustPreserveCitations.length > 0
+      ? `\n\n【必须保留的引用】${mustPreserveCitations.join(' ')}（每一个引用编号必须原样出现在输出中，位置可调整）`
+      : '';
   const userMsg =
     mode === 'fill'
-      ? `请根据下列要点，写一段 200-350 字的中文段落：\n\n${bullets}${termLine}`
-      : `请润色下列段落（保持原意，200-350 字）：\n\n要点：${bullets}\n\n原段：${selection}${termLine}`;
+      ? `请根据下列要点，写一段 200-350 字的中文段落：\n\n${bullets}${termLine}${citationLine}`
+      : `请润色下列段落（保持原意，200-350 字）：\n\n要点：${bullets}\n\n原段：${selection}${termLine}${citationLine}`;
   const messages: ChatMessage[] = [
     { role: 'system', content: GENERIC_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
@@ -148,6 +154,7 @@ async function draftVoice(
   selection: string,
   samples: SourceSample[],
   mustPreserveTerms: string[],
+  mustPreserveCitations: string[],
   apiKey?: string,
   provider?: Provider,
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
@@ -156,14 +163,18 @@ async function draftVoice(
     mustPreserveTerms.length > 0
       ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中，不得替换或删除）`
       : '';
+  const citationBlock =
+    mustPreserveCitations.length > 0
+      ? `\n\n【必须保留的引用】${mustPreserveCitations.join(' ')}（每一个引用编号必须原样出现在输出中，位置可调整）`
+      : '';
   const scopeRule =
     mode === 'polish'
       ? '\n\n【范围约束】重写不得引入【原段】未提及的具体概念，即使【作者样本】里讨论过相关话题。'
       : '';
   const userMsg =
     mode === 'fill'
-      ? `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${termBlock}\n\n请用作者的文风写一段 200-350 字的中文段落。返回 JSON。`
-      : `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【原段】\n${selection}${termBlock}${scopeRule}\n\n请按作者文风重写原段，200-350 字。返回 JSON。`;
+      ? `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${termBlock}${citationBlock}\n\n请用作者的文风写一段 200-350 字的中文段落。返回 JSON。`
+      : `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【原段】\n${selection}${termBlock}${citationBlock}${scopeRule}\n\n请按作者文风重写原段，200-350 字。返回 JSON。`;
 
   const messages: ChatMessage[] = [
     { role: 'system', content: VOICE_SYSTEM_PROMPT },
@@ -217,6 +228,8 @@ function targetHint(weakest: keyof SubScores): string {
       return '让句长更有起伏：长句之后接短句，避免一刀切的长度。';
     case 'scopeFidelity':
       return '保持范围与【原段】一致：不引入原段未出现的具体概念；不替换术语。';
+    case 'citationFidelity':
+      return '【原段】里的每一个引用编号（如 [3] / [v7] / [@答主]）必须原样出现在输出中，位置可调整但不得删除。';
   }
 }
 
@@ -226,6 +239,7 @@ async function rewriteForVoice(
   samples: SourceSample[],
   weakest: keyof SubScores,
   mustPreserveTerms: string[],
+  mustPreserveCitations: string[],
   selection: string,
   apiKey?: string,
   provider?: Provider,
@@ -235,8 +249,12 @@ async function rewriteForVoice(
     mustPreserveTerms.length > 0
       ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中）`
       : '';
+  const citationBlock =
+    mustPreserveCitations.length > 0
+      ? `\n\n【必须保留的引用】${mustPreserveCitations.join(' ')}`
+      : '';
   const sourceBlock = selection ? `\n\n【原段】\n${selection}\n\n【范围约束】重写不得引入【原段】未提及的具体概念。` : '';
-  const userMsg = `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${sourceBlock}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}${termBlock}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
+  const userMsg = `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${sourceBlock}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}${termBlock}${citationBlock}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
   const messages: ChatMessage[] = [
     { role: 'system', content: VOICE_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
@@ -281,12 +299,13 @@ export async function* voiceFillStream(
   const jieba = createJieba();
   const sourceForTerms = mode === 'polish' ? selection : bullets;
   const mustPreserveTerms = extractKeyTerms(sourceForTerms, jieba);
+  const mustPreserveCitations = extractCitations(sourceForTerms);
   const sourceText = mode === 'polish' ? selection : undefined;
 
-  const generic = await draftGeneric(bullets, mode, selection, mustPreserveTerms, apiKey, provider);
+  const generic = await draftGeneric(bullets, mode, selection, mustPreserveTerms, mustPreserveCitations, apiKey, provider);
   yield { event: 'generic', data: { text: generic } };
 
-  const first = await draftVoice(bullets, mode, selection, samples, mustPreserveTerms, apiKey, provider);
+  const first = await draftVoice(bullets, mode, selection, samples, mustPreserveTerms, mustPreserveCitations, apiKey, provider);
   let currentDraft = first.text;
   let currentSpans = first.voiceSpans;
   let currentScore = await scoreVoice(currentDraft, baseline, sampleBodies, sourceText);
@@ -311,7 +330,7 @@ export async function* voiceFillStream(
   while (!accepted && iter < MAX_ITERS) {
     iter++;
     const weakest = pickWeakestSubScore(currentScore.sub);
-    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, mustPreserveTerms, selection, apiKey, provider);
+    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, mustPreserveTerms, mustPreserveCitations, selection, apiKey, provider);
     currentDraft = next.text;
     currentSpans = next.voiceSpans;
     currentScore = await scoreVoice(currentDraft, baseline, sampleBodies, sourceText);
@@ -337,11 +356,14 @@ export async function* voiceFillStream(
     bestScore = currentScore;
   }
 
+  const genericScore = computeHardSubScores(generic, baseline, sampleBodies, sourceText, jieba);
+
   const final: VoiceFillFinal = {
     generic,
     voice: bestText,
     voiceSpans: bestSpans,
     voiceScore: bestScore,
+    genericScore,
     trace,
     voiceSources: samples.map((s) => ({ id: s.id, title: s.title, date: s.date })),
   };

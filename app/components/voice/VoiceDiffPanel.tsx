@@ -7,7 +7,7 @@ import { InlineVoiceMark } from './InlineVoiceMark';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { GENERIC_SYSTEM_PROMPT, VOICE_SYSTEM_PROMPT } from '@/lib/llm/deepseek';
 import type { VoiceSpan, IterStep, VoiceFillFinal } from '@/lib/voice/rewriter';
-import type { ScoreResult } from '@/lib/voice/scorer';
+import type { ScoreResult, SubScores } from '@/lib/voice/scorer';
 import { CitationLink } from '@/components/citation/CitationLink';
 import { vaultCitation } from '@/lib/citation/types';
 import { fetchWithErrorToast } from '@/lib/fetch-helpers';
@@ -31,6 +31,7 @@ interface PanelState {
   voice: string;
   voiceSpans: VoiceSpan[];
   voiceScore: ScoreResult | null;
+  genericScore: SubScores | null;
   trace: IterStep[];
   voiceSources: VoiceSourceMeta[];
   done: boolean;
@@ -43,6 +44,7 @@ const INITIAL_STATE: PanelState = {
   voice: '',
   voiceSpans: [],
   voiceScore: null,
+  genericScore: null,
   trace: [],
   voiceSources: [],
   done: false,
@@ -161,6 +163,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
               voice: final.voice ?? '',
               voiceSpans: final.voiceSpans ?? [],
               voiceScore: final.voiceScore ?? null,
+              genericScore: final.genericScore ?? null,
               voiceSources: final.voiceSources ?? [],
               done: true,
             }));
@@ -181,6 +184,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
               voice: fb?.voice ?? s.voice,
               voiceSpans: fb?.voiceSpans ?? s.voiceSpans,
               voiceScore: fb?.voiceScore ?? s.voiceScore,
+              genericScore: fb?.genericScore ?? s.genericScore,
               voiceSources: fb?.voiceSources ?? s.voiceSources,
             }));
             if (fb && typeof fb.generic === 'string') setGenericLoaded(true);
@@ -209,6 +213,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
   };
 
   const sub = state.voiceScore?.sub;
+  const genericSub = state.genericScore;
   // Tone for AI 味 inverts: higher displayed value = MORE AI-flavor = bad. So a
   // displayed 0.7 should be 'warn' (red), displayed 0.1 should be 'good' (green).
   const aiToneInvert = (display: number): 'good' | 'warn' | 'soft' | 'neutral' => {
@@ -217,29 +222,35 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     if (display >= 0.4) return 'soft';
     return 'neutral';
   };
-  // scopeFidelity is new in phase #13.8 — older cached responses may lack it.
-  // Default to 1 (treat unknown as "in scope") so UI never crashes; fresh
-  // responses since #13.8 always populate it.
+  // scopeFidelity + citationFidelity are new (#13.8 / #13.9). Older cached
+  // responses may lack them; default to 1 (treat unknown as "preserved") so UI
+  // never crashes. Fresh responses always populate.
+  const buildSignals = (s: SubScores) => [
+    { label: 'AI 味', value: 1 - s.aiTaste, tone: aiToneInvert(1 - s.aiTaste) },
+    { label: '词频对齐', value: s.wordAlignment, tone: toneFromScore(s.wordAlignment) },
+    { label: '句长方差', value: s.sentenceVar, tone: toneFromScore(s.sentenceVar) },
+    { label: '范围保真', value: s.scopeFidelity ?? 1, tone: toneFromScore(s.scopeFidelity ?? 1) },
+    { label: '引用保真', value: s.citationFidelity ?? 1, tone: toneFromScore(s.citationFidelity ?? 1) },
+  ];
+  const signals = sub ? buildSignals(sub) : [];
+  const genericSignals = genericSub ? buildSignals(genericSub) : [];
+
   const scopeFidelity = sub?.scopeFidelity ?? 1;
-  const signals = sub
-    ? [
-        { label: 'AI 味', value: 1 - sub.aiTaste, tone: aiToneInvert(1 - sub.aiTaste) },
-        { label: '词频对齐', value: sub.wordAlignment, tone: toneFromScore(sub.wordAlignment) },
-        { label: '句长方差', value: sub.sentenceVar, tone: toneFromScore(sub.sentenceVar) },
-        { label: '范围保真', value: scopeFidelity, tone: toneFromScore(scopeFidelity) },
-      ]
-    : [];
+  const citationFidelity = sub?.citationFidelity ?? 1;
 
   // 看墨推荐 gate — VOICE is only safe to recommend when:
   //   total ≥ 0.70 (overall confidence) ·
   //   scopeFidelity ≥ 0.60 (deterministic noun-Jaccard didn't catch drift) ·
-  //   termFidelity ≥ 0.80 (LLM critic confirmed must-preserve terms intact).
+  //   termFidelity ≥ 0.80 (LLM critic confirmed must-preserve terms intact) ·
+  //   citationFidelity == 1 (every source citation appears in the rewrite —
+  //   strict because dropped citations are factual errors).
   // Otherwise we recommend GENERIC and surface a warning hairline.
   const voiceSafe =
     state.voiceScore != null &&
     state.voiceScore.total >= 0.7 &&
     scopeFidelity >= 0.6 &&
-    (state.voiceScore.termFidelity ?? 1) >= 0.8;
+    (state.voiceScore.termFidelity ?? 1) >= 0.8 &&
+    citationFidelity >= 1;
   const recommendCol: 'voice' | 'generic' = voiceSafe ? 'voice' : 'generic';
 
   return (
@@ -335,7 +346,10 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           }}
         >
           {genericLoaded ? (
-            <p data-testid="voice-diff-generic-text">{state.generic}</p>
+            <>
+              <p data-testid="voice-diff-generic-text">{state.generic}</p>
+              {genericSignals.length > 0 && <SignalsRow signals={genericSignals} />}
+            </>
           ) : (
             <p data-testid="voice-diff-generic-ticker"
               style={{ color: '#7A6655', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>

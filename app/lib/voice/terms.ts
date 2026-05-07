@@ -83,3 +83,32 @@ export function nounJaccard(a: string[], b: string[]): number {
   const union = new Set([...A, ...B]).size;
   return union === 0 ? 0 : inter / union;
 }
+
+const CITATION_RE = /(\[\d+\]|\[v\d+\]|\[@[^\]]+\]|\([A-Za-z][\w-]*\s+\d{4}\))/g;
+
+/**
+ * Extract citation markers from text. Supports the project's three citation kinds:
+ * - `[N]` web (blue circle)
+ * - `[vN]` vault (brown square)
+ * - `[@答主]` zhihu (red badge)
+ * Plus latin-style `(Author 2024)`. Used for must-preserve list + citationFidelity.
+ */
+export function extractCitations(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(CITATION_RE);
+  if (!matches) return [];
+  return Array.from(new Set(matches));
+}
+
+/**
+ * Recall-only metric: of the citations in source, how many appear in output?
+ * Drops are bugs; extras (model citing a sample) are not penalized.
+ * If source has zero citations, vacuously 1.
+ */
+export function citationRecall(sourceCitations: string[], outputCitations: string[]): number {
+  if (sourceCitations.length === 0) return 1;
+  const out = new Set(outputCitations);
+  let matched = 0;
+  for (const c of sourceCitations) if (out.has(c)) matched++;
+  return matched / sourceCitations.length;
+}

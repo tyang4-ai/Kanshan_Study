@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractKeyTerms, nounJaccard } from '@/lib/voice/terms';
+import { extractKeyTerms, nounJaccard, extractCitations, citationRecall } from '@/lib/voice/terms';
 import { createJieba } from '@/lib/voice/features';
 
 const jieba = createJieba();
@@ -74,6 +74,53 @@ describe('nounJaccard', () => {
 
   it('one empty → 0', () => {
     expect(nounJaccard(['A'], [])).toBe(0);
+  });
+});
+
+describe('extractCitations', () => {
+  it('extracts all three citation kinds', () => {
+    const text = '基因组学锚点[3]、向量[v7]、答主[@冷泉]都该保留。';
+    const out = extractCitations(text);
+    expect(out).toContain('[3]');
+    expect(out).toContain('[v7]');
+    expect(out).toContain('[@冷泉]');
+  });
+
+  it('extracts latin parenthetical citations', () => {
+    // Project's CITATION_RE format: `(<single-token-author> <year>)` — used in
+    // Chinese prose where the author's name appears inside the parens.
+    const out = extractCitations('影像组学领域 (Aerts 2014) 提出 NCOMM 路径。');
+    expect(out).toContain('(Aerts 2014)');
+  });
+
+  it('returns [] when no citations', () => {
+    expect(extractCitations('一段普通中文。')).toEqual([]);
+  });
+
+  it('dedupes repeats', () => {
+    expect(extractCitations('[3] 和 [3] 是同一个引用。')).toEqual(['[3]']);
+  });
+});
+
+describe('citationRecall', () => {
+  it('all preserved → 1', () => {
+    expect(citationRecall(['[3]', '[v7]'], ['[3]', '[v7]', '[12]'])).toBe(1);
+  });
+
+  it('one dropped of two → 0.5', () => {
+    expect(citationRecall(['[3]', '[v7]'], ['[3]'])).toBe(0.5);
+  });
+
+  it('all dropped → 0', () => {
+    expect(citationRecall(['[3]', '[v7]'], [])).toBe(0);
+  });
+
+  it('source has none → vacuously 1', () => {
+    expect(citationRecall([], ['[3]'])).toBe(1);
+  });
+
+  it('extras in output do not penalize (recall, not precision)', () => {
+    expect(citationRecall(['[3]'], ['[3]', '[v9]', '[v12]'])).toBe(1);
   });
 
   it('drift case: source about radiomics, draft about genomics → low Jaccard', () => {
