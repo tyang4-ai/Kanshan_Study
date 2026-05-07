@@ -54,9 +54,10 @@ function makeScore(total: number): ScoreResult {
     total,
     hardSignal: total,
     llmJudge: total,
+    termFidelity: 1,
     embedding: total,
-    sub: { aiTaste: total, wordAlignment: total, sentenceVar: total },
-    rationale: `hard ${total.toFixed(2)} | judge ${total.toFixed(2)} | emb ${total.toFixed(2)}`,
+    sub: { aiTaste: total, wordAlignment: total, sentenceVar: total, scopeFidelity: total },
+    rationale: `hard ${total.toFixed(2)} | judge ${total.toFixed(2)} | term 1.00 | emb ${total.toFixed(2)}`,
   };
 }
 
@@ -110,11 +111,14 @@ beforeEach(() => {
 
 describe('pickWeakestSubScore', () => {
   it('returns key with smallest value', () => {
-    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.3, sentenceVar: 0.7 })).toBe(
+    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.3, sentenceVar: 0.7, scopeFidelity: 0.8 })).toBe(
       'wordAlignment'
     );
-    expect(pickWeakestSubScore({ aiTaste: 0.1, wordAlignment: 0.5, sentenceVar: 0.9 })).toBe(
+    expect(pickWeakestSubScore({ aiTaste: 0.1, wordAlignment: 0.5, sentenceVar: 0.9, scopeFidelity: 0.7 })).toBe(
       'aiTaste'
+    );
+    expect(pickWeakestSubScore({ aiTaste: 0.9, wordAlignment: 0.5, sentenceVar: 0.9, scopeFidelity: 0.2 })).toBe(
+      'scopeFidelity'
     );
   });
 });

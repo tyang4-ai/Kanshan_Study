@@ -1,7 +1,7 @@
 interface Signal {
   label: string;
   value: number;
-  tone: 'good' | 'warn' | 'neutral';
+  tone: 'good' | 'warn' | 'soft' | 'neutral';
 }
 
 interface SignalsRowProps {
@@ -19,7 +19,8 @@ export function SignalsRow({ signals }: SignalsRowProps) {
     }}>
       {signals.map((s, i) => {
         const color = s.tone === 'good' ? '#1F8B66'
-          : s.tone === 'warn' ? '#C03028' : '#5A6270';
+          : s.tone === 'warn' ? '#C03028'
+          : s.tone === 'soft' ? '#9A6F1A' : '#5A6270';
         return (
           <div key={i} style={{ flex: 1 }}>
             <div style={{ letterSpacing: 0.5, fontSize: 9, marginBottom: 2 }}>{s.label}</div>

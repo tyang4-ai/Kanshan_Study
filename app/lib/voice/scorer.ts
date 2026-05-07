@@ -1,4 +1,5 @@
 import { extractFeatures, createJieba, type VoiceFeatures, type Jieba } from './features';
+import { extractKeyTerms, nounJaccard } from './terms';
 import { chatJson } from '@/lib/llm';
 import { embed } from '@/lib/embeddings';
 
@@ -6,16 +7,24 @@ const W_HARD = 0.4;
 const W_LLM = 0.4;
 const W_EMB = 0.2;
 
+// Calibrated 2026-05-06 (phase #13.8) — was /5 which left AI 味 saturating to 0
+// when the regex didn't match. Lowered after expanding GENERIC_FUNCTION_WORD_RE
+// to catch hedge phrases ("一定的成就", "根本性的", "在特定应用中"). 2.5
+// means a single hedge per ~400 chars puts the score in the visible range.
+const AI_TASTE_DIVISOR = 2.5;
+
 export interface SubScores {
   aiTaste: number;
   wordAlignment: number;
   sentenceVar: number;
+  scopeFidelity: number;
 }
 
 export interface ScoreResult {
   total: number;
   hardSignal: number;
   llmJudge: number;
+  termFidelity: number;
   embedding: number;
   sub: SubScores;
   rationale: string;
@@ -24,28 +33,37 @@ export interface ScoreResult {
 export async function scoreVoice(
   draft: string,
   userBaseline: VoiceFeatures,
-  userSamples: string[]
+  userSamples: string[],
+  sourceText?: string
 ): Promise<ScoreResult> {
   const jieba = createJieba();
   const draftFeatures = extractFeatures([{ id: '_draft', body: draft }], jieba);
-  const aiTaste = clamp(1 - Math.min(1, draftFeatures.genericFunctionWordRate / 5));
+  const aiTaste = clamp(1 - Math.min(1, draftFeatures.genericFunctionWordRate / AI_TASTE_DIVISOR));
   const wordAlignment = jaccardTop50(draft, userSamples.join('\n\n'), jieba);
   const baselineCV = userBaseline.sentenceLengthCV || 0.4;
   const sentenceVar = clamp(draftFeatures.sentenceLengthCV / baselineCV);
-  const hardSignal = (aiTaste + wordAlignment + sentenceVar) / 3;
 
-  const llmJudge = await scoreLLMJudge(draft, userSamples);
+  const sourceTerms = sourceText ? extractKeyTerms(sourceText, jieba) : [];
+  const draftTerms = extractKeyTerms(draft, jieba);
+  const scopeFidelity = sourceText ? nounJaccard(sourceTerms, draftTerms) : 1;
+
+  const hardSignal = (aiTaste + wordAlignment + sentenceVar + scopeFidelity) / 4;
+
+  const judgeResult = await scoreLLMJudge(draft, userSamples, sourceText, sourceTerms);
+  const llmJudge = judgeResult.style;
+  const termFidelity = judgeResult.termFidelity;
   const embedding = await scoreEmbedding(draft, userSamples);
 
   const total = clamp(W_HARD * hardSignal + W_LLM * llmJudge + W_EMB * embedding);
-  const rationale = `hard ${hardSignal.toFixed(2)} | judge ${llmJudge.toFixed(2)} | emb ${embedding.toFixed(2)}`;
+  const rationale = `hard ${hardSignal.toFixed(2)} | judge ${llmJudge.toFixed(2)} | term ${termFidelity.toFixed(2)} | emb ${embedding.toFixed(2)}`;
 
   return {
     total,
     hardSignal,
     llmJudge,
+    termFidelity,
     embedding,
-    sub: { aiTaste, wordAlignment, sentenceVar },
+    sub: { aiTaste, wordAlignment, sentenceVar, scopeFidelity },
     rationale,
   };
 }
@@ -73,26 +91,45 @@ function jaccardTop50(a: string, b: string, jieba: Jieba): number {
   return union === 0 ? 0 : inter / union;
 }
 
-async function scoreLLMJudge(draft: string, userSamples: string[]): Promise<number> {
+interface JudgeResult {
+  style: number;
+  termFidelity: number;
+  reason: string;
+}
+
+async function scoreLLMJudge(
+  draft: string,
+  userSamples: string[],
+  sourceText?: string,
+  sourceTerms: string[] = []
+): Promise<JudgeResult> {
   const sample = userSamples.slice(0, 2).join('\n\n— —\n\n').slice(0, 2000);
+  const termList = sourceTerms.length > 0 ? sourceTerms.join(' / ') : '（无）';
+  const sourceBlock = sourceText
+    ? `\n\n【源段】\n${sourceText.slice(0, 1500)}\n\n【必须保留的术语】${termList}`
+    : '';
   try {
-    const result = await chatJson<{ score: number; reason: string }>(
+    const result = await chatJson<{ style: number; termFidelity: number; reason: string }>(
       [
         {
           role: 'system',
           content:
-            '你是一位严格的中文文风评判。给定作者的过往样本和一段待评稿，判断该稿读起来像同一作者写的概率（0.0—1.0）。只看语气节奏与措辞习惯，不评判事实正确性。',
+            '你是一位严格的中文文风+事实评判。给定作者样本、源段、待评稿，给出两个分数：(a) style — 待评稿读起来像同一作者的概率 0..1，看语气节奏与措辞；(b) termFidelity — 待评稿是否完整保留【必须保留的术语】中的每一项的写法（任意一项被改写或删除则降分）0..1。源段没提供时 termFidelity 默认 1。',
         },
         {
           role: 'user',
-          content: `【作者样本】\n${sample}\n\n【待评稿】\n${draft}\n\n请用 JSON 回复：{"score": 0..1, "reason": "20 字以内"}`,
+          content: `【作者样本】\n${sample}${sourceBlock}\n\n【待评稿】\n${draft}\n\n请用 JSON 回复：{"style": 0..1, "termFidelity": 0..1, "reason": "20 字以内"}`,
         },
       ],
-      { model: 'deepseek-reasoner', maxTokens: 200 }
+      { model: 'deepseek-reasoner', maxTokens: 240 }
     );
-    return clamp(result.score);
+    return {
+      style: clamp(result.style),
+      termFidelity: clamp(result.termFidelity ?? 1),
+      reason: result.reason ?? '',
+    };
   } catch {
-    return 0.5;
+    return { style: 0.5, termFidelity: 1, reason: '' };
   }
 }
 

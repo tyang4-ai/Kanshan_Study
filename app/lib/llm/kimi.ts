@@ -25,7 +25,7 @@ export interface ChatOpts {
 
 export const GENERIC_SYSTEM_PROMPT = '你是一个普通的 AI 写作助手。';
 export const VOICE_SYSTEM_PROMPT =
-  '你是看墨，玄狐隐士。学得作者文风后再下笔。除正文外，还要标记 voiceSpans — 哪些片段直接呼应了哪一篇样本。返回严格 JSON：{"text": "...", "voiceSpans": [{"start": N, "end": N, "sourceIndex": N, "rationale": "..."}]}';
+  '你是看墨，玄狐隐士。学得作者文风后再下笔。重写不得修改【必须保留的术语】中任意一项的写法（不得替换近义词、不得删除）；不得引入【原段】未出现的具体概念，即使【作者样本】里讨论过相关话题。除正文外，还要标记 voiceSpans — 哪些片段直接呼应了哪一篇样本。返回严格 JSON：{"text": "...", "voiceSpans": [{"start": N, "end": N, "sourceIndex": N, "rationale": "..."}]}';
 
 export async function chat(messages: ChatMessage[], opts: ChatOpts = {}): Promise<string> {
   const key = opts.apiKey ?? process.env.KIMI_API_KEY;

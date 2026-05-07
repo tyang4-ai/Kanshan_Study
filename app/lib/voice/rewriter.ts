@@ -7,7 +7,8 @@ import {
   type Provider,
 } from '@/lib/llm';
 import { scoreVoice, type ScoreResult, type SubScores } from '@/lib/voice/scorer';
-import type { VoiceFeatures } from '@/lib/voice/features';
+import { createJieba, type VoiceFeatures } from '@/lib/voice/features';
+import { extractKeyTerms } from '@/lib/voice/terms';
 import { searchVault, type VaultHit } from '@/lib/vault/search';
 import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 
@@ -94,11 +95,22 @@ async function loadSamples(userId: string, query: string): Promise<SourceSample[
   }
 }
 
-async function draftGeneric(bullets: string, mode: 'fill' | 'polish', selection: string, apiKey?: string, provider?: Provider): Promise<string> {
+async function draftGeneric(
+  bullets: string,
+  mode: 'fill' | 'polish',
+  selection: string,
+  mustPreserveTerms: string[],
+  apiKey?: string,
+  provider?: Provider,
+): Promise<string> {
+  const termLine =
+    mustPreserveTerms.length > 0
+      ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中）`
+      : '';
   const userMsg =
     mode === 'fill'
-      ? `请根据下列要点，写一段 200-350 字的中文段落：\n\n${bullets}`
-      : `请润色下列段落（保持原意，200-350 字）：\n\n要点：${bullets}\n\n原段：${selection}`;
+      ? `请根据下列要点，写一段 200-350 字的中文段落：\n\n${bullets}${termLine}`
+      : `请润色下列段落（保持原意，200-350 字）：\n\n要点：${bullets}\n\n原段：${selection}${termLine}`;
   const messages: ChatMessage[] = [
     { role: 'system', content: GENERIC_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
@@ -135,14 +147,23 @@ async function draftVoice(
   mode: 'fill' | 'polish',
   selection: string,
   samples: SourceSample[],
+  mustPreserveTerms: string[],
   apiKey?: string,
   provider?: Provider,
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
+  const termBlock =
+    mustPreserveTerms.length > 0
+      ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中，不得替换或删除）`
+      : '';
+  const scopeRule =
+    mode === 'polish'
+      ? '\n\n【范围约束】重写不得引入【原段】未提及的具体概念，即使【作者样本】里讨论过相关话题。'
+      : '';
   const userMsg =
     mode === 'fill'
-      ? `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n请用作者的文风写一段 200-350 字的中文段落。返回 JSON。`
-      : `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【原段】\n${selection}\n\n请按作者文风重写原段，200-350 字。返回 JSON。`;
+      ? `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${termBlock}\n\n请用作者的文风写一段 200-350 字的中文段落。返回 JSON。`
+      : `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【原段】\n${selection}${termBlock}${scopeRule}\n\n请按作者文风重写原段，200-350 字。返回 JSON。`;
 
   const messages: ChatMessage[] = [
     { role: 'system', content: VOICE_SYSTEM_PROMPT },
@@ -189,11 +210,13 @@ export function pickWeakestSubScore(sub: SubScores): keyof SubScores {
 function targetHint(weakest: keyof SubScores): string {
   switch (weakest) {
     case 'aiTaste':
-      return '减少「首先/其次/众所周知/综上所述」一类套话词，写得更具体、更像人话。';
+      return '减少「首先/其次/众所周知/综上所述/一定的/根本性的/在特定...中/尽管...但」一类套话词，写得更具体、更像人话。';
     case 'wordAlignment':
       return '更多复用作者样本里的高频用词与术语习惯。';
     case 'sentenceVar':
       return '让句长更有起伏：长句之后接短句，避免一刀切的长度。';
+    case 'scopeFidelity':
+      return '保持范围与【原段】一致：不引入原段未出现的具体概念；不替换术语。';
   }
 }
 
@@ -202,11 +225,18 @@ async function rewriteForVoice(
   bullets: string,
   samples: SourceSample[],
   weakest: keyof SubScores,
+  mustPreserveTerms: string[],
+  selection: string,
   apiKey?: string,
   provider?: Provider,
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
-  const userMsg = `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
+  const termBlock =
+    mustPreserveTerms.length > 0
+      ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中）`
+      : '';
+  const sourceBlock = selection ? `\n\n【原段】\n${selection}\n\n【范围约束】重写不得引入【原段】未提及的具体概念。` : '';
+  const userMsg = `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${sourceBlock}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}${termBlock}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
   const messages: ChatMessage[] = [
     { role: 'system', content: VOICE_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
@@ -248,13 +278,18 @@ export async function* voiceFillStream(
   const samples = await loadSamples(userId, query);
   const sampleBodies = samples.map((s) => s.body);
 
-  const generic = await draftGeneric(bullets, mode, selection, apiKey, provider);
+  const jieba = createJieba();
+  const sourceForTerms = mode === 'polish' ? selection : bullets;
+  const mustPreserveTerms = extractKeyTerms(sourceForTerms, jieba);
+  const sourceText = mode === 'polish' ? selection : undefined;
+
+  const generic = await draftGeneric(bullets, mode, selection, mustPreserveTerms, apiKey, provider);
   yield { event: 'generic', data: { text: generic } };
 
-  const first = await draftVoice(bullets, mode, selection, samples, apiKey, provider);
+  const first = await draftVoice(bullets, mode, selection, samples, mustPreserveTerms, apiKey, provider);
   let currentDraft = first.text;
   let currentSpans = first.voiceSpans;
-  let currentScore = await scoreVoice(currentDraft, baseline, sampleBodies);
+  let currentScore = await scoreVoice(currentDraft, baseline, sampleBodies, sourceText);
 
   let bestText = currentDraft;
   let bestSpans = currentSpans;
@@ -276,10 +311,10 @@ export async function* voiceFillStream(
   while (!accepted && iter < MAX_ITERS) {
     iter++;
     const weakest = pickWeakestSubScore(currentScore.sub);
-    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, apiKey, provider);
+    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, mustPreserveTerms, selection, apiKey, provider);
     currentDraft = next.text;
     currentSpans = next.voiceSpans;
-    currentScore = await scoreVoice(currentDraft, baseline, sampleBodies);
+    currentScore = await scoreVoice(currentDraft, baseline, sampleBodies, sourceText);
     accepted = currentScore.total >= ACCEPT_THRESHOLD;
     if (currentScore.total > bestScore.total) {
       bestText = currentDraft;

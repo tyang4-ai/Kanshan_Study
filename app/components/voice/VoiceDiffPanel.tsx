@@ -111,9 +111,10 @@ async function* readSse(res: Response): AsyncGenerator<{ event: string; data: st
   }
 }
 
-function toneFromScore(value: number): 'good' | 'warn' | 'neutral' {
+function toneFromScore(value: number): 'good' | 'warn' | 'soft' | 'neutral' {
   if (value >= 0.6) return 'good';
-  if (value <= 0.35) return 'warn';
+  if (value < 0.3) return 'warn';
+  if (value < 0.55) return 'soft';
   return 'neutral';
 }
 
@@ -208,13 +209,38 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
   };
 
   const sub = state.voiceScore?.sub;
+  // Tone for AI 味 inverts: higher displayed value = MORE AI-flavor = bad. So a
+  // displayed 0.7 should be 'warn' (red), displayed 0.1 should be 'good' (green).
+  const aiToneInvert = (display: number): 'good' | 'warn' | 'soft' | 'neutral' => {
+    if (display <= 0.25) return 'good';
+    if (display >= 0.6) return 'warn';
+    if (display >= 0.4) return 'soft';
+    return 'neutral';
+  };
+  // scopeFidelity is new in phase #13.8 — older cached responses may lack it.
+  // Default to 1 (treat unknown as "in scope") so UI never crashes; fresh
+  // responses since #13.8 always populate it.
+  const scopeFidelity = sub?.scopeFidelity ?? 1;
   const signals = sub
     ? [
-        { label: 'AI 味', value: 1 - sub.aiTaste, tone: toneFromScore(1 - sub.aiTaste) },
+        { label: 'AI 味', value: 1 - sub.aiTaste, tone: aiToneInvert(1 - sub.aiTaste) },
         { label: '词频对齐', value: sub.wordAlignment, tone: toneFromScore(sub.wordAlignment) },
         { label: '句长方差', value: sub.sentenceVar, tone: toneFromScore(sub.sentenceVar) },
+        { label: '范围保真', value: scopeFidelity, tone: toneFromScore(scopeFidelity) },
       ]
     : [];
+
+  // 看墨推荐 gate — VOICE is only safe to recommend when:
+  //   total ≥ 0.70 (overall confidence) ·
+  //   scopeFidelity ≥ 0.60 (deterministic noun-Jaccard didn't catch drift) ·
+  //   termFidelity ≥ 0.80 (LLM critic confirmed must-preserve terms intact).
+  // Otherwise we recommend GENERIC and surface a warning hairline.
+  const voiceSafe =
+    state.voiceScore != null &&
+    state.voiceScore.total >= 0.7 &&
+    scopeFidelity >= 0.6 &&
+    (state.voiceScore.termFidelity ?? 1) >= 0.8;
+  const recommendCol: 'voice' | 'generic' = voiceSafe ? 'voice' : 'generic';
 
   return (
     <div
@@ -271,6 +297,26 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
         </div>
       )}
 
+      {state.done && state.voiceScore != null && !voiceSafe && (
+        <div
+          data-testid="voice-diff-low-align-banner"
+          style={{
+            flexShrink: 0,
+            margin: '6px 14px 0',
+            fontSize: 10.5,
+            color: '#9A6F1A',
+            background: 'rgba(204,148,37,0.10)',
+            border: '1px solid rgba(204,148,37,0.45)',
+            borderRadius: 4,
+            padding: '4px 8px',
+            fontFamily: '"Noto Serif SC", serif',
+            letterSpacing: 0.2,
+          }}
+        >
+          ⚠️ 对齐度低，建议人工核对术语和事实。已为你切换默认推荐到 GENERIC。
+        </div>
+      )}
+
       {/* Two-column scroll diff */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* Left — generic AI draft */}
@@ -281,6 +327,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           subtitle="无记忆 · 无文风 · 无引用"
           accepted={accepted === 'generic'}
           onAccept={() => handleAccept('generic')}
+          recommended={state.done && recommendCol === 'generic'}
           promptTooltip={{
             title: '系统提示（GENERIC）',
             body: GENERIC_SYSTEM_PROMPT,
@@ -312,7 +359,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           subtitle={`档案库 ${state.voiceSources.length || '…'} 篇旧文 · 文风指纹 · 引用可溯`}
           accepted={accepted === 'voice'}
           onAccept={() => handleAccept('voice')}
-          recommended
+          recommended={state.done && recommendCol === 'voice'}
           promptTooltip={{
             title: '系统提示（VOICE）',
             body: VOICE_SYSTEM_PROMPT,

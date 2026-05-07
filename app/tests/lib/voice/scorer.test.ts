@@ -35,7 +35,7 @@ function makeBaseline(overrides: Partial<VoiceFeatures> = {}): VoiceFeatures {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedChatJson.mockResolvedValue({ score: 0.5, reason: 'mid' });
+  mockedChatJson.mockResolvedValue({ style: 0.5, termFidelity: 1, reason: 'mid' });
   mockedEmbed.mockResolvedValue([
     [1, 0, 0],
     [1, 0, 0],
@@ -44,7 +44,7 @@ beforeEach(() => {
 
 describe('scoreVoice', () => {
   it('happy path: combines hard, judge, and embedding via W_HARD/W_LLM/W_EMB', async () => {
-    mockedChatJson.mockResolvedValue({ score: 0.9, reason: '似' });
+    mockedChatJson.mockResolvedValue({ style: 0.9, termFidelity: 1, reason: '似' });
     mockedEmbed.mockResolvedValue([
       [1, 0, 0],
       [0.9, 0.1, 0],
@@ -135,7 +135,7 @@ describe('scoreVoice', () => {
   });
 
   it('clamps llmJudge to [0,1] when model returns out-of-range score', async () => {
-    mockedChatJson.mockResolvedValue({ score: 1.7, reason: 'too high' });
+    mockedChatJson.mockResolvedValue({ style: 1.7, termFidelity: 1, reason: 'too high' });
     const draft = '我做了一个小实验，结果挺有意思。';
     const samples = ['一段示例文字。'];
     const baseline = makeBaseline();
@@ -147,7 +147,7 @@ describe('scoreVoice', () => {
   });
 
   it('clamps total to [0,1] even with overshooting sub-signals', async () => {
-    mockedChatJson.mockResolvedValue({ score: 5, reason: 'overshoot' });
+    mockedChatJson.mockResolvedValue({ style: 5, termFidelity: 5, reason: 'overshoot' });
     mockedEmbed.mockResolvedValue([
       [1, 0],
       [10, 0],
@@ -218,6 +218,6 @@ describe('scoreVoice', () => {
 
     const result = await scoreVoice(draft, baseline, samples);
 
-    expect(result.rationale).toMatch(/^hard \d\.\d{2} \| judge \d\.\d{2} \| emb \d\.\d{2}$/);
+    expect(result.rationale).toMatch(/^hard \d\.\d{2} \| judge \d\.\d{2} \| term \d\.\d{2} \| emb \d\.\d{2}$/);
   });
 });
