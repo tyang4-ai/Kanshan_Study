@@ -4,7 +4,8 @@ import {
   GENERIC_SYSTEM_PROMPT,
   VOICE_SYSTEM_PROMPT,
   type ChatMessage,
-} from '@/lib/llm/deepseek';
+  type Provider,
+} from '@/lib/llm';
 import { scoreVoice, type ScoreResult, type SubScores } from '@/lib/voice/scorer';
 import type { VoiceFeatures } from '@/lib/voice/features';
 import { searchVault, type VaultHit } from '@/lib/vault/search';
@@ -93,7 +94,7 @@ async function loadSamples(userId: string, query: string): Promise<SourceSample[
   }
 }
 
-async function draftGeneric(bullets: string, mode: 'fill' | 'polish', selection: string, apiKey?: string): Promise<string> {
+async function draftGeneric(bullets: string, mode: 'fill' | 'polish', selection: string, apiKey?: string, provider?: Provider): Promise<string> {
   const userMsg =
     mode === 'fill'
       ? `请根据下列要点，写一段 200-350 字的中文段落：\n\n${bullets}`
@@ -102,7 +103,7 @@ async function draftGeneric(bullets: string, mode: 'fill' | 'polish', selection:
     { role: 'system', content: GENERIC_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
   ];
-  return chat(messages, { model: 'deepseek-chat', temperature: 0.6, maxTokens: 600, apiKey });
+  return chat(messages, { model: 'deepseek-chat', temperature: 0.6, maxTokens: 600, apiKey, provider });
 }
 
 function buildSampleBlock(samples: SourceSample[]): string {
@@ -134,7 +135,8 @@ async function draftVoice(
   mode: 'fill' | 'polish',
   selection: string,
   samples: SourceSample[],
-  apiKey?: string
+  apiKey?: string,
+  provider?: Provider,
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
   const userMsg =
@@ -153,6 +155,7 @@ async function draftVoice(
       temperature: 0.85,
       maxTokens: 900,
       apiKey,
+      provider,
     });
     return {
       text: result.text,
@@ -164,7 +167,7 @@ async function draftVoice(
         { role: 'system', content: VOICE_SYSTEM_PROMPT },
         { role: 'user', content: userMsg },
       ],
-      { model: 'deepseek-chat', temperature: 0.85, maxTokens: 900, apiKey }
+      { model: 'deepseek-chat', temperature: 0.85, maxTokens: 900, apiKey, provider }
     );
     return { text, voiceSpans: [] };
   }
@@ -199,7 +202,8 @@ async function rewriteForVoice(
   bullets: string,
   samples: SourceSample[],
   weakest: keyof SubScores,
-  apiKey?: string
+  apiKey?: string,
+  provider?: Provider,
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
   const userMsg = `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
@@ -213,6 +217,7 @@ async function rewriteForVoice(
       temperature: 0.85,
       maxTokens: 900,
       apiKey,
+      provider,
     });
     return {
       text: result.text,
@@ -224,6 +229,7 @@ async function rewriteForVoice(
       temperature: 0.85,
       maxTokens: 900,
       apiKey,
+      provider,
     });
     return { text, voiceSpans: [] };
   }
@@ -235,16 +241,17 @@ export async function* voiceFillStream(
   mode: 'fill' | 'polish',
   selection: string,
   baseline: VoiceFeatures,
-  apiKey?: string
+  apiKey?: string,
+  provider?: Provider,
 ): AsyncGenerator<VoiceFillEvent, void, unknown> {
   const query = `${bullets}\n${selection}`.trim();
   const samples = await loadSamples(userId, query);
   const sampleBodies = samples.map((s) => s.body);
 
-  const generic = await draftGeneric(bullets, mode, selection, apiKey);
+  const generic = await draftGeneric(bullets, mode, selection, apiKey, provider);
   yield { event: 'generic', data: { text: generic } };
 
-  const first = await draftVoice(bullets, mode, selection, samples, apiKey);
+  const first = await draftVoice(bullets, mode, selection, samples, apiKey, provider);
   let currentDraft = first.text;
   let currentSpans = first.voiceSpans;
   let currentScore = await scoreVoice(currentDraft, baseline, sampleBodies);
@@ -269,7 +276,7 @@ export async function* voiceFillStream(
   while (!accepted && iter < MAX_ITERS) {
     iter++;
     const weakest = pickWeakestSubScore(currentScore.sub);
-    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, apiKey);
+    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, apiKey, provider);
     currentDraft = next.text;
     currentSpans = next.voiceSpans;
     currentScore = await scoreVoice(currentDraft, baseline, sampleBodies);

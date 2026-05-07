@@ -202,6 +202,53 @@ describe('ContextMenu', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('A2 · selection prop is honored even if live DOM selection is collapsed', () => {
+    // Simulates the WorkspaceShell A2 fix: right-click drops the DOM selection
+    // but the parent passes the snapshotted ref into `selection`, so AI items
+    // remain enabled and clicks dispatch with the captured text.
+    const onClose = vi.fn();
+    render(
+      <ContextMenu
+        x={0}
+        y={0}
+        hasSelection
+        selection={baseSelection('snapshotted-text')}
+        onClose={onClose}
+      />,
+    );
+    const polish = screen.getByText('让看墨润色').closest('[role="menuitem"]') as HTMLElement;
+    expect(polish.getAttribute('aria-disabled')).toBe('false');
+    fireEvent.click(polish);
+    const state = useFloatingWindowStore.getState();
+    expect(state.tabs).toHaveLength(1);
+    const sel = (state.tabs[0].props as { selection: { text: string } }).selection;
+    expect(sel.text).toBe('snapshotted-text');
+  });
+
+  it('A3 · 默认四人格 leaf dispatches persona auto with the captured selection', () => {
+    const onClose = vi.fn();
+    render(
+      <ContextMenu
+        x={0}
+        y={0}
+        hasSelection
+        selection={baseSelection('captured')}
+        onClose={onClose}
+      />,
+    );
+    const personaRow = screen.getByText('召集读者团').closest('[role="menuitem"]') as HTMLElement;
+    fireEvent.mouseEnter(personaRow.parentElement as HTMLElement);
+    const leaf = screen.getByText('默认四人格 · 自动配置');
+    fireEvent.click(leaf);
+    const state = useFloatingWindowStore.getState();
+    expect(state.tabs).toHaveLength(1);
+    expect(state.tabs[0].kind).toBe('persona');
+    expect(state.tabs[0].props).toMatchObject({ mode: 'auto' });
+    const sel = (state.tabs[0].props as { selection: { text: string } }).selection;
+    expect(sel.text).toBe('captured');
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('rapid double-click on AI item only dispatches openTab once', () => {
     const openTabSpy = vi.spyOn(useFloatingWindowStore.getState(), 'openTab');
     render(

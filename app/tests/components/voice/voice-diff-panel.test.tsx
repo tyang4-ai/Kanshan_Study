@@ -172,6 +172,31 @@ describe('VoiceDiffPanel', () => {
     expect(badges[0]).toHaveAttribute('data-kind', 'vault');
   });
 
+  it('error event with fallback object → fallback banner [备用样例] renders + fallback content fills generic + voice', async () => {
+    mockSseFetch([
+      {
+        event: 'error',
+        data: {
+          message: '上游 402 余额不足',
+          fallback: {
+            generic: 'fallback generic text',
+            voice: 'fallback voice text',
+            voiceSpans: [],
+            voiceSources: [],
+          },
+        },
+      },
+    ]);
+
+    render(<VoiceDiffPanel selection="x" bullets="—" mode="polish" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('voice-diff-fallback-banner')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('voice-diff-fallback-banner').textContent).toContain('备用样例');
+    expect(screen.getByTestId('voice-diff-generic-text').textContent).toContain('fallback generic text');
+  });
+
   it('rapid double-click on 重生成 → fetch called twice without crash', async () => {
     const fn = mockSseFetch([
       { event: 'generic', data: { text: 'g' } },
@@ -189,5 +214,65 @@ describe('VoiceDiffPanel', () => {
     });
     // panel still rendered
     expect(screen.getByTestId('voice-diff-panel')).toBeInTheDocument();
+  });
+
+  it('重生成 button replays the fetch with the same payload', async () => {
+    const fn = mockSseFetch([
+      { event: 'generic', data: { text: 'g' } },
+      FINAL_EVENT,
+    ]);
+    render(<VoiceDiffPanel selection="orig sel" bullets="orig bullets" mode="polish" />);
+    await waitFor(() => expect(fn).toHaveBeenCalledTimes(1));
+
+    const initialBody = JSON.parse((fn.mock.calls[0][1] as RequestInit).body as string);
+    expect(initialBody.bullets).toBe('orig bullets');
+    expect(initialBody.selection).toBe('orig sel');
+    expect(initialBody.mode).toBe('polish');
+
+    fireEvent.click(screen.getByTestId('voice-diff-regen'));
+    await waitFor(() => expect(fn).toHaveBeenCalledTimes(2));
+
+    const replayBody = JSON.parse((fn.mock.calls[1][1] as RequestInit).body as string);
+    expect(replayBody).toEqual(initialBody);
+  });
+
+  it('error → 重试 button visible → click re-fires fetch', async () => {
+    // First response: stream-level error (no fallback) — surfaces the error UI.
+    let callCount = 0;
+    const fn = vi.fn().mockImplementation(() => {
+      callCount += 1;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          body: makeSseStream([
+            { event: 'error', data: { message: 'upstream 500' } },
+          ]),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        body: makeSseStream([
+          { event: 'generic', data: { text: 'recovered' } },
+          FINAL_EVENT,
+        ]),
+      });
+    });
+    global.fetch = fn as unknown as typeof fetch;
+
+    render(<VoiceDiffPanel selection="x" bullets="—" mode="polish" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('voice-diff-error')).toBeInTheDocument();
+    });
+    const retry = screen.getByTestId('voice-diff-retry');
+    expect(retry).toBeInTheDocument();
+
+    fireEvent.click(retry);
+    await waitFor(() => expect(fn).toHaveBeenCalledTimes(2));
+
+    // After retry succeeds, generic text loads.
+    await waitFor(() => {
+      expect(screen.getByTestId('voice-diff-generic-text')).toHaveTextContent('recovered');
+    });
   });
 });

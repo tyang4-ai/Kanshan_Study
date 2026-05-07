@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, act } from '@testing-library/react';
+import { render, fireEvent, act, waitFor } from '@testing-library/react';
 import { TourEngine } from '@/components/tour/TourEngine';
 import { TOUR_STEPS } from '@/lib/tour/steps';
 
@@ -133,6 +133,90 @@ describe('TourEngine', () => {
     const text = getByTestId('tour-card').textContent ?? '';
     const expected = Math.min(idx + 1, TOUR_STEPS.length);
     expect(text).toContain(`STEP ${expected}/${TOUR_STEPS.length}`);
+  });
+
+  it('viewport clamp: anchor that spans the viewport keeps card inside (no negative top)', async () => {
+    // Mount the editor anchor (step 2) with a bounding rect that fills the
+    // entire viewport — same shape that produced the y=-29 off-screen bug.
+    const el = document.createElement('div');
+    el.setAttribute('data-tour-id', 'editor');
+    el.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        left: 0,
+        width: window.innerWidth || 1024,
+        height: window.innerHeight || 768,
+        right: window.innerWidth || 1024,
+        bottom: window.innerHeight || 768,
+        x: 0,
+        y: 0,
+        toJSON() {},
+      }) as DOMRect;
+    document.body.appendChild(el);
+
+    // Stub the tour-card's getBoundingClientRect so the layout effect picks
+    // up a realistic card height. jsdom returns 0×0 by default which would
+    // hide the bug.
+    const origProto = Element.prototype.getBoundingClientRect;
+    const proto = Element.prototype as unknown as { getBoundingClientRect: () => DOMRect };
+    proto.getBoundingClientRect = function (this: Element): DOMRect {
+      if (this === el) {
+        return {
+          top: 0,
+          left: 0,
+          width: window.innerWidth || 1024,
+          height: window.innerHeight || 768,
+          right: window.innerWidth || 1024,
+          bottom: window.innerHeight || 768,
+          x: 0,
+          y: 0,
+          toJSON() {},
+        } as DOMRect;
+      }
+      // assume it's the card
+      return {
+        top: 0,
+        left: 0,
+        width: 320,
+        height: 180,
+        right: 320,
+        bottom: 180,
+        x: 0,
+        y: 0,
+        toJSON() {},
+      } as DOMRect;
+    };
+
+    try {
+      // Step idx 1 = editor anchor.
+      const { getByTestId } = render(<TourEngine onComplete={() => {}} initialStep={1} />);
+
+      // rAF fires inside useLayoutEffect — wait for the rect → top/left to land
+      // on the card style. Initial render uses centeredPosition (top:50%);
+      // post-rAF, it switches to numeric top/left px values.
+      await waitFor(() => {
+        const card = getByTestId('tour-card');
+        const style = card.getAttribute('style') ?? '';
+        expect(/top:\s*-?\d+(\.\d+)?px/.test(style)).toBe(true);
+      });
+
+      const card = getByTestId('tour-card');
+      const style = card.getAttribute('style') ?? '';
+      const topMatch = style.match(/top:\s*(-?\d+(?:\.\d+)?)px/);
+      const leftMatch = style.match(/left:\s*(-?\d+(?:\.\d+)?)px/);
+      expect(topMatch).not.toBeNull();
+      expect(leftMatch).not.toBeNull();
+      const top = parseFloat(topMatch![1]);
+      const left = parseFloat(leftMatch![1]);
+      expect(top).toBeGreaterThanOrEqual(8);
+      expect(left).toBeGreaterThanOrEqual(8);
+      const vpW = window.innerWidth || 1024;
+      const vpH = window.innerHeight || 768;
+      expect(top).toBeLessThanOrEqual(vpH - 8);
+      expect(left).toBeLessThanOrEqual(vpW - 8);
+    } finally {
+      proto.getBoundingClientRect = origProto;
+    }
   });
 
   it('reflows on resize', () => {

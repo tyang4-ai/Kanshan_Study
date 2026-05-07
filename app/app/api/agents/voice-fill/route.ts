@@ -54,7 +54,7 @@ export async function POST(req: Request): Promise<Response> {
   const { bullets, selection, mode } = parsed.data;
   const user = getCurrentUser(req);
   const baseline = loadBaseline(user.id);
-  const apiKey = proxyAuth(req);
+  const creds = proxyAuth(req);
 
   const intent = voiceFillKey({ userId: user.id, mode, bullets, selection });
 
@@ -62,7 +62,7 @@ export async function POST(req: Request): Promise<Response> {
   try {
     steps = await withCache<ReplayStep[]>('voice-fill', intent, async () => {
       const buffered: ReplayStep[] = [];
-      for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline, apiKey)) {
+      for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline, creds.key, creds.provider)) {
         buffered.push({ event: ev.event, data: ev.data });
       }
       return buffered;

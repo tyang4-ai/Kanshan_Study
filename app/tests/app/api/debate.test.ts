@@ -97,6 +97,7 @@ function makeThrowingGen(yieldsBefore: DebateTurn[], err: Error): AsyncGenerator
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.KIMI_API_KEY = 'sk-kimi-test-fallback';
   process.env.DEEPSEEK_API_KEY = 'sk-test-fallback';
   process.env.CACHE_MODE = 'auto';
   requireRateLimitOk.mockResolvedValue(null);
@@ -145,7 +146,7 @@ describe('POST /api/agents/debate', () => {
     mockedStream.mockReturnValue(makeGen(Array.from({ length: 6 }, (_, i) => turn(i))));
     const res = await routeMod.POST(req({ selection: '段落' }));
     await readSse(res);
-    expect(mockedStream).toHaveBeenCalledWith('段落', 6, expect.any(String));
+    expect(mockedStream).toHaveBeenCalledWith('段落', 6, expect.any(String), expect.stringMatching(/^(kimi|deepseek)$/));
   }, 30000);
 
   it('returns 400 on missing selection', async () => {
@@ -201,7 +202,7 @@ describe('POST /api/agents/debate', () => {
       req({ selection: '段落', turns: 2 }, { Authorization: 'Bearer sk-byo-d' }),
     );
     await readSse(res);
-    expect(mockedStream).toHaveBeenCalledWith('段落', 2, 'sk-byo-d');
+    expect(mockedStream).toHaveBeenCalledWith('段落', 2, 'sk-byo-d', 'kimi');
   }, 15000);
 
   it('in-flight dedup: two simultaneous identical-intent requests → live called once', async () => {

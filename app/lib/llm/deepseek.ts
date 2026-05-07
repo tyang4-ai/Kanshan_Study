@@ -10,6 +10,7 @@ export interface ChatOpts {
   temperature?: number;
   maxTokens?: number;
   apiKey?: string;
+  jsonMode?: boolean;
 }
 
 export const GENERIC_SYSTEM_PROMPT = '你是一个普通的 AI 写作助手。';
@@ -20,15 +21,17 @@ export async function chat(messages: ChatMessage[], opts: ChatOpts = {}): Promis
   const key = opts.apiKey ?? process.env.DEEPSEEK_API_KEY;
   if (!key) throw new Error('DEEPSEEK_API_KEY is not set');
   if (messages.length === 0) throw new Error('chat: messages must be non-empty');
+  const body: Record<string, unknown> = {
+    model: opts.model ?? 'deepseek-chat',
+    messages,
+    temperature: opts.temperature ?? 0.7,
+    max_tokens: opts.maxTokens ?? 800,
+  };
+  if (opts.jsonMode) body.response_format = { type: 'json_object' };
   const res = await fetch(`${BASE}/v1/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: opts.model ?? 'deepseek-chat',
-      messages,
-      temperature: opts.temperature ?? 0.7,
-      max_tokens: opts.maxTokens ?? 800,
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { choices: Array<{ message: { content: string } }> };
@@ -40,7 +43,13 @@ export async function chatJson<T>(messages: ChatMessage[], opts: ChatOpts = {}):
     ...messages,
     { role: 'system', content: 'Respond with ONLY a single valid JSON object. No code fences. No commentary.' },
   ];
-  const text = await chat(augmented, { ...opts, temperature: opts.temperature ?? 0.2, apiKey: opts.apiKey });
+  const text = await chat(augmented, {
+    ...opts,
+    temperature: opts.temperature ?? 0.2,
+    apiKey: opts.apiKey,
+    jsonMode: true,
+  });
+  // Defense-in-depth: if a provider ignores response_format, still strip fences.
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
   return JSON.parse(cleaned) as T;
 }

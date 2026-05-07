@@ -12,6 +12,8 @@ import { RoundDivider } from '@/components/persona/RoundDivider';
 import { UserBubble } from '@/components/persona/UserBubble';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
+import { fetchWithErrorToast } from '@/lib/fetch-helpers';
+import { useAiErrorStore } from '@/lib/store/ai-error';
 
 interface PersonaTabProps {
   mode?: 'auto' | 'pick' | 'recent';
@@ -21,7 +23,10 @@ interface PersonaTabProps {
 type StreamItem =
   | { kind: 'msg'; msg: PMsg }
   | { kind: 'divider'; round: number; label: '初评' | '互评' }
-  | { kind: 'user'; text: string };
+  | { kind: 'user'; text: string }
+  | { kind: 'fallback-banner'; message: string };
+
+const FALLBACK_BANNER_TEXT = '备用样例 · 实时调用失败';
 
 const COMPLIANCE_TEXT = '仿真读者 · 非真人 · 不可作为审稿依据';
 const DEFAULT_SELECTION_TEXT =
@@ -93,22 +98,27 @@ export function PersonaTab({ selection }: PersonaTabProps) {
   const customKey = [...selectedCustomIds].sort().join(',');
   const customMasksKey = customMasks.map((m) => `${m.id}:${m.label}:${m.description}`).join('|');
 
+  // The initial-rounds run, hoisted out of useEffect so the user-facing "重试"
+  // button can re-fire it without remounting the panel. Safe to call any time
+  // — it aborts the prior controller, resets state, and starts fresh.
+  const runRoundsRef = useRef<() => Promise<void>>(async () => {});
+
   useEffect(() => {
     if (!selectionText) return;
 
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
+    const startRun = async () => {
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
 
-    // Reset on dependency change is intentional — new selection/masks/rounds means a new conversation.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setItems([]);
-    setError(null);
-    setStreaming(true);
+      setItems([]);
+      setError(null);
+      setStreaming(true);
+      // Clear any prior global toast — fresh slate for this run.
+      useAiErrorStore.getState().dismiss();
 
-    const run = async () => {
       try {
-        const res = await fetch('/api/agents/persona-panel', {
+        const res = await fetchWithErrorToast('/api/agents/persona-panel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -150,10 +160,14 @@ export function PersonaTab({ selection }: PersonaTabProps) {
               const next: StreamItem[] = [];
               if (fallback.length > 0) {
                 next.push({ kind: 'divider', round: 1, label: '初评' });
+                next.push({ kind: 'fallback-banner', message: msg });
                 fallback.forEach((m) => next.push({ kind: 'msg', msg: m }));
               }
               setItems(next);
               setError(msg);
+              // Stop the typing indicator — the stream errored. Tab stays
+              // mounted so the user can read the error and click 重试.
+              setStreaming(false);
             } else if (ev.event === 'done') {
               setStreaming(false);
             }
@@ -169,10 +183,11 @@ export function PersonaTab({ selection }: PersonaTabProps) {
       }
     };
 
-    void run();
+    runRoundsRef.current = startRun;
+    void startRun();
 
     return () => {
-      ctrl.abort();
+      abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionText, fixedKey, customKey, customMasksKey, effectiveRounds]);
@@ -228,8 +243,9 @@ export function PersonaTab({ selection }: PersonaTabProps) {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
+    useAiErrorStore.getState().dismiss();
     try {
-      const res = await fetch('/api/agents/persona-panel', {
+      const res = await fetchWithErrorToast('/api/agents/persona-panel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -263,7 +279,14 @@ export function PersonaTab({ selection }: PersonaTabProps) {
             const fallback = Array.isArray(payload.fallback)
               ? (payload.fallback as PMsg[])
               : [];
-            setItems((s) => [...s, ...fallback.map<StreamItem>((m) => ({ kind: 'msg', msg: m }))]);
+            setItems((s) => {
+              const additions: StreamItem[] = [];
+              if (fallback.length > 0) {
+                additions.push({ kind: 'fallback-banner', message: msg });
+                fallback.forEach((m) => additions.push({ kind: 'msg', msg: m }));
+              }
+              return [...s, ...additions];
+            });
             setError(msg);
           } else if (ev.event === 'done') {
             setStreaming(false);
@@ -443,6 +466,28 @@ export function PersonaTab({ selection }: PersonaTabProps) {
           if (it.kind === 'user') {
             return <UserBubble key={`u-${i}`} text={it.text} />;
           }
+          if (it.kind === 'fallback-banner') {
+            return (
+              <div
+                key={`fb-${i}`}
+                data-testid="persona-fallback-banner"
+                title={it.message}
+                style={{
+                  alignSelf: 'flex-start',
+                  fontSize: 10.5,
+                  color: '#7A6655',
+                  background: 'rgba(122,102,85,0.10)',
+                  border: '1px dashed rgba(122,102,85,0.45)',
+                  borderRadius: 4,
+                  padding: '3px 8px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  letterSpacing: 0.4,
+                }}
+              >
+                {FALLBACK_BANNER_TEXT}
+              </div>
+            );
+          }
           return (
             <PersonaMessage
               key={it.msg.id ?? `m-${i}`}
@@ -554,6 +599,43 @@ export function PersonaTab({ selection }: PersonaTabProps) {
           发送
         </button>
       </div>
+
+      {error && !isMockError(error) && (
+        <div
+          data-testid="persona-error-banner"
+          style={{
+            flexShrink: 0,
+            padding: '6px 14px',
+            background: 'rgba(192,48,40,0.08)',
+            color: '#C03028',
+            fontSize: 10.5,
+            fontFamily: 'JetBrains Mono, monospace',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            borderTop: '1px solid rgba(192,48,40,0.20)',
+          }}
+        >
+          <span style={{ flex: 1 }}>出错了，请重试 · {error}</span>
+          <button
+            data-testid="persona-retry"
+            type="button"
+            onClick={() => void runRoundsRef.current()}
+            style={{
+              fontSize: 10.5,
+              padding: '3px 10px',
+              borderRadius: 3,
+              border: '1px solid rgba(192,48,40,0.45)',
+              background: '#fff',
+              color: '#C03028',
+              cursor: 'pointer',
+              fontFamily: '"Noto Sans SC", sans-serif',
+            }}
+          >
+            重试
+          </button>
+        </div>
+      )}
 
       <ComplianceLine>
         {COMPLIANCE_TEXT}

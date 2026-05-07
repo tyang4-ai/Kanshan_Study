@@ -42,6 +42,15 @@ export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
     if (target) openTab(target.kind, target.title);
   };
 
+  // FoxRail icons (the small dock buttons) toggle the active fox AND open the
+  // corresponding floating tab. Without this, clicking a rail icon only set
+  // the active fox state and the user got no visible feedback.
+  const handleRailPick = (id: FoxId) => {
+    onToggleFox(id);
+    const target = FOX_TAB[id];
+    if (target) openTab(target.kind, target.title);
+  };
+
   const figSize = 70;
   const figH = figSize * 1.24;
   const anchorBottom = 50 + 14 + figH * 0.4;
@@ -131,7 +140,7 @@ export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
         position: 'absolute', bottom: 46, left: '50%', transform: 'translateX(-50%)',
         zIndex: 7
       }}>
-        <FoxRail activeIds={activeArr} onPick={onToggleFox} />
+        <FoxRail activeIds={activeArr} onPick={handleRailPick} />
       </div>
 
       {/* Orchestrator chat input removed — not wired in MVP, returns in plan #14 */}

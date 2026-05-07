@@ -91,7 +91,7 @@ describe('MarginSealPopover', () => {
     await waitFor(() => {
       expect(screen.getByTestId('margin-seal-popover')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('margin-seal-popover')).toHaveTextContent('已审 · 已软化');
+    expect(screen.getByTestId('margin-seal-popover')).toHaveTextContent('已软化');
     expect(screen.getByTestId('margin-seal-popover-excerpt')).toHaveTextContent(
       '此药对癌症患者有效',
     );
@@ -135,5 +135,55 @@ describe('MarginSealPopover', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('margin-seal-popover')).toBeNull();
     });
+  });
+
+  it('flag without matching provenance → empty-state heuristic + 看心 重新审一审 button', async () => {
+    render(<MarginSealPopover />);
+    dispatchOpen('flag', '疑');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('margin-seal-popover-empty')).toBeInTheDocument();
+    });
+    const empty = screen.getByTestId('margin-seal-popover-empty');
+    expect(empty.textContent ?? '').toContain('合规风险');
+    const rerun = screen.getByTestId('margin-seal-popover-rerun');
+    expect(rerun).toBeInTheDocument();
+    expect(rerun.textContent ?? '').toContain('看心');
+  });
+
+  it('rerun button click closes popover (delegates re-run to floating store)', async () => {
+    render(<MarginSealPopover />);
+    dispatchOpen('flag', '疑');
+    const rerun = await screen.findByTestId('margin-seal-popover-rerun');
+    fireEvent.click(rerun);
+    await waitFor(() => {
+      expect(screen.queryByTestId('margin-seal-popover')).toBeNull();
+    });
+  });
+});
+
+describe('MarginSeal regression — chit click → popover (5/12)', () => {
+  beforeEach(() => {
+    useProvenanceStore.setState({ entries: [] });
+  });
+  afterEach(() => {
+    useProvenanceStore.setState({ entries: [] });
+  });
+
+  it('mousedown on a chit dispatches MARGIN_SEAL_OPEN_EVENT and a mounted popover renders within 100ms', async () => {
+    render(<MarginSealPopover />);
+    const el = buildMarginSealChit('flag');
+    document.body.appendChild(el);
+
+    fireEvent.mouseDown(el);
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('margin-seal-popover')).toBeInTheDocument();
+      },
+      { timeout: 100 },
+    );
+    expect(screen.getByTestId('margin-seal-popover')).toHaveAttribute('data-kind', 'flag');
+    el.remove();
   });
 });

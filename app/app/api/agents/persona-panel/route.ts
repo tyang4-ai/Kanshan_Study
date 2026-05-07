@@ -15,6 +15,7 @@ import { withCache } from '@/lib/cache/wrap';
 import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
 import { personaRoundKey, personaFollowupKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
+import type { Provider } from '@/lib/llm';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
 
 const CustomMaskSchema = z.object({
@@ -103,11 +104,11 @@ export async function POST(req: Request): Promise<Response> {
     ? FIXED_MASKS.filter((m) => body.fixedIds!.includes(m.id))
     : FIXED_MASKS;
   const masks: SelectedMask[] = [...selectedFixed, ...(body.custom ?? [])];
-  const apiKey = proxyAuth(req);
+  const creds = proxyAuth(req);
 
   if (mode === 'rounds') {
     const rounds = body.rounds ?? 1;
-    const inner = await roundsStream(body.selection, masks, rounds, apiKey);
+    const inner = await roundsStream(body.selection, masks, rounds, creds.key, creds.provider);
     return new Response(wrapRelease(inner, guestId), sseHeaders());
   }
 
@@ -118,7 +119,7 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }
-  const inner = await followupStream(body.selection, body.history, body.userMessage, masks, apiKey);
+  const inner = await followupStream(body.selection, body.history, body.userMessage, masks, creds.key, creds.provider);
   return new Response(wrapRelease(inner, guestId), sseHeaders());
 }
 
@@ -127,6 +128,7 @@ async function roundsStream(
   masks: SelectedMask[],
   rounds: 1 | 2 | 3,
   apiKey: string,
+  provider: Provider,
 ): Promise<ReadableStream<Uint8Array>> {
   const intent = personaRoundKey({
     paragraph: selection,
@@ -140,7 +142,7 @@ async function roundsStream(
       const buffered: ReplayStep[] = [];
       const history: PersonaMessage[] = [];
       buffered.push({ event: 'round-start', data: { round: 1 } });
-      const r1 = await runRound1(selection, masks, apiKey);
+      const r1 = await runRound1(selection, masks, apiKey, provider);
       for (const m of r1) {
         history.push(m);
         buffered.push({ event: 'message', data: m });
@@ -150,7 +152,7 @@ async function roundsStream(
       if (masks.length > 1) {
         for (let r: 2 | 3 = 2; r <= rounds; r = (r + 1) as 2 | 3) {
           buffered.push({ event: 'round-start', data: { round: r } });
-          const rN = await runRoundN(selection, masks, history, r, apiKey);
+          const rN = await runRoundN(selection, masks, history, r, apiKey, provider);
           for (const m of rN) {
             history.push(m);
             buffered.push({ event: 'message', data: m });
@@ -178,6 +180,7 @@ async function followupStream(
   userMessage: string,
   masks: SelectedMask[],
   apiKey: string,
+  provider: Provider,
 ): Promise<ReadableStream<Uint8Array>> {
   const intent = personaFollowupKey({
     paragraph: selection,
@@ -198,14 +201,14 @@ async function followupStream(
           data: { chosenMaskLabel: masks[0].label, why: '仅一位读者在场' },
         });
       } else {
-        const routed = await routeFollowup(history, userMessage, masks, apiKey);
+        const routed = await routeFollowup(history, userMessage, masks, apiKey, provider);
         chosenMask = routed.mask;
         buffered.push({
           event: 'routing',
           data: { chosenMaskLabel: routed.mask.label, why: routed.why },
         });
       }
-      const msg = await runFollowup(selection, history, userMessage, chosenMask, apiKey);
+      const msg = await runFollowup(selection, history, userMessage, chosenMask, apiKey, provider);
       buffered.push({ event: 'message', data: msg });
       return buffered;
     });

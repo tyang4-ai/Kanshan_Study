@@ -7,8 +7,9 @@ const STORAGE_KEY = 'kanshan-onboarding';
 describe('OnboardingGate', () => {
   beforeEach(() => {
     window.localStorage.clear();
-    // Wipe any residual kanshan-account cookie between tests
+    // Wipe any residual cookies between tests
     document.cookie = 'kanshan-account=; path=/; max-age=0';
+    document.cookie = 'kanshan-provider=; path=/; max-age=0';
   });
   afterEach(() => cleanup());
 
@@ -121,6 +122,69 @@ describe('OnboardingGate', () => {
     expect(gate.textContent).not.toContain('×');
     expect(queryByLabelText('close')).toBeNull();
     expect(queryByLabelText('Close')).toBeNull();
+  });
+
+  it('renders both provider radios with Kimi default-selected', () => {
+    const { getByTestId } = render(<OnboardingGate />);
+    const kimi = getByTestId('onboarding-provider-kimi');
+    const deepseek = getByTestId('onboarding-provider-deepseek');
+    // Selected state uses cream text color, unselected uses brown
+    expect(kimi.style.color).toBe('rgb(250, 248, 243)');
+    expect(deepseek.style.color).toBe('rgb(42, 36, 25)');
+  });
+
+  it('clicking DeepSeek radio updates conditional copy', () => {
+    const { getByTestId, container } = render(<OnboardingGate />);
+    fireEvent.click(getByTestId('onboarding-provider-deepseek'));
+    const text = container.textContent ?? '';
+    expect(text).toContain('platform.deepseek.com');
+    expect(text).not.toContain('platform.moonshot.cn');
+  });
+
+  it('clicking Kimi radio shows Kimi-specific copy', () => {
+    const { getByTestId, container } = render(<OnboardingGate />);
+    // Switch to deepseek then back to kimi to verify toggling
+    fireEvent.click(getByTestId('onboarding-provider-deepseek'));
+    fireEvent.click(getByTestId('onboarding-provider-kimi'));
+    const text = container.textContent ?? '';
+    expect(text).toContain('platform.moonshot.cn');
+    expect(text).not.toContain('platform.deepseek.com');
+  });
+
+  it('BYO submit writes kanshan-provider=deepseek cookie when DeepSeek selected', () => {
+    const { getByTestId } = render(<OnboardingGate />);
+    fireEvent.click(getByTestId('onboarding-provider-deepseek'));
+    const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
+    fireEvent.click(getByTestId('onboarding-byo-submit'));
+    expect(document.cookie).toContain('kanshan-provider=deepseek');
+  });
+
+  it('BYO submit writes kanshan-provider=kimi cookie when Kimi selected (default)', () => {
+    const { getByTestId } = render(<OnboardingGate />);
+    const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
+    fireEvent.click(getByTestId('onboarding-byo-submit'));
+    expect(document.cookie).toContain('kanshan-provider=kimi');
+  });
+
+  it('Guest submit writes kanshan-provider=kimi cookie AND kanshan-account=guwanxi', () => {
+    const { getByTestId } = render(<OnboardingGate />);
+    fireEvent.click(getByTestId('onboarding-guest-submit'));
+    expect(document.cookie).toContain('kanshan-provider=kimi');
+    expect(document.cookie).toContain('kanshan-account=guwanxi');
+  });
+
+  it('OnboardingRecord in localStorage includes provider field on BYO submit', () => {
+    const { getByTestId } = render(<OnboardingGate />);
+    fireEvent.click(getByTestId('onboarding-provider-deepseek'));
+    const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
+    fireEvent.click(getByTestId('onboarding-byo-submit'));
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.provider).toBe('deepseek');
+    expect(parsed.apiKey).toBe('sk-abcdefghijklmnop1234');
   });
 
   it('IME composition: Enter during composition does not submit', () => {

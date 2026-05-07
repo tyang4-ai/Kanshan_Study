@@ -64,14 +64,14 @@ export async function POST(req: Request): Promise<Response> {
     });
   }
 
-  const apiKey = proxyAuth(req);
+  const creds = proxyAuth(req);
   const intent = debateKey({ selection: body.selection, turns: body.turns });
 
   let steps: ReplayStep[];
   try {
     steps = await withCache<ReplayStep[]>('persona-debate', intent, async () => {
       const buffered: ReplayStep[] = [];
-      for await (const turn of debateStream(body.selection, body.turns, apiKey)) {
+      for await (const turn of debateStream(body.selection, body.turns, creds.key, creds.provider)) {
         buffered.push({ event: 'turn', data: turn });
       }
       return buffered;

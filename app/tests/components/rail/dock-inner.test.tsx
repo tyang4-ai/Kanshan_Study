@@ -24,7 +24,13 @@ vi.mock('@/components/atoms/ShanFigure', () => ({
   ),
 }));
 vi.mock('@/components/atoms/FoxRail', () => ({
-  FoxRail: () => <div data-testid="fox-rail" />,
+  FoxRail: ({ activeIds, onPick }: { activeIds: FoxId[]; onPick: (id: FoxId) => void }) => (
+    <div data-testid="fox-rail" data-active={activeIds.join(',')}>
+      <button data-testid="fox-rail-mo" onClick={() => onPick('mo')}>mo</button>
+      <button data-testid="fox-rail-shi" onClick={() => onPick('shi')}>shi</button>
+      <button data-testid="fox-rail-shan" onClick={() => onPick('shan')}>shan</button>
+    </div>
+  ),
 }));
 
 import { DockInner } from '@/components/rail/DockInner';
@@ -134,5 +140,41 @@ describe('DockInner', () => {
         }
       });
     }
+
+    it('FoxRail icon click on 看墨 → opens voice-diff tab AND toggles fox AND store.open is true', () => {
+      const onToggle = vi.fn();
+      const { getByTestId } = render(
+        <DockInner activeArr={['mo']} onToggleFox={onToggle} />,
+      );
+      fireEvent.click(getByTestId('fox-rail-mo'));
+      expect(onToggle).toHaveBeenCalledWith('mo');
+      const state = useFloatingWindowStore.getState();
+      expect(state.tabs).toHaveLength(1);
+      expect(state.tabs[0].kind).toBe('voice-diff');
+      expect(state.open).toBe(true);
+    });
+
+    it('FoxRail icon click on 看势 → opens trends tab', () => {
+      const onToggle = vi.fn();
+      const { getByTestId } = render(
+        <DockInner activeArr={['mo']} onToggleFox={onToggle} />,
+      );
+      fireEvent.click(getByTestId('fox-rail-shi'));
+      expect(onToggle).toHaveBeenCalledWith('shi');
+      const state = useFloatingWindowStore.getState();
+      expect(state.tabs).toHaveLength(1);
+      expect(state.tabs[0].kind).toBe('trends');
+      expect(state.open).toBe(true);
+    });
+
+    it('FoxRail icon click on 看山 → toggles fox but does NOT open a tab', () => {
+      const onToggle = vi.fn();
+      const { getByTestId } = render(
+        <DockInner activeArr={['mo']} onToggleFox={onToggle} />,
+      );
+      fireEvent.click(getByTestId('fox-rail-shan'));
+      expect(onToggle).toHaveBeenCalledWith('shan');
+      expect(useFloatingWindowStore.getState().tabs).toHaveLength(0);
+    });
   });
 });

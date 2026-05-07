@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { scoreVoice } from '@/lib/voice/scorer';
 import { extractFeatures, createJieba, type VoiceFeatures } from '@/lib/voice/features';
-import { chatJson } from '@/lib/llm/deepseek';
+import { chatJson } from '@/lib/llm';
 import { embed } from '@/lib/embeddings';
 
-vi.mock('@/lib/llm/deepseek', () => ({ chatJson: vi.fn() }));
+vi.mock('@/lib/llm', () => ({ chatJson: vi.fn() }));
 vi.mock('@/lib/embeddings', () => ({ embed: vi.fn() }));
 
 const mockedChatJson = vi.mocked(chatJson);

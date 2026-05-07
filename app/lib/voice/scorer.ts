@@ -1,5 +1,5 @@
 import { extractFeatures, createJieba, type VoiceFeatures, type Jieba } from './features';
-import { chatJson } from '@/lib/llm/deepseek';
+import { chatJson } from '@/lib/llm';
 import { embed } from '@/lib/embeddings';
 
 const W_HARD = 0.4;

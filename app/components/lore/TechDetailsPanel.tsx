@@ -28,7 +28,7 @@ function readOnboardingMode(): OnboardingMode {
   }
 }
 
-const TECH_STACK = 'Next.js 15 · React 19 · TypeScript · Tailwind v4 · TipTap · Drizzle · Supabase · pgvector · BGE-M3 · DeepSeek-V3 / R1 · Zustand · Framer Motion';
+const TECH_STACK = 'Next.js 15 · React 19 · TypeScript · Tailwind v4 · TipTap · Drizzle · Supabase · pgvector · BGE-M3 · Kimi-K2 (默认) · DeepSeek-V3/R1 (BYO 备选) · Zustand · Framer Motion';
 const REPO_URL = 'https://github.com/tyang4-ai/Kanshan_Study';
 
 export function TechDetailsPanel({ onClose }: TechDetailsPanelProps) {

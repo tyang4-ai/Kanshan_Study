@@ -5,9 +5,11 @@ import { useEffect, useState } from 'react';
 const STORAGE_KEY = 'kanshan-onboarding';
 
 type OnboardingMode = 'byo-key' | 'guest';
+type ProviderChoice = 'kimi' | 'deepseek';
 
 interface OnboardingRecord {
   mode: OnboardingMode;
+  provider?: ProviderChoice;
   apiKey?: string;
   dismissedAt: string;
 }
@@ -27,6 +29,7 @@ export function OnboardingGate() {
   const [hidden, setHidden] = useState<boolean>(true);
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [provider, setProvider] = useState<ProviderChoice>('kimi');
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -47,8 +50,11 @@ export function OnboardingGate() {
       return;
     }
     setError(null);
+    // Cookie tells server which LLM adapter to route this user's BYO key to.
+    document.cookie = `kanshan-provider=${provider}; path=/; max-age=31536000; SameSite=Lax`;
     writeRecord({
       mode: 'byo-key',
+      provider,
       apiKey: apiKey.trim(),
       dismissedAt: new Date().toISOString(),
     });
@@ -57,6 +63,8 @@ export function OnboardingGate() {
   const submitGuest = () => {
     // Default guest visitors to the guwanxi demo account so the vault is non-empty.
     document.cookie = 'kanshan-account=guwanxi; path=/; max-age=31536000; SameSite=Lax';
+    // Guest mode uses the app's Kimi credit.
+    document.cookie = 'kanshan-provider=kimi; path=/; max-age=31536000; SameSite=Lax';
     writeRecord({
       mode: 'guest',
       dismissedAt: new Date().toISOString(),
@@ -240,6 +248,36 @@ export function OnboardingGate() {
     textDecoration: 'underline',
   };
 
+  const providerRow: CSSProperties = {
+    display: 'flex',
+    gap: 8,
+    marginBottom: 12,
+  };
+
+  const providerPillBase: CSSProperties = {
+    flex: 1,
+    padding: '8px 10px',
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: 11,
+    letterSpacing: 1,
+    border: '1px solid #2A2419',
+    borderRadius: 2,
+    cursor: 'pointer',
+    textAlign: 'center',
+  };
+
+  const providerPillSelected: CSSProperties = {
+    ...providerPillBase,
+    background: '#2A2419',
+    color: '#FAF8F3',
+  };
+
+  const providerPillUnselected: CSSProperties = {
+    ...providerPillBase,
+    background: 'transparent',
+    color: '#2A2419',
+  };
+
   return (
     <div
       data-testid="onboarding-gate"
@@ -266,22 +304,59 @@ export function OnboardingGate() {
               <span>自带密钥</span>
               <span style={recommendBadge}>推荐</span>
             </div>
-            <div style={captionLabel}>BYO · DEEPSEEK API KEY</div>
-            <ol style={stepList}>
-              <li>
-                注册{' '}
-                <a
-                  href="https://platform.deepseek.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={linkStyle}
-                >
-                  platform.deepseek.com
-                </a>
-              </li>
-              <li>在 API 控制台创建一个密钥</li>
-              <li>充值 ¥10 即可玩通整个工作台 (~10 万 tokens)</li>
-            </ol>
+            <div style={captionLabel}>BYO · LLM API KEY</div>
+            <div style={providerRow}>
+              <button
+                type="button"
+                data-testid="onboarding-provider-kimi"
+                style={provider === 'kimi' ? providerPillSelected : providerPillUnselected}
+                onClick={() => setProvider('kimi')}
+              >
+                Kimi (推荐 · 比赛额度)
+              </button>
+              <button
+                type="button"
+                data-testid="onboarding-provider-deepseek"
+                style={provider === 'deepseek' ? providerPillSelected : providerPillUnselected}
+                onClick={() => setProvider('deepseek')}
+              >
+                DeepSeek
+              </button>
+            </div>
+            {provider === 'kimi' ? (
+              <ol style={stepList}>
+                <li>
+                  前往{' '}
+                  <a
+                    href="https://platform.moonshot.cn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={linkStyle}
+                  >
+                    platform.moonshot.cn
+                  </a>{' '}
+                  注册
+                </li>
+                <li>在控制台创建一个密钥</li>
+                <li>比赛期间使用组委会 ¥199 额度（不需自行充值）</li>
+              </ol>
+            ) : (
+              <ol style={stepList}>
+                <li>
+                  注册{' '}
+                  <a
+                    href="https://platform.deepseek.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={linkStyle}
+                  >
+                    platform.deepseek.com
+                  </a>
+                </li>
+                <li>在 API 控制台创建一个密钥</li>
+                <li>充值 ¥10 即可玩通整个工作台 (~10 万 tokens)</li>
+              </ol>
+            )}
             <input
               data-testid="onboarding-api-key-input"
               type="text"

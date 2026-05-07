@@ -5,6 +5,7 @@ const validInput = {
   NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+  KIMI_API_KEY: 'sk-kimi-test',
   DEEPSEEK_API_KEY: 'sk-deepseek',
   DEEPSEEK_BASE_URL: 'https://api.deepseek.com',
   SILICONFLOW_API_KEY: 'sk-siliconflow',
@@ -13,9 +14,10 @@ const validInput = {
 };
 
 describe('parseEnv', () => {
-  it('parses a complete valid env with all 8 required keys', () => {
+  it('parses a complete valid env including KIMI_API_KEY', () => {
     const result = parseEnv(validInput);
     expect(result.NEXT_PUBLIC_SUPABASE_URL).toBe('https://example.supabase.co');
+    expect(result.KIMI_API_KEY).toBe('sk-kimi-test');
     expect(result.DEEPSEEK_API_KEY).toBe('sk-deepseek');
     expect(result.ZHIHU_API_MODE).toBe('mock');
     expect(result.CACHE_MODE).toBe('auto');
@@ -41,19 +43,41 @@ describe('parseEnv', () => {
     expect(() => parseEnv(validInput)).not.toThrow();
   });
 
-  it('throws when a required key is missing', () => {
+  it('does NOT throw when DEEPSEEK_API_KEY is absent (now optional after Kimi swap)', () => {
     const withoutDeepseek = { ...validInput, DEEPSEEK_API_KEY: undefined };
-    expect(() => parseEnv(withoutDeepseek)).toThrow(/DEEPSEEK_API_KEY/);
+    expect(() => parseEnv(withoutDeepseek)).not.toThrow();
+  });
+
+  it('throws when KIMI_API_KEY is missing (now the required LLM key)', () => {
+    const withoutKimi = { ...validInput, KIMI_API_KEY: undefined };
+    expect(() => parseEnv(withoutKimi)).toThrow(/KIMI_API_KEY/);
+  });
+
+  it('throws when KIMI_API_KEY is empty string', () => {
+    expect(() => parseEnv({ ...validInput, KIMI_API_KEY: '' })).toThrow(/KIMI_API_KEY/);
+  });
+
+  it('default KIMI_BASE_URL is https://api.moonshot.cn when not provided', () => {
+    const result = parseEnv(validInput);
+    expect(result.KIMI_BASE_URL).toBe('https://api.moonshot.cn');
+  });
+
+  it('respects explicit KIMI_BASE_URL override', () => {
+    const result = parseEnv({ ...validInput, KIMI_BASE_URL: 'https://kimi.example.com' });
+    expect(result.KIMI_BASE_URL).toBe('https://kimi.example.com');
+  });
+
+  it('default DEEPSEEK_BASE_URL is https://api.deepseek.com when not provided', () => {
+    const { DEEPSEEK_BASE_URL: _omit, ...withoutBase } = validInput;
+    void _omit;
+    const result = parseEnv(withoutBase);
+    expect(result.DEEPSEEK_BASE_URL).toBe('https://api.deepseek.com');
   });
 
   it('throws when NEXT_PUBLIC_SUPABASE_URL is malformed', () => {
     expect(() =>
       parseEnv({ ...validInput, NEXT_PUBLIC_SUPABASE_URL: 'not-a-url' }),
     ).toThrow();
-  });
-
-  it('throws when DEEPSEEK_API_KEY is empty string', () => {
-    expect(() => parseEnv({ ...validInput, DEEPSEEK_API_KEY: '' })).toThrow();
   });
 
   it('throws when ZHIHU_API_MODE has invalid enum value', () => {

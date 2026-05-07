@@ -223,6 +223,37 @@ describe('PersonaTab', () => {
     });
   });
 
+  it('error event with fallback array → fallback banner [备用样例 · 实时调用失败] renders above fallback messages', async () => {
+    setupFetch(() =>
+      makeSseResponse([
+        {
+          event: 'error',
+          data: {
+            message: 'DeepSeek 402 余额不足',
+            fallback: [
+              {
+                id: 'fb-1',
+                round: 1,
+                foxId: 'wen',
+                mask: '路人读者',
+                text: 'fallback msg 1',
+                tags: [],
+              },
+            ],
+          },
+        },
+        { event: 'done', data: {} },
+      ])
+    );
+
+    render(<PersonaTab />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('persona-fallback-banner')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('persona-fallback-banner').textContent).toContain('备用样例');
+  });
+
   it('error event → fallback messages render, mock badge text contains 余额 near ComplianceLine', async () => {
     setupFetch(() =>
       makeSseResponse([
@@ -291,6 +322,42 @@ describe('PersonaTab', () => {
       const custom = last.body.custom as Array<{ label: string; description: string }>;
       expect(Array.isArray(custom)).toBe(true);
       expect(custom.some((m) => m.label === '诊室助理')).toBe(true);
+    });
+  });
+
+  it('SSE error event without fallback → tab stays mounted, retry button visible, click re-fires fetch', async () => {
+    let callCount = 0;
+    const calls: FetchCall[] = [];
+    const fn = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+      const body =
+        typeof init.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      calls.push({ url, body });
+      callCount += 1;
+      if (callCount === 1) {
+        return makeSseResponse([
+          { event: 'error', data: { message: 'upstream 500' } },
+          { event: 'done', data: {} },
+        ]);
+      }
+      return makeSseResponse(roundsEvents(1));
+    });
+    global.fetch = fn as unknown as typeof fetch;
+
+    render(<PersonaTab />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('persona-error-banner')).toBeInTheDocument();
+    });
+    // Tab DOM is still mounted (not auto-disposed on error).
+    expect(screen.getByTestId('persona-tab')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('persona-retry'));
+
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+    });
+    await waitFor(() => {
+      expect(screen.getAllByTestId('persona-message')).toHaveLength(4);
     });
   });
 

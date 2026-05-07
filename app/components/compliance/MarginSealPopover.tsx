@@ -7,16 +7,38 @@ import {
 } from '@/components/compliance/MarginSealChit';
 import type { MarginSealKind } from '@/components/editor/MarginSeal';
 import { findProvenanceForChit, type ProvenanceEntry } from '@/lib/store/provenance';
+import { useFloatingWindowStore } from '@/lib/store/floating-window';
 
 interface PopoverState {
   detail: MarginSealOpenDetail;
   entry: ProvenanceEntry | null;
 }
 
+// Counsel flagged "审" as an affirmative claim of human-grade review;
+// dropped from each label so the chit only states what the workbench
+// actually did. Footer disclaimer makes the boundary explicit.
 const HEADER_LABEL: Record<MarginSealKind, string> = {
-  reviewed: '已审 · 已软化',
+  reviewed: '已软化',
   flag: '待补出处',
   sourced: '已附引用',
+};
+
+const FOOTER_DISCLAIMER = '本工作台不替代专业审稿';
+
+const footerStyle: CSSProperties = {
+  marginTop: 10,
+  paddingTop: 8,
+  borderTop: '1px solid rgba(122, 102, 85, 0.18)',
+  fontSize: 10,
+  color: '#7A6655',
+  fontFamily: 'JetBrains Mono, monospace',
+  letterSpacing: 0.4,
+};
+
+const EMPTY_HEURISTIC: Record<MarginSealKind, string> = {
+  reviewed: '可能存在的合规风险类型: 未软化绝对化判断',
+  flag: '可能存在的合规风险类型: 临床绝对化判断 / 缺少出处',
+  sourced: '可能存在的合规风险类型: 引用记录尚未落档',
 };
 
 const wrapperStyle: CSSProperties = {
@@ -72,6 +94,7 @@ const fragmentStyle: CSSProperties = {
 export function MarginSealPopover() {
   const [state, setState] = useState<PopoverState | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
+  const openTab = useFloatingWindowStore((s) => s.openTab);
 
   useEffect(() => {
     function onOpen(ev: Event) {
@@ -156,11 +179,43 @@ export function MarginSealPopover() {
         </>
       )}
 
-      {detail.kind === 'flag' && (
+      {detail.kind === 'flag' && entry && (
         <div style={{ marginBottom: 4, fontSize: 12, color: '#A8221C' }}>
-          {entry ? `${entry.fox} · 检出未注明出处` : '此处尚未匹配到记录'}
+          {`${entry.fox} · 检出未注明出处`}
         </div>
       )}
+
+      {!entry && (
+        <div data-testid="margin-seal-popover-empty" style={{ marginTop: 2 }}>
+          <div style={{ fontSize: 11.5, color: '#7A6655', marginBottom: 6 }}>
+            {EMPTY_HEURISTIC[detail.kind]}
+          </div>
+          <button
+            type="button"
+            data-testid="margin-seal-popover-rerun"
+            onClick={() => {
+              openTab('persona', '看心 · 重新审一审');
+              setState(null);
+            }}
+            style={{
+              border: '1px solid rgba(122,102,85,0.35)',
+              background: 'transparent',
+              color: '#1F8B66',
+              fontSize: 12,
+              fontFamily: '"Noto Serif SC", serif',
+              padding: '3px 9px',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            点击 看心 重新审一审
+          </button>
+        </div>
+      )}
+
+      <div data-testid="margin-seal-popover-disclaimer" style={footerStyle}>
+        {FOOTER_DISCLAIMER}
+      </div>
     </div>
   );
 }

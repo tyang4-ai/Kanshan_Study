@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/lib/llm/deepseek', () => ({
+vi.mock('@/lib/llm', () => ({
   chat: vi.fn(),
 }));
 
-import { chat } from '@/lib/llm/deepseek';
+import { chat } from '@/lib/llm';
 import {
   debateStream,
   DEBATE_FALLBACK,

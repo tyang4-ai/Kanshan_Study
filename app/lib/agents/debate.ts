@@ -1,4 +1,4 @@
-import { chat } from '@/lib/llm/deepseek';
+import { chat, type Provider } from '@/lib/llm';
 import { DEBATE_PAIR } from '@/lib/personas';
 
 export interface DebateTurn {
@@ -34,6 +34,7 @@ export async function* debateStream(
   selection: string,
   turns: number = 6,
   apiKey?: string,
+  provider?: Provider,
 ): AsyncGenerator<DebateTurn, void, void> {
   const history: DebateTurn[] = [];
   for (let i = 0; i < turns; i++) {
@@ -48,7 +49,7 @@ export async function* debateStream(
         { role: 'system', content: sys },
         { role: 'user', content: '请回复' },
       ],
-      { temperature: 0.85, maxTokens: 400, apiKey },
+      { temperature: 0.85, maxTokens: 400, apiKey, provider },
     );
     const turn: DebateTurn = {
       id: crypto.randomUUID(),

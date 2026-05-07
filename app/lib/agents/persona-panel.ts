@@ -1,4 +1,4 @@
-import { chatJson } from '@/lib/llm/deepseek';
+import { chatJson, type Provider } from '@/lib/llm';
 import {
   type MaskMeta,
   type CustomMask,
@@ -60,28 +60,31 @@ function roundNSystem(m: SelectedMask, history: PersonaMessage[]): string {
 export async function runRound1(
   selection: string,
   masks: SelectedMask[],
-  apiKey?: string
+  apiKey?: string,
+  provider?: Provider,
 ): Promise<PersonaMessage[]> {
-  const results = await Promise.all(
-    masks.map(async (m) => {
-      const json = await chatJson<Round1Json>(
-        [
-          { role: 'system', content: round1System(m) },
-          { role: 'user', content: selection },
-        ],
-        { model: 'deepseek-chat', temperature: 0.7, apiKey }
-      );
-      const msg: PersonaMessage = {
-        id: crypto.randomUUID(),
-        round: 1,
-        foxId: maskFoxId(m),
-        mask: m.label,
-        text: json.text,
-        tags: Array.isArray(json.tags) ? json.tags : [],
-      };
-      return msg;
-    })
-  );
+  // Sequential rather than Promise.all: Moonshot trial/standard orgs cap
+  // concurrency at 3, and 4 masks always trips it. The latency cost is small
+  // because kimi-k2.6 is fast and the route is SSE-streamed — masks arrive
+  // one by one in the UI rather than all at once.
+  const results: PersonaMessage[] = [];
+  for (const m of masks) {
+    const json = await chatJson<Round1Json>(
+      [
+        { role: 'system', content: round1System(m) },
+        { role: 'user', content: selection },
+      ],
+      { model: 'deepseek-chat', temperature: 0.7, apiKey, provider }
+    );
+    results.push({
+      id: crypto.randomUUID(),
+      round: 1,
+      foxId: maskFoxId(m),
+      mask: m.label,
+      text: json.text,
+      tags: Array.isArray(json.tags) ? json.tags : [],
+    });
+  }
   return results;
 }
 
@@ -90,7 +93,8 @@ export async function runRoundN(
   masks: SelectedMask[],
   history: PersonaMessage[],
   roundIdx: 2 | 3,
-  apiKey?: string
+  apiKey?: string,
+  provider?: Provider,
 ): Promise<PersonaMessage[]> {
   const out: PersonaMessage[] = [];
   for (const m of masks) {
@@ -99,7 +103,7 @@ export async function runRoundN(
         { role: 'system', content: roundNSystem(m, history) },
         { role: 'user', content: selection },
       ],
-      { model: 'deepseek-chat', temperature: 0.7, apiKey }
+      { model: 'deepseek-chat', temperature: 0.7, apiKey, provider }
     );
     if (json.skip) continue;
     const msg: PersonaMessage = {
@@ -121,7 +125,8 @@ export async function routeFollowup(
   history: PersonaMessage[],
   userMessage: string,
   masks: SelectedMask[],
-  apiKey?: string
+  apiKey?: string,
+  provider?: Provider,
 ): Promise<{ mask: SelectedMask; why: string }> {
   const labels = masks.map((m) => m.label);
   const historySerialized = history.map((h) => `「${h.mask}」: ${h.text}`).join('\n');
@@ -133,7 +138,7 @@ export async function routeFollowup(
       },
       { role: 'user', content: historySerialized },
     ],
-    { model: 'deepseek-chat', temperature: 0.2, apiKey }
+    { model: 'deepseek-chat', temperature: 0.2, apiKey, provider }
   );
   const matched = masks.find((m) => m.label === json.chosenMaskLabel);
   return { mask: matched ?? masks[0], why: json.why };
@@ -144,7 +149,8 @@ export async function runFollowup(
   history: PersonaMessage[],
   userMessage: string,
   mask: SelectedMask,
-  apiKey?: string
+  apiKey?: string,
+  provider?: Provider,
 ): Promise<PersonaMessage> {
   const historySerialized = history.map((h) => `「${h.mask}」: ${h.text}`).join('\n');
   const system = isCustomMask(mask)
@@ -155,7 +161,7 @@ export async function runFollowup(
       { role: 'system', content: system },
       { role: 'user', content: `选中段落：${selection}\n\n此前讨论：\n${historySerialized}` },
     ],
-    { model: 'deepseek-chat', temperature: 0.7, apiKey }
+    { model: 'deepseek-chat', temperature: 0.7, apiKey, provider }
   );
   return {
     id: crypto.randomUUID(),
@@ -225,7 +231,7 @@ export function FOLLOWUP_FALLBACK(userMessage: string, mask: SelectedMask): Pers
     round: 1,
     foxId: isCustomMask(mask) ? 'wen2' : mask.fox,
     mask: mask.label,
-    text: `（mock 模式）针对您的追问「${userMessage.slice(0, 30)}…」，这是占位回复。请补充 DeepSeek 余额以获取真实回应。`,
+    text: `（mock 模式）针对您的追问「${userMessage.slice(0, 30)}…」，这是占位回复。请补充 LLM 余额以获取真实回应。`,
     tags: ['mock'],
     replyToMask: '你',
     time: '刚刚',

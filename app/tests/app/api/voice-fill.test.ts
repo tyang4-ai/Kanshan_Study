@@ -93,6 +93,7 @@ async function* fakeStream() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.KIMI_API_KEY = 'sk-kimi-test-fallback';
   process.env.DEEPSEEK_API_KEY = 'sk-test-fallback';
   process.env.CACHE_MODE = 'auto';
   requireRateLimitOk.mockResolvedValue(null);

@@ -4,8 +4,19 @@ export const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  DEEPSEEK_API_KEY: z.string().min(1),
-  DEEPSEEK_BASE_URL: z.string().url(),
+
+  // Kimi (Moonshot AI) — primary LLM provider as of 2026-05-05.
+  // ¥199 organizer credit lands 2026-05-12. Until then, KIMI_API_KEY is a
+  // placeholder; live LLM calls fail with 401, but cache-replay + tests are
+  // unaffected.
+  KIMI_API_KEY: z.string().min(1),
+  KIMI_BASE_URL: z.string().url().default('https://api.moonshot.cn'),
+
+  // DeepSeek — secondary provider, only used when a user supplies a DeepSeek
+  // BYO key in the OnboardingGate. Optional after the Kimi swap.
+  DEEPSEEK_API_KEY: z.string().min(1).optional(),
+  DEEPSEEK_BASE_URL: z.string().url().default('https://api.deepseek.com'),
+
   SILICONFLOW_API_KEY: z.string().min(1),
   SILICONFLOW_BASE_URL: z.string().url(),
   NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -28,6 +39,8 @@ export function parseEnv(input: NodeJS.ProcessEnv | Record<string, string | unde
     NEXT_PUBLIC_SUPABASE_URL: input.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: input.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: input.SUPABASE_SERVICE_ROLE_KEY,
+    KIMI_API_KEY: input.KIMI_API_KEY,
+    KIMI_BASE_URL: input.KIMI_BASE_URL,
     DEEPSEEK_API_KEY: input.DEEPSEEK_API_KEY,
     DEEPSEEK_BASE_URL: input.DEEPSEEK_BASE_URL,
     SILICONFLOW_API_KEY: input.SILICONFLOW_API_KEY,

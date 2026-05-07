@@ -1,4 +1,5 @@
 import { RelCard } from './RelCard';
+import { BulletinTrendCard } from './BulletinTrendCard';
 
 // Width-responsive card layout. Cards center on the rail's available
 // width; rotations and small horizontal offsets stay constant so the
@@ -12,18 +13,10 @@ export function RailContent() {
       gap: 18
     }}>
       {/* Hot trends card */}
-      <RelCard rotate={-2.5} pinColor="#1772F6" offsetX={-2}>
-        <div style={{ fontFamily: '"Noto Sans SC", sans-serif', fontSize: 9.5, fontWeight: 600,
-          color: '#1772F6', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
-          看势 · 热榜
-        </div>
-        <div style={{ fontFamily: '"Noto Serif SC", serif', fontSize: 12.5, color: '#1A1F2A', lineHeight: 1.45, fontWeight: 500 }}>
-          AI 写作工具是否会让答主声音同质化？
-        </div>
-        <div style={{ fontSize: 9.5, color: '#7A6655', marginTop: 6, fontFamily: '"Noto Sans SC", sans-serif' }}>
-          热度 8.2万 · 2 小时前
-        </div>
-      </RelCard>
+      <BulletinTrendCard
+        title="AI 写作工具是否会让答主声音同质化？"
+        meta="热度 8.2万 · 2 小时前"
+      />
 
       {/* Old work card with sticky note attached to its corner */}
       <div style={{ position: 'relative' }}>

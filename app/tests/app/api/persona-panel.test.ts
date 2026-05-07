@@ -87,6 +87,7 @@ function msg(round: 1 | 2 | 3, mask: string): PersonaMessage {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.KIMI_API_KEY = 'sk-kimi-test-fallback';
   process.env.DEEPSEEK_API_KEY = 'sk-test-fallback';
   process.env.CACHE_MODE = 'auto';
   requireRateLimitOk.mockResolvedValue(null);
@@ -187,7 +188,7 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
       req({ selection: '段落', fixedIds: ['passerby'], rounds: 1 }, { Authorization: 'Bearer sk-byo-1' }),
     );
     await readSse(res);
-    expect(mockedR1).toHaveBeenCalledWith('段落', expect.any(Array), 'sk-byo-1');
+    expect(mockedR1).toHaveBeenCalledWith('段落', expect.any(Array), 'sk-byo-1', 'kimi');
   }, 15000);
 });
 

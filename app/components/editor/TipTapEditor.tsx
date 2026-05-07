@@ -51,6 +51,26 @@ function findCitation(id: string): Citation | null {
   return CITATIONS.find((c) => c.id === id) ?? null;
 }
 
+/** Extracted so it can be unit-tested without ProseMirror's view dispatch
+ *  (JSDOM lacks `elementFromPoint` which PM's mousedown handler needs). */
+export function handleCitationSupClick(
+  target: EventTarget | null,
+  openTab: ReturnType<typeof useFloatingWindowStore.getState>['openTab'],
+): boolean {
+  const el = target as HTMLElement | null;
+  const sup = el?.closest?.('sup[data-citation-id]') as HTMLElement | null;
+  if (!sup) return false;
+  const id = sup.getAttribute('data-citation-id');
+  if (!id) return false;
+  const citation = findCitation(id);
+  if (!citation) return false;
+  const handler = buildCitationOnClick(citation, (props) =>
+    openTab('vault', '看典 · 档案库', props),
+  );
+  handler();
+  return true;
+}
+
 export function TipTapEditor({
   content,
   marginSeeds = [],
@@ -77,21 +97,11 @@ export function TipTapEditor({
     content,
     immediatelyRender: false,
     editorProps: {
-      handleClickOn(view, _pos, _node, _nodePos, event) {
-        const target = event.target as HTMLElement | null;
-        const sup = target?.closest?.('sup[data-citation-id]') as HTMLElement | null;
-        if (!sup) return false;
-        const id = sup.getAttribute('data-citation-id');
-        if (!id) return false;
-        const citation = findCitation(id);
-        if (!citation) return false;
+      handleClickOn(_view, _pos, _node, _nodePos, event) {
         const openTab = useFloatingWindowStore.getState().openTab;
-        const handler = buildCitationOnClick(citation, (props) =>
-          openTab('vault', '看典 · 档案库', props),
-        );
-        handler();
-        event.preventDefault();
-        return true;
+        const handled = handleCitationSupClick(event.target, openTab);
+        if (handled) event.preventDefault();
+        return handled;
       },
     },
     onSelectionUpdate({ editor: e }) {
@@ -127,6 +137,21 @@ export function TipTapEditor({
     setEditor(editor as Editor | null);
     return () => setEditor(null);
   }, [editor, setEditor]);
+
+  // Defense-in-depth: ProseMirror's `handleClickOn` runs only when the click
+  // hits a node-with-content; clicks that land on a mark-only sup may slip
+  // through, so we attach a DOM-level click listener on the editor root.
+  useEffect(() => {
+    const root = document.querySelector('[data-testid="tiptap-editor"]');
+    if (!root) return;
+    const onClick = (e: Event) => {
+      const openTab = useFloatingWindowStore.getState().openTab;
+      const handled = handleCitationSupClick(e.target, openTab);
+      if (handled) e.preventDefault();
+    };
+    root.addEventListener('click', onClick);
+    return () => root.removeEventListener('click', onClick);
+  }, []);
 
   return (
     <div data-testid="tiptap-editor" data-tour-id="editor" style={style}>

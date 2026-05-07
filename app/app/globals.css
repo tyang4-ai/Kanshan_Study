@@ -237,8 +237,9 @@
   font-family: "Noto Serif SC", serif;
   font-size: 9px;
   letter-spacing: 1px;
-  pointer-events: none;
+  pointer-events: auto;
   user-select: none;
+  cursor: pointer;
 }
 .margin-seal-reviewed { color: #1F8B66; border-color: rgba(31,139,102,0.33); }
 .margin-seal-flag     { color: #B85543; border-color: rgba(184,85,67,0.33); }

@@ -10,6 +10,8 @@ import type { VoiceSpan, IterStep, VoiceFillFinal } from '@/lib/voice/rewriter';
 import type { ScoreResult } from '@/lib/voice/scorer';
 import { CitationLink } from '@/components/citation/CitationLink';
 import { vaultCitation } from '@/lib/citation/types';
+import { fetchWithErrorToast } from '@/lib/fetch-helpers';
+import { useAiErrorStore } from '@/lib/store/ai-error';
 
 interface VoiceSourceMeta {
   id: string;
@@ -33,6 +35,7 @@ interface PanelState {
   voiceSources: VoiceSourceMeta[];
   done: boolean;
   error: string | null;
+  fallbackActive: boolean;
 }
 
 const INITIAL_STATE: PanelState = {
@@ -44,6 +47,7 @@ const INITIAL_STATE: PanelState = {
   voiceSources: [],
   done: false,
   error: null,
+  fallbackActive: false,
 };
 
 const COMPLIANCE_TEXT = '输出已添加 GB 45438 标识 · AI 生成可追溯';
@@ -126,8 +130,10 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     abortRef.current = ctrl;
     setState(INITIAL_STATE);
     setGenericLoaded(false);
+    // Clear any prior toast — new run, fresh slate.
+    useAiErrorStore.getState().dismiss();
     try {
-      const res = await fetch('/api/agents/voice-fill', {
+      const res = await fetchWithErrorToast('/api/agents/voice-fill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bullets, selection, mode }),
@@ -159,7 +165,24 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
             }));
           } else if (ev.event === 'error') {
             const msg = typeof payload.message === 'string' ? payload.message : 'stream error';
-            setState((s) => ({ ...s, error: msg, done: true }));
+            // voice-fill's fallback shape (when present) is a single object
+            // mirroring the `final` payload — render it as if it had streamed.
+            const fb =
+              payload.fallback && typeof payload.fallback === 'object' && !Array.isArray(payload.fallback)
+                ? (payload.fallback as Partial<VoiceFillFinal> & { generic?: string })
+                : null;
+            setState((s) => ({
+              ...s,
+              error: msg,
+              done: true,
+              fallbackActive: fb !== null,
+              generic: fb?.generic ?? s.generic,
+              voice: fb?.voice ?? s.voice,
+              voiceSpans: fb?.voiceSpans ?? s.voiceSpans,
+              voiceScore: fb?.voiceScore ?? s.voiceScore,
+              voiceSources: fb?.voiceSources ?? s.voiceSources,
+            }));
+            if (fb && typeof fb.generic === 'string') setGenericLoaded(true);
           }
         } catch {
           // ignore malformed event data
@@ -225,6 +248,28 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           {selection || bullets || '— 这一段需要例子'}
         </span>
       </div>
+
+      {state.fallbackActive && (
+        <div
+          data-testid="voice-diff-fallback-banner"
+          title={state.error ?? undefined}
+          style={{
+            flexShrink: 0,
+            margin: '6px 14px 0',
+            alignSelf: 'flex-start',
+            fontSize: 10.5,
+            color: '#7A6655',
+            background: 'rgba(122,102,85,0.10)',
+            border: '1px dashed rgba(122,102,85,0.45)',
+            borderRadius: 4,
+            padding: '3px 8px',
+            fontFamily: 'JetBrains Mono, monospace',
+            letterSpacing: 0.4,
+          }}
+        >
+          备用样例 · 实时调用失败
+        </div>
+      )}
 
       {/* Two-column scroll diff */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -396,11 +441,23 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
 
       {state.error && (
         <div data-testid="voice-diff-error" style={{
-          flexShrink: 0, padding: '4px 14px',
+          flexShrink: 0, padding: '6px 14px',
           background: 'rgba(192,48,40,0.08)', color: '#C03028',
           fontSize: 10, fontFamily: 'JetBrains Mono, monospace',
+          display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          {state.error}
+          <span style={{ flex: 1 }}>{state.error}</span>
+          <button
+            data-testid="voice-diff-retry"
+            type="button"
+            onClick={() => void run()}
+            style={{
+              fontSize: 10, padding: '3px 10px', borderRadius: 3,
+              border: '1px solid rgba(192,48,40,0.45)',
+              background: '#fff', color: '#C03028',
+              cursor: 'pointer', fontFamily: '"Noto Sans SC", sans-serif',
+            }}
+          >重试</button>
         </div>
       )}
     </div>

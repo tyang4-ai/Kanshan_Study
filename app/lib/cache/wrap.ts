@@ -45,14 +45,24 @@ export async function withCache<T>(
   const promise = (async () => {
     try {
       if (mode !== 'live-only') {
-        const hit = await lookupCache<T>(kind, intent);
-        if (hit) return hit.response;
+        try {
+          const hit = await lookupCache<T>(kind, intent);
+          if (hit) return hit.response;
+        } catch (err) {
+          // cache-only mode can't tolerate a broken lookup — caller wants strict
+          // cache-replay semantics, so propagate.
+          if (mode === 'cache-only') throw err;
+          // auto mode: embedding service down, schema mismatch, or other lookup
+          // failure. Degrade to live call rather than 500. The write below will
+          // silently fail too, which is acceptable.
+          console.warn('[cache] lookup failed, falling through to live:', (err as Error).message);
+        }
       }
       if (mode === 'cache-only') {
         throw new CacheMissError(kind, intent);
       }
       const result = await live();
-      // Best-effort write; tolerate sync mocks returning undefined.
+      // Best-effort write; tolerate sync mocks returning undefined and embed outages.
       Promise.resolve(writeCache(kind, intent, result)).catch((e) => {
         console.warn('[cache] write failed', e);
       });

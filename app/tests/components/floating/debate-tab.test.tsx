@@ -150,6 +150,36 @@ describe('DebateTab', () => {
     expect(pills[0].textContent ?? '').toContain('正方 · 力挺');
   });
 
+  it('error event with fallback turns → fallback banner [备用样例] renders above turns', async () => {
+    setupFetch(() =>
+      makeSseResponse([
+        {
+          event: 'error',
+          data: {
+            message: 'LLM 402 余额不足',
+            fallback: [
+              {
+                id: 'fb-1',
+                foxId: 'wen',
+                mask: '正方 · 力挺',
+                position: 'pro',
+                text: 'fb 1',
+              },
+            ],
+          },
+        },
+        { event: 'done', data: {} },
+      ]),
+    );
+
+    render(<DebateTab selection={{ text: '示例选段。' }} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('debate-fallback-banner')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('debate-fallback-banner').textContent).toContain('备用样例');
+  });
+
   it('error event → fallback turns rendered + ComplianceLine textContent matches /余额|mock data/', async () => {
     setupFetch(() =>
       makeSseResponse([

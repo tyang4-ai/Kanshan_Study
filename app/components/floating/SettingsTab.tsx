@@ -1,4 +1,8 @@
 'use client';
+// 5/12 TODO: provider-aware model dropdown — see plan #13.6 Step 6.C
+// Default options: Kimi-K2 (默认), 本地 Qwen3-72B
+// Conditionally show DeepSeek-V3 (BYO) / DeepSeek-R1 (BYO) when localStorage
+// 'kanshan-onboarding'.provider === 'deepseek'
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 
 export function SettingsTab() {

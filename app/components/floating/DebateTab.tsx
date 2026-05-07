@@ -6,6 +6,8 @@ import { TypewriterText } from '@/components/persona/TypewriterText';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 import type { DebateTurn } from '@/lib/agents/debate';
+import { fetchWithErrorToast } from '@/lib/fetch-helpers';
+import { useAiErrorStore } from '@/lib/store/ai-error';
 
 interface DebateTabProps {
   selection?: { text: string; rect?: DOMRect } | null;
@@ -45,7 +47,8 @@ async function* readSse(
 
 function isMockError(message: string | null): boolean {
   if (!message) return false;
-  return message.includes('402') || message.includes('余额');
+  // 5/12 TODO: verify Kimi quota error code; 402 covers DeepSeek, 401 covers placeholder Kimi state
+  return message.includes('402') || message.includes('401') || message.includes('余额');
 }
 
 export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
@@ -54,6 +57,7 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
   const [messages, setMessages] = useState<DebateTurn[]>([]);
   const [currentTurn, setCurrentTurn] = useState<DebateTurn | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fallbackActive, setFallbackActive] = useState<boolean>(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -66,10 +70,13 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
     setMessages([]);
     setCurrentTurn(null);
     setError(null);
+    setFallbackActive(false);
+
+    useAiErrorStore.getState().dismiss();
 
     const run = async () => {
       try {
-        const res = await fetch('/api/agents/debate', {
+        const res = await fetchWithErrorToast('/api/agents/debate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ selection: selectionText, turns }),
@@ -101,6 +108,7 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
               const fallback = Array.isArray(payload.fallback)
                 ? (payload.fallback as DebateTurn[])
                 : [];
+              if (fallback.length > 0) setFallbackActive(true);
               setMessages((m) => [...m, ...fallback]);
               setCurrentTurn(null);
               setError(msg);
@@ -124,7 +132,7 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
     };
   }, [selectionText, turns]);
 
-  const mockBadge = isMockError(error) ? ' [mock data — DeepSeek 余额不足]' : '';
+  const mockBadge = isMockError(error) ? ' [mock data — LLM 余额不足]' : '';
 
   return (
     <div
@@ -166,6 +174,25 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
           gap: 14,
         }}
       >
+        {fallbackActive && (
+          <div
+            data-testid="debate-fallback-banner"
+            title={error ?? undefined}
+            style={{
+              alignSelf: 'flex-start',
+              fontSize: 10.5,
+              color: '#7A6655',
+              background: 'rgba(122,102,85,0.10)',
+              border: '1px dashed rgba(122,102,85,0.45)',
+              borderRadius: 4,
+              padding: '3px 8px',
+              fontFamily: 'JetBrains Mono, monospace',
+              letterSpacing: 0.4,
+            }}
+          >
+            备用样例 · 实时调用失败
+          </div>
+        )}
         {messages.map((m, i) => (
           <PersonaMessage
             key={m.id}

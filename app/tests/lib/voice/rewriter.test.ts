@@ -3,7 +3,7 @@ import type { ScoreResult } from '@/lib/voice/scorer';
 import type { VoiceFeatures } from '@/lib/voice/features';
 
 vi.mock('@/lib/vault/search', () => ({ searchVault: vi.fn() }));
-vi.mock('@/lib/llm/deepseek', () => ({
+vi.mock('@/lib/llm', () => ({
   chat: vi.fn(),
   chatJson: vi.fn(),
   GENERIC_SYSTEM_PROMPT: 'g',
@@ -12,7 +12,7 @@ vi.mock('@/lib/llm/deepseek', () => ({
 vi.mock('@/lib/voice/scorer', () => ({ scoreVoice: vi.fn() }));
 
 import { searchVault } from '@/lib/vault/search';
-import { chat, chatJson } from '@/lib/llm/deepseek';
+import { chat, chatJson } from '@/lib/llm';
 import { scoreVoice } from '@/lib/voice/scorer';
 import {
   voiceFillStream,
