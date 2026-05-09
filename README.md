@@ -1,98 +1,98 @@
 # 看山书房 · Kanshan Shufang
 
-A multi-agent 工作台 that helps 知乎答主 walk through **「灵感激发 → 思路梳理 → 内容精加工」**.
+一个面向知乎答主的多智能体写作工作台，覆盖 **「灵感激发 → 思路梳理 → 内容精加工」** 全流程。
 
-Built for **知乎 Hackathon 2026** · solo dev · Demo Day 2026-05-16.
+为 **知乎 Hackathon 2026** 而作 · 单人开发 · Demo Day 2026-05-16。
 
-> 山有九尾，各司其职。看山书房 is a workspace where nine fox agents help you draft, revise, debate, and ground your answers — without replacing your voice.
+> 山有九尾，各司其职。看山书房是一个工作台——九只狐狸协助你起草、修订、辩论、并为论点提供出处，但绝不替代你的声音。
 
 ---
 
-## What it is
+## 这是什么
 
-看山书房 is a writing workspace organized around **9 specialized fox agents**, each with a single verb:
+看山书房是一个写作工作台，围绕 **9 只各司其职的狐狸** 组织，每只狐狸只做一件事：
 
-| 狐 | Verb | What it does |
+| 狐 | 动词 | 职责 |
 |---|---|---|
-| 看山 | orchestrate | Routes work between the other foxes |
-| 看墨 | 灵感激发 | Drafter — generates first-pass content from your bullets |
-| 看文 | 内容精加工 | Pro-stance critic in 看文/看纹 debate |
-| 看纹 | 内容精加工 | Counter-stance critic; user-customizable persona |
-| 看水 | 思路梳理 | Research outliner + citation source |
-| 看殿 | 思路梳理 | Vault retriever — your archived corpus, BGE-M3 grounded |
-| 看势 | 灵感激发 | Trends scout — selection-only, never auto-expands hot topics |
-| 看镜 | 思路梳理 | Stats / post-publish loop |
-| 看心 | 内容精加工 | Compliance + voice / tone guard |
+| 看山 | 总管 | 在其他狐狸之间分派任务 |
+| 看墨 | 灵感激发 | 起草——根据要点生成第一稿 |
+| 看文 | 内容精加工 | 看文/看纹辩论中的「正方·力挺」 |
+| 看纹 | 内容精加工 | 看文/看纹辩论中的「反方·质疑」，可由用户自定义人格 |
+| 看水 | 思路梳理 | 调研提纲与引用来源 |
+| 看殿 | 思路梳理 | 档案库检索——基于 BGE-M3 对你的私人语料做语义检索 |
+| 看势 | 灵感激发 | 选题热度参考——仅作灵感，不会自动扩写热榜 |
+| 看镜 | 思路梳理 | 数据统计与发文后回看 |
+| 看心 | 内容精加工 | 合规与文风/语调把关 |
 
-Plus **4 fixed reader masks** (路人读者 · 业内行家 · 社畜读者 · 边界关注者) and a **看文 vs 看纹** debate panel for stress-testing claims.
+另有 **4 种固定读者面具**（路人读者 · 业内行家 · 社畜读者 · 边界关注者），以及一个 **看文 vs 看纹辩论面板**，用于压力测试论点。
 
-Two demo modes:
+两种 Demo 模式：
 
-- **`/`** — clickthrough mode. Bring your own DeepSeek API key, or use rate-limited guest mode (60/hr · 200/day).
-- **`/live`** — finals demo mode. Forced cache-only — every step pre-rehearsed, zero LLM hits during a live presentation.
+- **`/`** —— 试用模式。可填入自己的 DeepSeek API key，或使用限频访客模式（60 次/小时 · 200 次/日）。
+- **`/live`** —— 决赛演示模式。强制使用缓存数据，每一步都已彩排过，现场零 LLM 调用。
 
-## Stack
+## 技术栈
 
-- **Frontend**: Next.js 15 App Router · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui
-- **Editor**: TipTap with custom InlineMark / MarginSeal / CitationMark extensions
-- **State**: Zustand · Framer Motion
-- **LLM**: DeepSeek-V3 (drafter) + DeepSeek-R1 (critic) via SiliconFlow
-- **Embeddings**: BGE-M3 (1024-dim) + Qwen3-Reranker
-- **DB**: Drizzle + Supabase Postgres + pgvector (Singapore)
-- **Tests**: Vitest + React Testing Library + jsdom
+- **前端**：Next.js 15 App Router · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui
+- **编辑器**：TipTap，自定义 InlineMark / MarginSeal / CitationMark 扩展
+- **状态管理**：Zustand · Framer Motion
+- **大模型**：Kimi-K2 (Moonshot AI) 为默认起草与评审；支持 DeepSeek-V3 / DeepSeek-R1 作为 BYO 备选
+- **嵌入向量**：BGE-M3 (1024 维) + Qwen3-Reranker，经 SiliconFlow 调用
+- **数据库**：Drizzle + Supabase Postgres + pgvector（新加坡区域）
+- **测试**：Vitest + React Testing Library + jsdom
 
-## Status
+## 进度
 
-Active development. 13 of 17 implementation phases complete; submission deadline 2026-05-14 13:00 BJT.
+研发中。共 16 个实现阶段，目前已完成阶段 1–13.9；提交截止 2026-05-14 13:00 BJT。
 
-| Phase | Status |
+| 阶段 | 状态 |
 |---|---|
-| 1–13 (foundation → workspace → agents → demo modes) | done |
-| 14 (知乎 API integration) | gated on 5/9 docs release |
-| 15 (demo cache seed) | folded into 13; needs run with real keys |
-| 16 (testing pass + text-quality audit) | pending |
-| 17 (polish — voice + icon) | pending |
+| 1–13.9（基础脚手架 → 工作台 → 智能体 → 双 Demo 模式 → 文本质量调优） | 已完成 |
+| 14（知乎 API 接入） | 等待 5/12 文档发布 |
+| 15（演示彩排） | 待开始 |
+| 16（细节打磨——语音 + 图标） | 待开始 |
 
-## Local setup
+## 本地运行
 
 ```bash
 cd app
 pnpm install
-cp ../.env.example .env.local       # fill in the keys you have
-pnpm dlx drizzle-kit migrate         # applies cache + rate-limit tables
-pnpm dev                             # http://localhost:3000
+cp ../.env.example .env.local        # 按需填入你已有的 key
+pnpm dlx drizzle-kit migrate          # 应用 cache + rate-limit 表结构
+pnpm dev                              # http://localhost:3000
 ```
 
-Required env (see `.env.example`):
+需要的环境变量（见 `.env.example`）：
 
-- `DEEPSEEK_API_KEY` — DeepSeek platform key (drafter + critic)
-- `SILICONFLOW_API_KEY` — embeddings + reranker
-- `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `CACHE_MODE` — `auto` (default) · `cache-only` · `live-only`
+- `KIMI_API_KEY` —— Moonshot Kimi-K2 平台 key（默认起草与评审）
+- `DEEPSEEK_API_KEY` —— DeepSeek 平台 key（可选 BYO 备选）
+- `SILICONFLOW_API_KEY` —— 嵌入与重排
+- `NEXT_PUBLIC_SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`
+- `CACHE_MODE` —— `auto`（默认） · `cache-only` · `live-only`
 
-To populate the demo cache:
+填充 demo 缓存：
 
 ```bash
 pnpm tsx scripts/seed-demo-cache.ts
 ```
 
-## Compliance
+## 合规
 
-This project follows 清朗 第二阶段 guidance and 深度合成规定 in its critical path:
+本项目在关键链路上遵循《清朗·算法综合治理》第二阶段思路，以及《生成式人工智能服务管理暂行办法》和《互联网信息服务深度合成管理规定》：
 
-- ❌ No "AI 答主可以替代人类答主" framing
-- ❌ No 热榜 → 直接扩写正文 path (selection only)
-- ❌ No auto-post to 知乎
-- ❌ No fine-tune on 答主 content
-- ❌ No US providers in critical path
-- ❌ No voice/face features in MVP
+- ❌ 不主张「AI 答主可以替代人类答主」
+- ❌ 不做「热榜 → 直接扩写正文」的路径（仅供选题参考）
+- ❌ 不向知乎自动发布
+- ❌ 不在答主作品上做模型微调
+- ❌ 关键链路不接入境外大模型服务
+- ❌ MVP 阶段不上线声音 / 人脸合成
 
-Voice / cloning surfaces are tagged with `GB 45438` "AI 生成可追溯" stamps. Vault content stays in Singapore; not used for training.
+涉及声音 / 仿写的输出会附 `GB 45438`「AI 生成可追溯」标识。档案库内容存于新加坡区域，不进入第三方训练集。
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT —— 详见 [LICENSE](./LICENSE)。
 
 ---
 
-_设计 & 开发: Gordon Yang (tyang4@scu.edu) · 2026_
+_设计 & 开发：Gordon Yang (tyang4@scu.edu) · 2026_
