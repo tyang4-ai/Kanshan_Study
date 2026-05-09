@@ -40,11 +40,41 @@ describe('House', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the fox name with the 刘 prefix preserved', () => {
+  it('renders the fox name (bare — 刘 prefix reserved for shan only)', () => {
     const { getByTestId } = render(
       <House entry={moEntry} hovered={false} onHover={() => {}} onClick={() => {}} />,
     );
     expect(getByTestId('house').textContent).toContain(getFox('mo').name);
+  });
+
+  it('is a <button> with aria-label and aria-pressed for keyboard a11y', () => {
+    const { getByTestId } = render(
+      <House entry={moEntry} hovered={false} pinned={false} onHover={() => {}} onClick={() => {}} />,
+    );
+    const el = getByTestId('house');
+    expect(el.tagName).toBe('BUTTON');
+    expect(el.getAttribute('type')).toBe('button');
+    expect(el.getAttribute('aria-label')).toContain(getFox('mo').name);
+    expect(el.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('aria-pressed reflects pinned prop', () => {
+    const { getByTestId } = render(
+      <House entry={moEntry} hovered={false} pinned={true} onHover={() => {}} onClick={() => {}} />,
+    );
+    expect(getByTestId('house').getAttribute('aria-pressed')).toBe('true');
+    expect(getByTestId('house').getAttribute('data-pinned')).toBe('true');
+  });
+
+  it('focus + blur drive onHover (keyboard parity with mouse)', () => {
+    const onHover = vi.fn();
+    const { getByTestId } = render(
+      <House entry={moEntry} hovered={false} onHover={onHover} onClick={() => {}} />,
+    );
+    fireEvent.focus(getByTestId('house'));
+    expect(onHover).toHaveBeenCalledWith('mo');
+    fireEvent.blur(getByTestId('house'));
+    expect(onHover).toHaveBeenLastCalledWith(null);
   });
 
   it('hovered state lifts via data-hovered attribute', () => {

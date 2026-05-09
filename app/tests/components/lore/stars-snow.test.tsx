@@ -5,20 +5,20 @@ import { Snow } from '@/components/lore/Snow';
 
 describe('Stars', () => {
   it('renders count small stars + 12 large stars', () => {
-    const { getAllByTestId } = render(<Stars count={80} />);
+    const { getAllByTestId } = render(<Stars count={40} />);
     const all = getAllByTestId('star');
-    expect(all.length).toBe(92);
+    expect(all.length).toBe(52);
     const large = all.filter((s) => s.getAttribute('data-star-tier') === 'large');
     expect(large.length).toBe(12);
   });
 
   it('rng-seeded layout is stable across remounts', () => {
-    const { container: a, unmount } = render(<Stars count={80} />);
+    const { container: a, unmount } = render(<Stars count={40} />);
     const layoutA = Array.from(a.querySelectorAll<HTMLElement>('[data-testid="star"]')).map(
       (el) => `${el.style.left}|${el.style.top}|${el.style.width}`,
     );
     unmount();
-    const { container: b } = render(<Stars count={80} />);
+    const { container: b } = render(<Stars count={40} />);
     const layoutB = Array.from(b.querySelectorAll<HTMLElement>('[data-testid="star"]')).map(
       (el) => `${el.style.left}|${el.style.top}|${el.style.width}`,
     );
@@ -27,10 +27,10 @@ describe('Stars', () => {
 });
 
 describe('Snow', () => {
-  it('renders 50 flakes by default', () => {
+  it('renders 26 flakes by default (perf-tuned for 腾讯会议 720p stream)', () => {
     const { getAllByTestId } = render(<Snow />);
     const flakes = getAllByTestId('snowflake');
-    expect(flakes.length).toBe(50);
+    expect(flakes.length).toBe(26);
   });
 
   it('each flake sets a --drift CSS custom property', () => {

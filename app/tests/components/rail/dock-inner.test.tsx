@@ -92,10 +92,10 @@ describe('DockInner', () => {
     const { container } = render(<DockInner activeArr={['mo']} onToggleFox={() => {}} />);
     const moTail = container.querySelector('[data-fox="mo"]')!;
     const moWrapper = moTail.parentElement!;
-    expect(moWrapper.getAttribute('title')).toBe('刘看墨 · 内容精加工');
+    expect(moWrapper.getAttribute('title')).toBe('看墨 · 内容精加工');
 
     const shuiTail = container.querySelector('[data-fox="shui"]')!;
-    expect(shuiTail.parentElement!.getAttribute('title')).toBe('刘看水 · 灵感激发');
+    expect(shuiTail.parentElement!.getAttribute('title')).toBe('看水 · 灵感激发');
   });
 
   describe('click → toggleFox + open tab', () => {

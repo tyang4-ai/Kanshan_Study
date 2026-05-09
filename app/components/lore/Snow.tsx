@@ -28,9 +28,9 @@ function seededRng(seed: number) {
 function buildFlakes(): Flake[] {
   const rand = seededRng(8423);
   const tiers = [
-    { count: 18, size: [4, 5],   opacity: 0.9,  dur: [8, 12],  tier: 'large' as const },
-    { count: 18, size: [2, 3],   opacity: 0.6,  dur: [14, 18], tier: 'mid'   as const },
-    { count: 14, size: [1, 2],   opacity: 0.35, dur: [22, 28], tier: 'small' as const },
+    { count: 10, size: [4, 5],   opacity: 0.9,  dur: [8, 12],  tier: 'large' as const },
+    { count: 10, size: [2, 3],   opacity: 0.6,  dur: [14, 18], tier: 'mid'   as const },
+    { count: 6,  size: [1, 2],   opacity: 0.35, dur: [22, 28], tier: 'small' as const },
   ];
   const out: Flake[] = [];
   for (const t of tiers) {

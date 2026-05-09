@@ -37,7 +37,7 @@ export const FOXES: FoxMeta[] = [
     attribution: '刘看山 IP 经知乎黑客松 2026 授权使用',
   },
   {
-    id: 'mo', name: '刘看墨', epithet: '玄狐隐士',
+    id: 'mo', name: '看墨', epithet: '玄狐隐士',
     role: '写作 · Writing', species: '玄狐', persona: '隐士书生',
     artStyle: '水墨写意',
     glow: '#3A4252', glowSoft: '#6B7280', ink: '#1A1F2A', initial: '墨',
@@ -48,7 +48,7 @@ export const FOXES: FoxMeta[] = [
     attribution: null,
   },
   {
-    id: 'wen', name: '刘看文', epithet: '赤狐名伶',
+    id: 'wen', name: '看文', epithet: '赤狐名伶',
     role: '默认人格 · Reader Lens', species: '赤狐', persona: '戏曲名伶',
     artStyle: '工笔重彩',
     glow: '#A8221C', glowSoft: '#D55C53', ink: '#1A1F2A', initial: '文',
@@ -59,7 +59,7 @@ export const FOXES: FoxMeta[] = [
     attribution: null,
   },
   {
-    id: 'wen2', name: '刘看纹', epithet: '赤狐剪纸',
+    id: 'wen2', name: '看纹', epithet: '赤狐剪纸',
     role: '自定人格 · Custom Lens', species: '赤狐', persona: '剪纸艺人',
     artStyle: '工笔重彩 · 镜像',
     glow: '#6CC0F0', glowSoft: '#A5DBF5', ink: '#1A1F2A', initial: '纹',
@@ -70,7 +70,7 @@ export const FOXES: FoxMeta[] = [
     attribution: null,
   },
   {
-    id: 'shui', name: '刘看水', epithet: '耳廓游侠',
+    id: 'shui', name: '看水', epithet: '耳廓游侠',
     role: '深度研究 · Research', species: '耳廓狐', persona: '游侠考据癖',
     artStyle: '山海经志怪',
     glow: '#2AD9A0', glowSoft: '#76EFC4', ink: '#1A1F2A', initial: '水',
@@ -81,18 +81,18 @@ export const FOXES: FoxMeta[] = [
     attribution: null,
   },
   {
-    id: 'dian', name: '刘看典', epithet: '沙狐管理员',
+    id: 'dian', name: '看典', epithet: '沙狐管理员',
     role: '档案库 · Vault', species: '沙狐', persona: '民国图书管理员',
     artStyle: '民国月份牌',
     glow: '#B65A5A', glowSoft: '#D08585', ink: '#1A1F2A', initial: '典',
-    catchphrase: '此卷在册，请凭签取。',
+    catchphrase: '记不得者，账上必有。',
     tailPath: 'M0,60 C0,40 4,22 12,12 C18,4 26,6 28,16 C30,26 28,38 24,48 C18,58 10,66 4,68 Z',
     tailAsset: '/foxes/tail-dian.png',
     verb: '灵感激发', verbSubtitle: '档案库 · 让旧作再次发声',
     attribution: null,
   },
   {
-    id: 'shi', name: '刘看势', epithet: '城市赤狐',
+    id: 'shi', name: '看势', epithet: '城市赤狐',
     role: '热点 · Trends', species: '城市赤狐', persona: '网瘾社畜',
     artStyle: '赛博霓虹',
     glow: '#D516D5', glowSoft: '#E866E8', ink: '#1A1F2A', initial: '势',
@@ -103,7 +103,7 @@ export const FOXES: FoxMeta[] = [
     attribution: null,
   },
   {
-    id: 'jing', name: '刘看镜', epithet: '银狐数据师',
+    id: 'jing', name: '看镜', epithet: '银狐数据师',
     role: '统计 · Analytics', species: '蓝狐', persona: '数据分析师',
     artStyle: '编辑信息图',
     glow: '#0E2A5C', glowSoft: '#4A6190', ink: '#1A1F2A', initial: '镜',
@@ -114,7 +114,7 @@ export const FOXES: FoxMeta[] = [
     attribution: null,
   },
   {
-    id: 'xin', name: '刘看心', epithet: '灰狐守门',
+    id: 'xin', name: '看心', epithet: '灰狐守门',
     role: '合规 · Safety', species: '灰狐', persona: '皮影守门人',
     artStyle: '皮影戏',
     glow: '#3AE072', glowSoft: '#82EDA8', ink: '#1A1F2A', initial: '心',

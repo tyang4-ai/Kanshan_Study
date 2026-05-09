@@ -1,6 +1,6 @@
 'use client';
 import type { CSSProperties } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getFox } from '@/lib/foxes/registry';
 
 interface TechDetailsPanelProps {
@@ -34,6 +34,14 @@ const REPO_URL = 'https://github.com/tyang4-ai/Kanshan_Study';
 export function TechDetailsPanel({ onClose }: TechDetailsPanelProps) {
   const [mode, setMode] = useState<OnboardingMode>(() => readOnboardingMode());
   const shan = getFox('shan');
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const handleSwapKey = () => {
     if (typeof window === 'undefined') return;
@@ -154,20 +162,29 @@ export function TechDetailsPanel({ onClose }: TechDetailsPanelProps) {
   };
 
   return (
-    <div data-testid="tech-details-panel" style={backdrop} onClick={onClose}>
+    <div
+      data-testid="tech-details-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tech-details-title"
+      style={backdrop}
+      onClick={onClose}
+    >
       <div
         style={card}
         onClick={(e) => e.stopPropagation()}
       >
         <button
+          type="button"
           data-testid="tech-details-close"
+          aria-label="回到小镇"
           onClick={onClose}
           style={closeBtn}
         >
           ←&nbsp;回到小镇
         </button>
 
-        <div style={titleStyle}>告示牌</div>
+        <h2 id="tech-details-title" style={{ ...titleStyle, margin: 0 }}>告示牌</h2>
         <div style={subtitle}>SIGNPOST · TECH DETAILS</div>
 
         <div data-testid="section-overview">

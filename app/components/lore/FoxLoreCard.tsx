@@ -89,6 +89,19 @@ export function FoxLoreCard({ foxId, lore }: FoxLoreCardProps) {
       >
         {fox.species} · {fox.persona}
       </div>
+      <div
+        data-testid="card-verb"
+        style={{
+          fontSize: 11,
+          textAlign: 'center',
+          color: '#E6EFFF',
+          marginTop: 8,
+          letterSpacing: 1,
+          fontFamily: 'system-ui, "Noto Sans SC", sans-serif',
+        }}
+      >
+        {fox.verb} · {fox.verbSubtitle}
+      </div>
       <div style={{ height: 12 }} />
       <div
         data-testid="card-lore"

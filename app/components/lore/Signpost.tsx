@@ -20,13 +20,23 @@ export function Signpost({ onOpen }: SignpostProps) {
     filter: hovered
       ? 'drop-shadow(0 0 12px rgba(168,155,126,0.6))'
       : 'drop-shadow(0 0 4px rgba(168,155,126,0.25))',
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    margin: 0,
+    fontFamily: 'inherit',
+    color: 'inherit',
   };
 
   return (
-    <div
+    <button
+      type="button"
       data-testid="lore-signpost"
+      aria-label="技术细节 · 告示牌"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
       onClick={onOpen}
       style={wrap}
     >
@@ -66,6 +76,6 @@ export function Signpost({ onOpen }: SignpostProps) {
       >
         告示牌
       </div>
-    </div>
+    </button>
   );
 }

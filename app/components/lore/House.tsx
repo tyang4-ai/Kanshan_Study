@@ -28,6 +28,7 @@ export interface VillageEntry {
 interface HouseProps {
   entry: VillageEntry;
   hovered: boolean;
+  pinned?: boolean;
   onHover: (id: FoxId | null) => void;
   onClick: () => void;
 }
@@ -289,7 +290,7 @@ function renderSilhouette(kind: SilhouetteKind, w: number, h: number): RenderedS
   }
 }
 
-export function House({ entry, hovered, onHover, onClick }: HouseProps) {
+export function House({ entry, hovered, pinned = false, onHover, onClick }: HouseProps) {
   const fox: FoxMeta = getFox(entry.foxId);
   const { paths, windowRect, chimney } = renderSilhouette(entry.silhouette, entry.width, entry.height);
   const gradId = `house-${entry.foxId}-glow`;
@@ -303,6 +304,12 @@ export function House({ entry, hovered, onHover, onClick }: HouseProps) {
     transform: hovered ? 'translateY(-6px) scale(1.04)' : 'translateY(0) scale(1)',
     transition: 'transform 280ms cubic-bezier(.16,.84,.24,1)',
     flexShrink: 0,
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    margin: 0,
+    fontFamily: 'inherit',
+    color: 'inherit',
   };
 
   const svgStyle: CSSProperties = {
@@ -323,12 +330,18 @@ export function House({ entry, hovered, onHover, onClick }: HouseProps) {
   };
 
   return (
-    <div
+    <button
+      type="button"
       data-testid="house"
       data-fox-id={entry.foxId}
       data-hovered={hovered}
+      data-pinned={pinned}
+      aria-label={`${fox.name} · ${fox.epithet} · ${fox.verbSubtitle}`}
+      aria-pressed={pinned}
       onMouseEnter={() => onHover(entry.foxId)}
       onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(entry.foxId)}
+      onBlur={() => onHover(null)}
       onClick={onClick}
       style={wrap}
     >
@@ -376,6 +389,6 @@ export function House({ entry, hovered, onHover, onClick }: HouseProps) {
         )}
       </svg>
       <div style={labelStyle}>{fox.name}</div>
-    </div>
+    </button>
   );
 }

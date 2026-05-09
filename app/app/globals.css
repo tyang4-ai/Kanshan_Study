@@ -155,12 +155,6 @@
   0%   { transform: translate(0, 0); }
   100% { transform: translate(var(--drift), 105vh); }
 }
-@keyframes foxWalk {
-  0%   { transform: translateX(-10vw); }
-  50%  { transform: translateX(110vw) scaleX(1); }
-  51%  { transform: translateX(110vw) scaleX(-1); }
-  100% { transform: translateX(-10vw) scaleX(-1); }
-}
 @keyframes smokeRise {
   0%, 100% { transform: translateY(0) scaleY(1); opacity: 0.4; }
   50%      { transform: translateY(-6px) scaleY(1.2); opacity: 0.7; }
@@ -168,6 +162,16 @@
 @keyframes envelopePulse {
   0%, 100% { transform: rotate(-26deg) scale(1);   filter: drop-shadow(0 0 0 transparent); }
   50%      { transform: rotate(-26deg) scale(1.05); filter: drop-shadow(0 0 6px rgba(255, 215, 168, 0.6)); }
+}
+
+/* Honor user's reduced-motion preference — kill the lore-portal scenery loops
+   that don't carry meaning (decorative atmosphere only). */
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stars-layer"] [data-testid="star"],
+  [data-testid="snow-layer"] [data-testid="snowflake"],
+  [data-testid="house-smoke"] {
+    animation: none !important;
+  }
 }
 
 /* ==== Phase #10: 看心 InlineMark + MarginSeal + editor polish (rev 4) ==== */
