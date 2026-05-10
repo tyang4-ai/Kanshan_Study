@@ -108,10 +108,16 @@ export function WritingSurface({
         </div>
         <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 12px' }} />
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12 }}>
-          <ToolbarIcon kind="vault" onClick={openers.onOpenVault} />
-          <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} />
-          <ToolbarIcon kind="stats" onClick={openers.onOpenStats} />
-          <ToolbarIcon kind="settings" onClick={openers.onOpenSettings} />
+          {/* Talk-to cluster — the 4 agents the user converses with directly.
+              看山 chat lives in the bottom-right floating bubble (KanshanChatBubble). */}
+          <ToolbarIcon kind="persona" onClick={openers.onOpenPersona} title="看文 · 读者反应" />
+          <ToolbarIcon kind="debate" onClick={openers.onOpenDebate} title="看文 · 看纹辩论" />
+          <ToolbarIcon kind="stats" onClick={openers.onOpenStats} title="看镜 · 数据看板" />
+          <span style={{ width: 1, height: 14, background: 'rgba(0,0,0,0.18)' }} aria-hidden />
+          {/* Tool cluster — surfaces 看山 dispatches; also user-launchable. */}
+          <ToolbarIcon kind="vault" onClick={openers.onOpenVault} title="看典 · 档案库" />
+          <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} title="看势 · 热榜雷达" />
+          <ToolbarIcon kind="settings" onClick={openers.onOpenSettings} title="看山书房 · 设置" />
           <BudgetChip />
           <ProfileChip />
         </div>
