@@ -1,4 +1,5 @@
 'use client';
+// Phase #13.99 — talk-to / tool reframe (revision tag for HMR invalidation)
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
