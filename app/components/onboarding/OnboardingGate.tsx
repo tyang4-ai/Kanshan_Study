@@ -22,7 +22,11 @@ function validateKey(k: string): string | null {
   return null;
 }
 
-export function OnboardingGate() {
+interface OnboardingGateProps {
+  guestModeAvailable?: boolean;
+}
+
+export function OnboardingGate({ guestModeAvailable = true }: OnboardingGateProps = {}) {
   // Hydration-safe pattern: server + client first render BOTH return null,
   // then a post-mount effect sets the real visibility from localStorage.
   // Avoids hydration mismatch between SSR (no localStorage) and CSR.
@@ -393,6 +397,9 @@ export function OnboardingGate() {
           <div style={column} data-testid="onboarding-guest-column">
             <div style={colHeading}>
               <span>受限模式</span>
+              {!guestModeAvailable && (
+                <span style={recommendBadge}>本部署暂未开放</span>
+              )}
             </div>
             <div style={captionLabel}>GUEST · NO KEY REQUIRED</div>
             <ul style={limitList}>
@@ -401,14 +408,24 @@ export function OnboardingGate() {
               <li>同时最多 3 个请求</li>
               <li>跨设备/跨网络共享额度（按 IP 计费）</li>
             </ul>
-            <div style={limitSubtitle}>适合: 仅想快速看看；想完整体验请用自己的密钥</div>
+            <div style={limitSubtitle}>
+              {guestModeAvailable
+                ? '适合: 仅想快速看看；想完整体验请用自己的密钥'
+                : '此预览部署未配置共享额度。AI 功能请使用左侧自带密钥；浏览界面 / lore 门户 / 工作台框架不需密钥也可正常使用。'}
+            </div>
             <button
               type="button"
               data-testid="onboarding-guest-submit"
-              style={guestButtonStyle}
-              onClick={submitGuest}
+              style={
+                guestModeAvailable
+                  ? guestButtonStyle
+                  : { ...guestButtonStyle, opacity: 0.4, cursor: 'not-allowed' }
+              }
+              onClick={guestModeAvailable ? submitGuest : undefined}
+              disabled={!guestModeAvailable}
+              aria-disabled={!guestModeAvailable}
             >
-              我了解，先体验受限版本 →
+              {guestModeAvailable ? '我了解，先体验受限版本 →' : '受限模式不可用'}
             </button>
           </div>
         </div>
