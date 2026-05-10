@@ -25,7 +25,11 @@ export function RightToolbar({ selection }: RightToolbarProps) {
     openTab(kind, title, props);
   };
 
-  const aiTool = (foxId: FoxId, label: string, shortcut: string | undefined, needsSelection: boolean, onClick: () => void): AiItem => {
+  // Persona-fix #7 (2026-05-09 顾婉昔 review): mo + wen each have 2 actions
+  // (polish/fill, persona/debate). Without a glyph differentiator the right
+  // strip reads as "墨 墨 文 文" — looks like a bug to a first-time user.
+  // `glyph` overrides the fox initial when the same fox has multiple actions.
+  const aiTool = (foxId: FoxId, label: string, shortcut: string | undefined, needsSelection: boolean, onClick: () => void, glyph?: string): AiItem => {
     const fox = FOX_BY_ID[foxId];
     return {
       id: `ai-${foxId}-${label}`,
@@ -35,8 +39,9 @@ export function RightToolbar({ selection }: RightToolbarProps) {
           background: fox.glow, color: '#fff',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: '"Noto Serif SC", serif',
-          fontSize: 11, fontWeight: 600,
-        }}>{fox.initial}</span>
+          fontSize: glyph && glyph.length === 2 ? 8.5 : 11, fontWeight: 600,
+          letterSpacing: glyph && glyph.length === 2 ? -0.4 : 0,
+        }}>{glyph ?? fox.initial}</span>
       ),
       label, shortcut, accentColor: fox.glow, needsSelection,
       onClick,
@@ -44,10 +49,10 @@ export function RightToolbar({ selection }: RightToolbarProps) {
   };
 
   const AI_TOOLS: AiItem[] = [
-    aiTool('mo', '让看墨润色', 'Ctrl+Shift+M', true, () => selection && dispatchAi('voice-diff', '看墨 · 润色', { mode: 'polish', selection })),
-    aiTool('mo', '让看墨续写', undefined, true, () => selection && dispatchAi('voice-diff', '看墨 · 续写', { mode: 'fill', selection })),
-    aiTool('wen', '召集读者团', 'Ctrl+Shift+R', true, () => selection && dispatchAi('persona', '看文 · 读者团', { mode: 'auto', selection })),
-    aiTool('wen', '请看辩开场', undefined, true, () => selection && dispatchAi('debate', '看辩席 · 正反对论', { selection })),
+    aiTool('mo', '让看墨润色', 'Ctrl+Shift+M', true, () => selection && dispatchAi('voice-diff', '看墨 · 润色', { mode: 'polish', selection }), '墨润'),
+    aiTool('mo', '让看墨续写', undefined, true, () => selection && dispatchAi('voice-diff', '看墨 · 续写', { mode: 'fill', selection }), '墨续'),
+    aiTool('wen', '召集读者团', 'Ctrl+Shift+R', true, () => selection && dispatchAi('persona', '看文 · 读者团', { mode: 'auto', selection }), '文读'),
+    aiTool('wen', '请看辩开场', undefined, true, () => selection && dispatchAi('debate', '看辩席 · 正反对论', { selection }), '文辩'),
     aiTool('shui', '让看水查证', 'Ctrl+Shift+F', true, () => selection && dispatchAi('research', '看水 · 查证', { selection })),
     aiTool('dian', '让看典找旧文', undefined, false, () => dispatchAi('vault', '看典 · 档案库', {})),
     aiTool('shi', '问看势热榜', undefined, false, () => dispatchAi('trends', '看势 · 热榜', {})),

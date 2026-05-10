@@ -236,7 +236,11 @@ export function Corkboard({
           />
         ))}
 
-        {/* Post-it composer (anchored bottom-right when active) */}
+        {/* Post-it composer (sticky to bottom of corkboard when active).
+            Persona-fix #6 (2026-05-09 小杨 review): Enter sometimes lost the
+            pin if the textarea blurred mid-keypress. Now: explicit "保存" button
+            is the primary save affordance + onBlur commits any non-empty draft
+            so a click outside the composer can no longer discard work. */}
         {postitOpen && (
           <div
             data-testid="corkboard-postit-composer"
@@ -259,6 +263,12 @@ export function Corkboard({
               onChange={(e) => setPostitDraft(e.target.value)}
               onCompositionStart={() => setComposing(true)}
               onCompositionEnd={() => setComposing(false)}
+              onBlur={() => {
+                // Commit-on-blur: if user clicks away with text in the buffer,
+                // save it instead of discarding. Empty drafts are a no-op via
+                // submitPostit's own guard.
+                if (postitDraft.trim()) submitPostit();
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   closePostitAndReset();
@@ -269,7 +279,7 @@ export function Corkboard({
                   submitPostit();
                 }
               }}
-              placeholder="写一张便签…（Enter 保存 · Shift+Enter 换行 · Esc 取消）"
+              placeholder="写一张便签…（Enter 或 「保存」 提交 · Shift+Enter 换行 · Esc 取消）"
               style={{
                 width: '100%',
                 minHeight: 40,
@@ -284,6 +294,47 @@ export function Corkboard({
                 boxSizing: 'border-box',
               }}
             />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 6 }}>
+              <button
+                type="button"
+                data-testid="corkboard-postit-cancel"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={closePostitAndReset}
+                style={{
+                  padding: '3px 9px',
+                  background: 'transparent',
+                  border: '1px solid rgba(120,90,60,.3)',
+                  color: '#5a4a2a',
+                  fontFamily: '"Noto Serif SC", serif',
+                  fontSize: 10,
+                  letterSpacing: 1,
+                  cursor: 'pointer',
+                  borderRadius: 2,
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                data-testid="corkboard-postit-save"
+                disabled={!postitDraft.trim()}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={submitPostit}
+                style={{
+                  padding: '3px 9px',
+                  background: postitDraft.trim() ? '#5a4a2a' : 'rgba(120,90,60,.3)',
+                  border: '1px solid #5a4a2a',
+                  color: postitDraft.trim() ? '#FEF4A8' : 'rgba(255,255,255,.6)',
+                  fontFamily: '"Noto Serif SC", serif',
+                  fontSize: 10,
+                  letterSpacing: 1,
+                  cursor: postitDraft.trim() ? 'pointer' : 'not-allowed',
+                  borderRadius: 2,
+                }}
+              >
+                保存
+              </button>
+            </div>
           </div>
         )}
       </div>

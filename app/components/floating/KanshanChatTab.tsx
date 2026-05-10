@@ -4,6 +4,16 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } f
 import { useFloatingWindowStore, type TabKind } from '@/lib/store/floating-window';
 import { useCorkboardStore } from '@/lib/store/corkboard';
 import type { KanshanTool, KanshanToolCall } from '@/lib/agents/kanshan-router';
+import { ComplianceLine } from '@/components/compliance/ComplianceLine';
+
+// Compliance copy locked per persona-review #13.99 (2026-05-09).
+// Asserts only what the architecture actually does:
+//   - cache layer (lib/cache/store) stores the conversation hash + reply,
+//     scoped to demo replay; not shared with third-party training pipelines.
+//   - history is NOT persisted to localStorage; lives in component state only.
+const KANSHAN_COMPLIANCE = '对话仅用于本次差遣 · 不入第三方训练集 · 历史不本地保存';
+
+const FALLBACK_REPLY = '看山一时未通 — 请稍后重试。';
 
 interface ChatTurn {
   role: 'user' | 'kanshan';
@@ -101,7 +111,7 @@ export function KanshanChatTab() {
       if (!res.ok || !res.body) {
         setTurns((prev) => [
           ...prev,
-          { role: 'kanshan', content: '看山一时未通 — 请稍后重试。', ts: Date.now() },
+          { role: 'kanshan', content: FALLBACK_REPLY, ts: Date.now() },
         ]);
         return;
       }
@@ -173,6 +183,20 @@ export function KanshanChatTab() {
     }
   };
 
+  // Persona-fix #1 (2026-05-09): when chat fails for "no key configured",
+  // give the user a one-click path back to the OnboardingGate. Clearing the
+  // localStorage key is what makes the gate re-mount on next render.
+  const resetOnboardingAndReload = () => {
+    try {
+      window.localStorage.removeItem('kanshan-onboarding');
+      // Also clear the provider/account cookies that gate routing decisions.
+      document.cookie = 'kanshan-provider=; path=/; max-age=0';
+    } catch {
+      /* localStorage unavailable in some sandboxes — silently skip */
+    }
+    window.location.reload();
+  };
+
   const containerStyle: CSSProperties = {
     width: '100%', height: '100%',
     background: '#FAFBFD',
@@ -236,9 +260,39 @@ export function KanshanChatTab() {
             让看山想想 — 「找点研究」「召个读者」「钉一张便签」…
           </div>
         )}
-        {turns.map((t, i) => (
-          <ChatBubble key={t.ts + '-' + i} turn={t} />
-        ))}
+        {turns.map((t, i) => {
+          const showHint = t.role === 'kanshan' && t.content === FALLBACK_REPLY;
+          return (
+            <div key={t.ts + '-' + i}>
+              <ChatBubble turn={t} />
+              {showHint && (
+                <div data-testid="kanshan-chat-fallback-hint" style={{
+                  alignSelf: 'flex-start', maxWidth: '85%',
+                  marginTop: 6, fontSize: 11, color: '#7A6F5A',
+                  fontFamily: '"Noto Serif SC", serif', lineHeight: 1.5,
+                }}>
+                  你的密钥未配置，差遣未送达。{' '}
+                  <button
+                    type="button"
+                    data-testid="kanshan-chat-reopen-onboarding"
+                    onClick={resetOnboardingAndReload}
+                    style={{
+                      background: 'transparent', border: 'none',
+                      padding: 0, cursor: 'pointer',
+                      color: '#1772F6',
+                      textDecoration: 'underline',
+                      fontFamily: '"Noto Serif SC", serif',
+                      fontSize: 11,
+                    }}
+                  >
+                    前往「自带 Kimi 密钥」配置
+                  </button>
+                  {' · 工具狐（看典 / 看势 / 看水）即使没钥匙也可以浏览。'}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {streaming && (
           <div style={{ alignSelf: 'flex-start', fontSize: 12, color: '#A89B7E',
             fontFamily: '"Noto Serif SC", serif' }}>
@@ -246,6 +300,8 @@ export function KanshanChatTab() {
           </div>
         )}
       </div>
+
+      <ComplianceLine>{KANSHAN_COMPLIANCE}</ComplianceLine>
 
       <div style={composerStyle}>
         <textarea

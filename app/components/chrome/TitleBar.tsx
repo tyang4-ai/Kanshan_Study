@@ -70,10 +70,28 @@ export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKin
     debate:   <><path d="M3 4h7l-2 4H3z M8 8h7l-2 4H8z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></>,
   };
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" onClick={onClick} style={{ cursor: 'pointer' }} data-tour-id={tourId}>
-      {title && <title>{title}</title>}
-      {icons[kind]}
-    </svg>
+    <button
+      type="button"
+      onClick={onClick}
+      data-tour-id={tourId}
+      aria-label={title ?? kind}
+      title={title}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        cursor: 'pointer',
+        color: 'inherit',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <svg width="18" height="18" viewBox="0 0 18 18">
+        {title && <title>{title}</title>}
+        {icons[kind]}
+      </svg>
+    </button>
   );
 }
 

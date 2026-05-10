@@ -107,14 +107,16 @@ export function WritingSurface({
           已自动保存 · 16:42
         </div>
         <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 12px' }} />
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12 }}>
           {/* Talk-to cluster — the 4 agents the user converses with directly.
               看山 chat lives in the bottom-right floating bubble (KanshanChatBubble). */}
+          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>对话</span>
           <ToolbarIcon kind="persona" onClick={openers.onOpenPersona} title="看文 · 读者反应" />
           <ToolbarIcon kind="debate" onClick={openers.onOpenDebate} title="看文 · 看纹辩论" />
           <ToolbarIcon kind="stats" onClick={openers.onOpenStats} title="看镜 · 数据看板" />
-          <span style={{ width: 1, height: 14, background: 'rgba(0,0,0,0.18)' }} aria-hidden />
+          <span style={{ width: 1, height: 14, background: 'rgba(0,0,0,0.2)' }} aria-hidden />
           {/* Tool cluster — surfaces 看山 dispatches; also user-launchable. */}
+          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>工具</span>
           <ToolbarIcon kind="vault" onClick={openers.onOpenVault} title="看典 · 档案库" />
           <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} title="看势 · 热榜雷达" />
           <ToolbarIcon kind="settings" onClick={openers.onOpenSettings} title="看山书房 · 设置" />

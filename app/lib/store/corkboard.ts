@@ -33,6 +33,10 @@ interface CorkboardState {
   movePin: (id: string, x: number, y: number, bounds?: { w: number; h: number }) => void;
   updateAnnotation: (id: string, annotation: string) => void;
   clear: () => void;
+  /** Persona-fix #4 (2026-05-09 周敏 review): clear only 看山-pinned cards,
+   * leaving user-pinned cards intact. Lets a user reset the orchestrator's
+   * suggestions without losing their own working memory. */
+  clearKanshan: () => void;
 }
 
 const newId = (kind: PinKind) =>
@@ -109,6 +113,9 @@ export const useCorkboardStore = create<CorkboardState>()(
         })),
 
       clear: () => set(() => ({ pins: [] })),
+
+      clearKanshan: () =>
+        set((s) => ({ pins: s.pins.filter((p) => p.createdBy !== 'kanshan') })),
     }),
     {
       name: 'kanshan-corkboard',
