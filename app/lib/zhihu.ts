@@ -90,15 +90,53 @@ export function unwrapZhihu<T>(json: unknown): T {
   return json as T;
 }
 
-// Data-platform endpoints (热榜 / 搜索 / 直答) live on a SEPARATE host
-// (`developer.zhihu.com`) with its own auth scheme — still gated as of 2026-05-10
-// (user permission was denied to navigate there). Real-mode wiring waits for
-// 5/12 sprint hour 0 + the user signing into developer.zhihu.com.
-async function realFetchDataPlatform(): Promise<unknown> {
-  throw new Error(
-    'data-platform real mode (developer.zhihu.com) gated until 5/12 sprint. ' +
-      'See Documents/zhihu-api/04-api-spec-endpoints-2026-05-10.md §数据开放平台.',
-  );
+// Data-platform endpoints (热榜 / 搜索 / 直答) live on `developer.zhihu.com`
+// with Bearer-AccessKey auth (verified 2026-05-10 at developer.zhihu.com/profile).
+// Spec: Documents/zhihu-api/05-api-spec-developer-platform-2026-05-10.md.
+//
+// Headers: Authorization: Bearer $ZHIHU_ACCESS_SECRET + X-Request-Timestamp.
+// Response shape: { Code: 0, Message: "success", Data: {...} } — non-zero Code
+// throws (Message becomes the error string).
+async function realFetchDataPlatform(
+  path: string,
+  init?: RequestInit & { query?: Record<string, string | number> },
+): Promise<unknown> {
+  const accessSecret = process.env.ZHIHU_ACCESS_SECRET;
+  if (!accessSecret) {
+    throw new Error(
+      'ZHIHU_ACCESS_SECRET required for real mode (set in .env.local). ' +
+        'See Documents/zhihu-api/05-api-spec-developer-platform-2026-05-10.md.',
+    );
+  }
+  const url = new URL(path, 'https://developer.zhihu.com');
+  if (init?.query) {
+    for (const [k, v] of Object.entries(init.query)) {
+      url.searchParams.set(k, String(v));
+    }
+  }
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessSecret}`,
+      'X-Request-Timestamp': String(Math.floor(Date.now() / 1000)),
+      'Content-Type': 'application/json',
+      ...((init?.headers ?? {}) as Record<string, string>),
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Zhihu ${path} → ${res.status} ${body.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as Record<string, unknown>;
+  // /api/v1/content/* endpoints wrap in {Code, Message, Data}.
+  // /v1/chat/completions returns OpenAI shape at top level (no Code field).
+  if (json && typeof json === 'object' && 'Code' in json) {
+    if (json.Code !== 0) {
+      throw new Error(`Zhihu ${path} Code=${json.Code as number} ${(json.Message as string) ?? ''}`);
+    }
+    return json.Data;
+  }
+  return json;
 }
 
 // OAuth endpoints (`/user*` on openapi.zhihu.com) require Bearer access_token
@@ -111,40 +149,123 @@ async function realFetchOAuth(): Promise<unknown> {
   );
 }
 
+// Response shape from developer.zhihu.com (PascalCase). Internal types use
+// camelCase. Mappers below normalize so the rest of the app stays unchanged
+// when MODE flips from mock → real.
+
+interface DpHotItem {
+  Title: string;
+  Url: string;
+  ThumbnailUrl?: string;
+  Summary?: string;
+}
+
+interface DpSearchItem {
+  Title: string;
+  ContentType: 'Article' | 'Answer' | 'Question';
+  ContentID: string;
+  ContentText?: string;
+  Url?: string;
+  CommentCount?: number;
+  VoteUpCount?: number;
+  AuthorName?: string;
+  AuthorAvatar?: string;
+  AuthorBadge?: string;
+  AuthorBadgeText?: string;
+  EditTime?: number;
+  CommentInfoList?: Array<{ Content?: string }>;
+  AuthorityLevel?: string;
+  RankingScore?: number;
+}
+
+/** @internal exported for tests only — do not consume from app code. */
+export const __test = {
+  mapDpHotItem: (it: DpHotItem, idx: number) => mapDpHotItem(it, idx),
+  mapDpSearchItem: (it: DpSearchItem) => mapDpSearchItem(it),
+};
+
+function mapDpHotItem(it: DpHotItem, idx: number): HotListItem {
+  return {
+    id: it.Url || `hot-${idx}`,
+    title: it.Title,
+    rank: idx + 1,
+    excerpt: it.Summary || undefined,
+    url: it.Url || undefined,
+  };
+}
+
+function mapDpSearchItem(it: DpSearchItem): SearchResult {
+  const typeMap = { Article: 'article', Answer: 'answer', Question: 'question' } as const;
+  return {
+    id: it.ContentID,
+    type: typeMap[it.ContentType],
+    title: it.Title,
+    abstract: it.ContentText || undefined,
+    author: it.AuthorName
+      ? { id: it.AuthorName, displayName: it.AuthorName }
+      : undefined,
+    publishedAt: it.EditTime ? new Date(it.EditTime * 1000).toISOString() : undefined,
+    relevanceScore: it.RankingScore,
+    authorityScore: it.AuthorityLevel ? Number(it.AuthorityLevel) : undefined,
+    voteUp: it.VoteUpCount,
+    commentCount: it.CommentCount,
+    featuredComment: it.CommentInfoList?.[0]?.Content,
+    url: it.Url,
+  };
+}
+
 export async function getHotList(scope: HotListScope = 'relevant'): Promise<HotListItem[]> {
   if (MODE === 'mock') {
     return scope === 'relevant'
       ? (hotListRelevant as HotListItem[])
       : (hotListAll as HotListItem[]);
   }
-  // 热榜 lives on developer.zhihu.com data platform — separate auth, still gated.
-  const raw = await realFetchDataPlatform();
-  return HotListItem.array().parse(raw);
+  // 热榜 = developer.zhihu.com Bearer endpoint. `scope` is API-side-uniform
+  // (no relevant-vs-all filter on the live API yet) — the relevant filter is
+  // a downstream concern (LLM tag-match on Title), not surfaced here.
+  const raw = (await realFetchDataPlatform('/api/v1/content/hot_list', {
+    method: 'GET',
+    query: { Limit: 30 },
+  })) as { Total: number; Items: DpHotItem[] };
+  return HotListItem.array().parse(raw.Items.map(mapDpHotItem));
 }
-
-/* eslint-disable @typescript-eslint/no-unused-vars -- query/prompt are part
-   of the public adapter contract; mock-mode ignores them (returns fixture)
-   and real-mode (5/12+) wires them into the request. */
 
 export async function searchZhihu(query: string): Promise<SearchResult[]> {
   if (MODE === 'mock') return searchRadiogenomics as SearchResult[];
-  const raw = await realFetchDataPlatform();
-  return SearchResult.array().parse(raw);
+  const raw = (await realFetchDataPlatform('/api/v1/content/zhihu_search', {
+    method: 'GET',
+    query: { Query: query, Count: 10 },
+  })) as { Items: DpSearchItem[] };
+  return SearchResult.array().parse(raw.Items.map(mapDpSearchItem));
 }
 
 export async function searchGlobal(query: string): Promise<SearchResult[]> {
   if (MODE === 'mock') return searchRadiogenomics as SearchResult[];
-  const raw = await realFetchDataPlatform();
-  return SearchResult.array().parse(raw);
+  const raw = (await realFetchDataPlatform('/api/v1/content/global_search', {
+    method: 'GET',
+    query: { Query: query, Count: 20 },
+  })) as { Items: DpSearchItem[] };
+  return SearchResult.array().parse(raw.Items.map(mapDpSearchItem));
 }
 
 export async function chatWithZhida(prompt: string): Promise<ZhidaAnswer> {
   if (MODE === 'mock') return zhidaRadiogenomics as ZhidaAnswer;
-  const raw = await realFetchDataPlatform();
-  return ZhidaAnswer.parse(raw);
+  // Default tier: `zhida-fast-1p5` (cheapest) — A3 「无所谓」, budget tracker only.
+  // Swap to `zhida-thinking-1p5` if reasoning_content surfacing is wanted later.
+  // /v1/chat/completions returns OpenAI shape directly — no {Code, Data} wrap.
+  const resp = (await realFetchDataPlatform('/v1/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({
+      model: 'zhida-fast-1p5',
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+    }),
+  })) as {
+    choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+  };
+  const text = resp.choices?.[0]?.message?.content ?? '';
+  return ZhidaAnswer.parse({ text, citations: [] });
 }
-
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export async function getFollowingFeed(): Promise<FeedPage> {
   if (MODE === 'mock') return followingFeed as FeedPage;
