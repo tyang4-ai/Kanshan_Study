@@ -1,0 +1,42 @@
+[
+  {
+    "work_id": "1644038836790169600",
+    "title": "秦始皇登月计划",
+    "artwork": "https://picx.zhimg.com/v2-placeholder-art-qsh.jpg",
+    "tab_artwork": "https://picx.zhimg.com/v2-placeholder-tab-qsh.jpg",
+    "description": "脑洞历史 · 秦皇朝廷决议送方士登月寻不死药，权谋与天文交织的史脑洞奇想。",
+    "labels": ["史脑洞"]
+  },
+  {
+    "work_id": "1487746545537290240",
+    "title": "人脸解锁失败",
+    "artwork": "https://picx.zhimg.com/v2-placeholder-art-rl.jpg",
+    "tab_artwork": "https://picx.zhimg.com/v2-placeholder-tab-rl.jpg",
+    "description": "悬疑短篇 · 当一台手机的生物识别开始无法识别本人，被替换的究竟是脸还是记忆？",
+    "labels": ["悬疑"]
+  },
+  {
+    "work_id": "1609568601303859200",
+    "title": "夹心饼干",
+    "artwork": "https://picx.zhimg.com/v2-placeholder-art-jx.jpg",
+    "tab_artwork": "https://picx.zhimg.com/v2-placeholder-tab-jx.jpg",
+    "description": "世情都市 · 在公司、家庭、自我之间的女性主角，被叠成一块永远夹心的饼干。",
+    "labels": ["世情"]
+  },
+  {
+    "work_id": "1622619372492722176",
+    "title": "画堂春",
+    "artwork": "https://picx.zhimg.com/v2-placeholder-art-hts.jpg",
+    "tab_artwork": "https://picx.zhimg.com/v2-placeholder-tab-hts.jpg",
+    "description": "古代言情 · 旧画一卷，新人一双，门第与情爱在朱红画堂里争辉。",
+    "labels": ["古言"]
+  },
+  {
+    "work_id": "1949873407219970935",
+    "title": "千古绝唱：长征",
+    "artwork": "https://picx.zhimg.com/v2-placeholder-art-cz.jpg",
+    "tab_artwork": "https://picx.zhimg.com/v2-placeholder-tab-cz.jpg",
+    "description": "历史纪实 · 二万五千里长征的群像叙事，雪山草地间淬出的信念之路。",
+    "labels": ["历史"]
+  }
+]

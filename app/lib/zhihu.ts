@@ -3,6 +3,7 @@ import {
   SearchResult,
   ZhidaAnswer,
   FeedPage,
+  Story,
   type HotListScope,
 } from './zhihu/types';
 import hotListRelevant from '@/content/zhihu-fixtures/hot-list-relevant.json';
@@ -10,6 +11,21 @@ import hotListAll from '@/content/zhihu-fixtures/hot-list-all.json';
 import searchRadiogenomics from '@/content/zhihu-fixtures/search-radiogenomics.json';
 import zhidaRadiogenomics from '@/content/zhihu-fixtures/zhida-radiogenomics.json';
 import followingFeed from '@/content/zhihu-fixtures/following-feed.json';
+import storyList from '@/content/zhihu-fixtures/story-list.json';
+
+/**
+ * Default 圈子 ID for publish/comment/reaction operations.
+ * Mentor (A11) confirmed 3 圈子 are available; recommended「黑客松脑洞补给站」.
+ * Numeric ID per docs page (NOT the slug `'moltbook'`).
+ */
+export const DEFAULT_RING_ID = '2029619126742656657';
+
+/** All 3 hackathon-supported 圈子 (per `/community/quickstart` docs page). */
+export const SUPPORTED_RING_IDS = [
+  { id: '2001009660925334090', name: 'OpenClaw 人类观察员' },
+  { id: '2015023739549529606', name: 'A2A for Reconnect' },
+  { id: '2029619126742656657', name: '黑客松脑洞补给站' },
+] as const;
 
 // 知乎 API adapter. Mock-mode resolves from statically-imported fixture JSON
 // so the module is browser-safe (no node:fs, no postgres). Real-mode lands
@@ -71,4 +87,16 @@ export async function getFollowingFeed(): Promise<FeedPage> {
   if (MODE === 'mock') return followingFeed as FeedPage;
   const raw = await realFetch();
   return FeedPage.parse(raw);
+}
+
+/**
+ * Hackathon 故事列表 (added 2026-05-10 per A10 + 5/10 docs page).
+ * Real-mode endpoint: `GET /openapi/hackathon_story/list` — returns `data` as
+ * a top-level array of Story summaries. Mock-mode reads from
+ * `content/zhihu-fixtures/story-list.json`.
+ */
+export async function getStoryList(): Promise<Story[]> {
+  if (MODE === 'mock') return storyList as Story[];
+  const raw = await realFetch();
+  return Story.array().parse(raw);
 }

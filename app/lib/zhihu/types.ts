@@ -78,4 +78,30 @@ export const FeedPage = z.object({
 });
 export type FeedPage = z.infer<typeof FeedPage>;
 
+// Hackathon story-list / story-detail (added 2026-05-10 per A10 + docs page).
+// `GET /openapi/hackathon_story/list` returns `data` as a top-level array of
+// these summaries (NOT wrapped in {data: {...}}). The adapter unwraps before
+// passing to Zod.
+export const Story = z.object({
+  work_id: z.string(),
+  title: z.string(),
+  artwork: z.string().optional(),     // landscape cover URL
+  tab_artwork: z.string().optional(), // portrait cover URL
+  description: z.string().optional(),
+  labels: z.array(z.string()).optional(),
+});
+export type Story = z.infer<typeof Story>;
+
+// `GET /openapi/hackathon_story/detail?work_id={id}` returns a single chapter.
+export const StoryDetail = z.object({
+  work_id: z.string(),
+  chapter_name: z.string(),
+  author_avatar: z.string().optional(),
+  author_name: z.string(),
+  labels: z.array(z.string()).optional(),
+  introduction: z.string().optional(),
+  content: z.string(), // ≤3000 chars per docs, paragraphs preserved with \n
+});
+export type StoryDetail = z.infer<typeof StoryDetail>;
+
 export type HotListScope = 'relevant' | 'all';

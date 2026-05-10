@@ -26,6 +26,24 @@ export const envSchema = z.object({
   CLOUDFLARE_ZONE_ID: z.string().min(1).optional(),
 
   ZHIHU_API_MODE: z.enum(['mock', 'real']).default('mock'),
+  // 知乎 OpenAPI HMAC credentials (community APIs at https://openapi.zhihu.com).
+  // Per docs at https://www.zhihu.com/ring/moltbook/api/community/quickstart,
+  // requests are signed HMAC-SHA256 with X-* headers — NOT bearer auth.
+  // - ZHIHU_APP_KEY: 知乎主页 URL suffix (the "people/<slug>" 部分; e.g.
+  //   for `https://www.zhihu.com/people/foo` the value is `foo`)
+  // - ZHIHU_APP_SECRET: 32-char application secret issued by organizers
+  //   (received 2026-05-09); used as HMAC key
+  ZHIHU_APP_KEY: z.string().optional(),
+  ZHIHU_APP_SECRET: z.string().optional(),
+  // OAuth credentials for /access_token + /user* endpoints. Optional —
+  // OAuth is post-MVP per A9 mentor reply (only affects 人气奖 登录数 metric,
+  // not 入围 eligibility). Apply via 知乎 separately when ready.
+  ZHIHU_OAUTH_APP_ID: z.string().optional(),
+  ZHIHU_OAUTH_APP_KEY: z.string().optional(),
+  ZHIHU_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  // Deprecated 2026-05-10: community APIs use HMAC, not bearer. Kept optional
+  // to avoid breaking existing .env.local files; new code paths must NOT read
+  // this. Remove after 5/12 sprint hour 0 confirms HMAC works.
   ZHIHU_BEARER_TOKEN: z.string().optional(),
   CACHE_MODE: z.enum(['auto', 'cache-only', 'live-only']).default('auto'),
   ELEVENLABS_API_KEY: z.string().optional(),
@@ -50,6 +68,11 @@ export function parseEnv(input: NodeJS.ProcessEnv | Record<string, string | unde
     CLOUDFLARE_API_TOKEN: input.CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ZONE_ID: input.CLOUDFLARE_ZONE_ID,
     ZHIHU_API_MODE: input.ZHIHU_API_MODE,
+    ZHIHU_APP_KEY: input.ZHIHU_APP_KEY,
+    ZHIHU_APP_SECRET: input.ZHIHU_APP_SECRET,
+    ZHIHU_OAUTH_APP_ID: input.ZHIHU_OAUTH_APP_ID,
+    ZHIHU_OAUTH_APP_KEY: input.ZHIHU_OAUTH_APP_KEY,
+    ZHIHU_OAUTH_REDIRECT_URI: input.ZHIHU_OAUTH_REDIRECT_URI,
     ZHIHU_BEARER_TOKEN: input.ZHIHU_BEARER_TOKEN,
     CACHE_MODE: input.CACHE_MODE,
     ELEVENLABS_API_KEY: input.ELEVENLABS_API_KEY,

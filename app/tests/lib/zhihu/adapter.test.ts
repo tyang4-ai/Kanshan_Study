@@ -5,6 +5,9 @@ import {
   searchGlobal,
   chatWithZhida,
   getFollowingFeed,
+  getStoryList,
+  DEFAULT_RING_ID,
+  SUPPORTED_RING_IDS,
 } from '@/lib/zhihu';
 
 describe('zhihu adapter (mock mode)', () => {
@@ -46,5 +49,30 @@ describe('zhihu adapter (mock mode)', () => {
     expect(Array.isArray(page.items)).toBe(true);
     expect(page.items.length).toBeGreaterThan(0);
     expect(page.cursor).toBeNull();
+  });
+
+  it('getStoryList returns hackathon story summaries', async () => {
+    const stories = await getStoryList();
+    expect(Array.isArray(stories)).toBe(true);
+    expect(stories.length).toBeGreaterThan(0);
+    expect(stories[0]).toMatchObject({
+      work_id: expect.any(String),
+      title: expect.any(String),
+    });
+  });
+
+  it('DEFAULT_RING_ID matches the mentor-recommended 黑客松脑洞补给站 numeric id', () => {
+    expect(DEFAULT_RING_ID).toBe('2029619126742656657');
+    expect(
+      SUPPORTED_RING_IDS.some((r) => r.id === DEFAULT_RING_ID && r.name.includes('黑客松')),
+    ).toBe(true);
+  });
+
+  it('SUPPORTED_RING_IDS lists all 3 hackathon 圈子', () => {
+    expect(SUPPORTED_RING_IDS).toHaveLength(3);
+    const ids = SUPPORTED_RING_IDS.map((r) => r.id);
+    expect(ids).toContain('2001009660925334090');
+    expect(ids).toContain('2015023739549529606');
+    expect(ids).toContain('2029619126742656657');
   });
 });
