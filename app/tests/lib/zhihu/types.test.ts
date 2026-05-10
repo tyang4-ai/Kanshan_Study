@@ -99,6 +99,22 @@ describe('zhihu Zod schemas', () => {
     });
   });
 
+  describe('PinPublishRequest / PinPublishResponse', () => {
+    it('PinPublishRequest enforces content length 1..2000', async () => {
+      const { PinPublishRequest } = await import('@/lib/zhihu/types');
+      expect(() => PinPublishRequest.parse({ content: '', ring_id: 'r1' })).toThrow();
+      expect(() => PinPublishRequest.parse({ content: 'x'.repeat(2001), ring_id: 'r1' })).toThrow();
+      expect(PinPublishRequest.parse({ content: '测试', ring_id: 'r1' })).toMatchObject({ content: '测试' });
+    });
+
+    it('PinPublishResponse accepts string or number created_at', async () => {
+      const { PinPublishResponse } = await import('@/lib/zhihu/types');
+      expect(PinPublishResponse.parse({ pin_id: 'p1', created_at: '2026-01-01' }).pin_id).toBe('p1');
+      expect(PinPublishResponse.parse({ pin_id: 'p2', created_at: 1700000000 }).pin_id).toBe('p2');
+      expect(PinPublishResponse.parse({ pin_id: 'p3' }).pin_id).toBe('p3');
+    });
+  });
+
   describe('StoryDetail (hackathon_story/detail)', () => {
     it('accepts chapter shape with content', async () => {
       const { StoryDetail } = await import('@/lib/zhihu/types');

@@ -105,3 +105,15 @@ export const StoryDetail = z.object({
 export type StoryDetail = z.infer<typeof StoryDetail>;
 
 export type HotListScope = 'relevant' | 'all';
+
+export const PinPublishRequest = z.object({
+  content: z.string().min(1).max(2000),
+  ring_id: z.string(),
+});
+export type PinPublishRequest = z.infer<typeof PinPublishRequest>;
+
+export const PinPublishResponse = z.object({
+  pin_id: z.string(),
+  created_at: z.union([z.string(), z.number()]).optional(),
+});
+export type PinPublishResponse = z.infer<typeof PinPublishResponse>;

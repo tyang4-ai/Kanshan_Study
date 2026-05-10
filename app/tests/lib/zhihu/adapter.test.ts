@@ -75,4 +75,10 @@ describe('zhihu adapter (mock mode)', () => {
     expect(ids).toContain('2015023739549529606');
     expect(ids).toContain('2029619126742656657');
   });
+
+  it('publishPin returns fixture pin id in mock mode', async () => {
+    const { publishPin } = await import('@/lib/zhihu');
+    const res = await publishPin('测试内容');
+    expect(res.pin_id).toBe('demo-pin-001');
+  });
 });

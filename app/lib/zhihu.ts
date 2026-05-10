@@ -4,6 +4,7 @@ import {
   ZhidaAnswer,
   FeedPage,
   Story,
+  PinPublishResponse,
   type HotListScope,
 } from './zhihu/types';
 import hotListRelevant from '@/content/zhihu-fixtures/hot-list-relevant.json';
@@ -12,6 +13,19 @@ import searchRadiogenomics from '@/content/zhihu-fixtures/search-radiogenomics.j
 import zhidaRadiogenomics from '@/content/zhihu-fixtures/zhida-radiogenomics.json';
 import followingFeed from '@/content/zhihu-fixtures/following-feed.json';
 import storyList from '@/content/zhihu-fixtures/story-list.json';
+import pinPublishResponse from '@/content/zhihu-fixtures/pin-publish-response.json';
+import type { ZhihuBudgetKind } from './zhihu/budget';
+
+// Budget consume — only meaningful client-side (the Zustand store persists to
+// localStorage and is rendered by the TitleBar BudgetChip). Server-side calls
+// silently no-op since the store's SSR storage stub doesn't persist.
+function noteConsume(kind: ZhihuBudgetKind, n = 1): void {
+  if (typeof window === 'undefined') return;
+  // Lazy import keeps the client store off the server bundle hot path.
+  import('./zhihu/budget').then(({ useZhihuBudgetStore }) => {
+    useZhihuBudgetStore.getState().consume(kind, n);
+  });
+}
 
 /**
  * Default 圈子 ID for publish/comment/reaction operations.
@@ -227,6 +241,7 @@ export async function getHotList(scope: HotListScope = 'relevant'): Promise<HotL
     method: 'GET',
     query: { Limit: 30 },
   })) as { Total: number; Items: DpHotItem[] };
+  noteConsume('hot_list');
   return HotListItem.array().parse(raw.Items.map(mapDpHotItem));
 }
 
@@ -236,6 +251,7 @@ export async function searchZhihu(query: string): Promise<SearchResult[]> {
     method: 'GET',
     query: { Query: query, Count: 10 },
   })) as { Items: DpSearchItem[] };
+  noteConsume('zhihu_search');
   return SearchResult.array().parse(raw.Items.map(mapDpSearchItem));
 }
 
@@ -245,6 +261,7 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
     method: 'GET',
     query: { Query: query, Count: 20 },
   })) as { Items: DpSearchItem[] };
+  noteConsume('zhihu_search');
   return SearchResult.array().parse(raw.Items.map(mapDpSearchItem));
 }
 
@@ -263,6 +280,7 @@ export async function chatWithZhida(prompt: string): Promise<ZhidaAnswer> {
   })) as {
     choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
   };
+  noteConsume('zhida');
   const text = resp.choices?.[0]?.message?.content ?? '';
   return ZhidaAnswer.parse({ text, citations: [] });
 }
@@ -287,4 +305,17 @@ export async function getStoryList(): Promise<Story[]> {
   if (MODE === 'mock') return storyList as Story[];
   const raw = await realFetchHmac('/openapi/hackathon_story/list');
   return Story.array().parse(unwrapZhihu(raw));
+}
+
+export async function publishPin(
+  content: string,
+  ringId: string = DEFAULT_RING_ID,
+): Promise<PinPublishResponse> {
+  if (MODE === 'mock') return pinPublishResponse as PinPublishResponse;
+  const raw = await realFetchHmac('/openapi/pin/publish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, ring_id: ringId }),
+  });
+  return PinPublishResponse.parse(unwrapZhihu(raw));
 }
