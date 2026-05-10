@@ -1,5 +1,5 @@
 'use client';
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { TrendItem } from '@/components/trends/TrendItem';
 import {
@@ -10,24 +10,15 @@ import {
 import { FOX_BY_ID } from '@/lib/foxes/registry';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
+import { getHotList, getFollowingFeed } from '@/lib/zhihu';
+import { hotListToTrendSeed, type TrendSeed } from '@/lib/zhihu/__mappers';
+import type { FeedItem } from '@/lib/zhihu/types';
+import { useCorkboardStore } from '@/lib/store/corkboard';
 import relevantData from '@/content/seed/trends-relevant.json';
 import allData from '@/content/seed/trends-all.json';
 
-interface TrendSeed {
-  id: string;
-  rank: number;
-  title: string;
-  heat: string;
-  ageHours: number;
-  ageLabel: string;
-  tags: string[];
-  hot: boolean;
-  vibes: string;
-  vibesFox: 'shi' | 'jing' | null;
-}
-
-const RELEVANT_TRENDS = relevantData as TrendSeed[];
-const ALL_TRENDS = allData as TrendSeed[];
+const RELEVANT_SEED = relevantData as TrendSeed[];
+const ALL_SEED = allData as TrendSeed[];
 
 const ZERO_RECT: DOMRect = {
   x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0,
@@ -39,11 +30,54 @@ type TabId = 'relevant' | 'all';
 export function TrendsTab() {
   const [tab, setTab] = useState<TabId>('relevant');
   const [pendingTrend, setPendingTrend] = useState<TrendSeed | null>(null);
+  // Static-import = synchronous initial state (preserves snappy first paint +
+  // tour-id selectors). useEffect refresh routes through the adapter so 5/12
+  // real-mode swap is one env flip — no UI rewiring needed.
+  const [relevant, setRelevant] = useState<TrendSeed[]>(RELEVANT_SEED);
+  const [all, setAll] = useState<TrendSeed[]>(ALL_SEED);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [feedExpanded, setFeedExpanded] = useState(false);
+  const didFetch = useRef(false);
   const remaining = useZhihuBudgetStore((s) => s.remaining('hot_list'));
   const used = 100 - remaining;
 
+  useEffect(() => {
+    // useRef-guarded against React 19 strict-mode double-invoke.
+    if (didFetch.current) return;
+    didFetch.current = true;
+    Promise.all([getHotList('relevant'), getHotList('all')])
+      .then(([rel, allItems]) => {
+        setRelevant(hotListToTrendSeed(rel, RELEVANT_SEED));
+        setAll(hotListToTrendSeed(allItems, ALL_SEED));
+      })
+      .catch(() => {
+        // Adapter rejected (e.g., real-mode without token). Initial seed-state
+        // remains in place — degraded gracefully without UI regression.
+      });
+    getFollowingFeed()
+      .then((page) => setFeedItems(page.items.slice(0, 5)))
+      .catch(() => {
+        // Following feed silently absent — section just doesn't render.
+      });
+  }, []);
+
+  const pinFeedItem = (item: FeedItem) => {
+    useCorkboardStore.getState().addPin({
+      kind: 'trends',
+      sourceId: item.id,
+      content: {
+        title: item.title ?? `${item.authorName} · ${item.type}`,
+        snippet: item.excerpt,
+        url: item.url,
+      },
+      createdBy: 'user',
+      w: 180,
+      h: 130,
+    });
+  };
+
   const shi = FOX_BY_ID.shi;
-  const list = tab === 'relevant' ? RELEVANT_TRENDS : ALL_TRENDS;
+  const list = tab === 'relevant' ? relevant : all;
 
   const runOpenResearch = (t: TrendSeed) => {
     useFloatingWindowStore.getState().openTab('research', '看水 · 考据卷', {
@@ -67,6 +101,17 @@ export function TrendsTab() {
 
   const handleCancel = () => {
     setPendingTrend(null);
+  };
+
+  const pinTrend = (t: TrendSeed) => {
+    useCorkboardStore.getState().addPin({
+      kind: 'trends',
+      sourceId: t.id,
+      content: { title: t.title, snippet: t.vibes || `${t.heat} · ${t.ageLabel}` },
+      createdBy: 'user',
+      w: 180,
+      h: 120,
+    });
   };
 
   const containerStyle: CSSProperties = {
@@ -174,7 +219,7 @@ export function TrendsTab() {
           onClick={() => setTab('relevant')}
           style={tabButton(tab === 'relevant')}
         >
-          与你有关 <span style={tabCountStyle}>· {RELEVANT_TRENDS.length}</span>
+          与你有关 <span style={tabCountStyle}>· {relevant.length}</span>
         </button>
         <button
           data-testid="trends-tab-all"
@@ -182,11 +227,89 @@ export function TrendsTab() {
           onClick={() => setTab('all')}
           style={tabButton(tab === 'all')}
         >
-          全榜 <span style={tabCountStyle}>· {ALL_TRENDS.length}</span>
+          全榜 <span style={tabCountStyle}>· {all.length}</span>
         </button>
         <div style={{ flex: 1 }} />
         <span style={cachedStyle}>16:42 · 已缓存</span>
       </div>
+
+      {/* 关注流 section — collapsible, above 热榜 list */}
+      {feedItems.length > 0 && (
+        <div data-testid="trends-following-section" style={{
+          flexShrink: 0, background: '#FFF8EC',
+          borderBottom: '1px solid rgba(168,155,126,0.35)',
+        }}>
+          <button
+            type="button"
+            onClick={() => setFeedExpanded((v) => !v)}
+            style={{
+              width: '100%', padding: '6px 14px', textAlign: 'left',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontFamily: '"Noto Sans SC", sans-serif',
+              fontSize: 11, color: '#7A6F5A', letterSpacing: 0.5,
+            }}
+          >
+            <span style={{ fontSize: 9, transform: feedExpanded ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .15s' }}>
+              ▶
+            </span>
+            <span style={{ flex: 1 }}>来自你关注的人 · {feedItems.length} 条</span>
+            <span style={{ fontSize: 9, color: '#A89B7E', fontFamily: 'JetBrains Mono, monospace' }}>
+              {feedExpanded ? 'COLLAPSE' : 'EXPAND'}
+            </span>
+          </button>
+          {feedExpanded && (
+            <div style={{ padding: '0 14px 8px' }}>
+              {feedItems.map((item) => (
+                <div
+                  key={item.id}
+                  data-testid="following-feed-item"
+                  style={{
+                    padding: '6px 0',
+                    borderTop: '1px solid rgba(168,155,126,0.18)',
+                    display: 'flex', gap: 8, alignItems: 'flex-start',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 11, fontWeight: 600, color: '#1A1F2A',
+                      fontFamily: '"Noto Serif SC", serif',
+                    }}>
+                      {item.authorName}{item.title ? ` · ${item.title}` : ''}
+                    </div>
+                    {item.excerpt && (
+                      <div style={{
+                        fontSize: 10.5, color: '#5A4A38', marginTop: 2, lineHeight: 1.4,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}>
+                        {item.excerpt}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="following-feed-pin"
+                    aria-label="钉到便签板"
+                    onClick={() => pinFeedItem(item)}
+                    style={{
+                      flexShrink: 0, padding: '2px 6px',
+                      background: 'transparent',
+                      border: '1px solid rgba(192,48,40,0.4)',
+                      color: '#C03028',
+                      fontFamily: '"Noto Serif SC", serif',
+                      fontSize: 9, letterSpacing: 1,
+                      borderRadius: 2, cursor: 'pointer',
+                    }}
+                  >
+                    钉
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Trends list */}
       <div style={listStyle}>
@@ -201,6 +324,7 @@ export function TrendsTab() {
             hot={t.hot}
             vibes={t.vibes}
             onClick={() => onTrendClick(t)}
+            onPin={() => pinTrend(t)}
           />
         ))}
       </div>

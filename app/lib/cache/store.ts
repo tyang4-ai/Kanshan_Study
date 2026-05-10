@@ -17,7 +17,8 @@ export type CacheKind =
   | 'account-switch'
   | 'tail-click'
   | 'lore'
-  | 'chat';
+  | 'chat'
+  | 'kanshan-chat';
 
 const FALLBACK_THRESHOLD = 0.85;
 
@@ -43,6 +44,10 @@ const THRESHOLD_BY_KIND: Record<CacheKind, number> = {
   'tail-click': 0.78,
   lore: 0.78,
   chat: 0.78,
+  // 看山 chat: high-precision matching — exact phrasing matters because the
+  // tool dispatch is sensitive to wording ("找研究" → open_research, but
+  // "查档案" → open_vault, even though embeddings might cluster them).
+  'kanshan-chat': 0.92,
 };
 
 export function thresholdFor(kind: CacheKind | string): number {

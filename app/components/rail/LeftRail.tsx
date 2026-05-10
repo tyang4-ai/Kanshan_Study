@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useRailWidthStore } from '@/lib/store/rail-width';
 import { CorkBg } from '@/components/atoms/CorkBg';
 import { RailIcon } from './RailIcon';
@@ -14,6 +14,8 @@ export function LeftRail() {
   const dragRef = useRef<HTMLDivElement | null>(null);
   const width = useRailWidthStore((s) => s.width);
   const setWidth = useRailWidthStore((s) => s.setWidth);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [postitOpen, setPostitOpen] = useState(false);
 
   const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -60,12 +62,28 @@ export function LeftRail() {
         }}>
           <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>BULLETIN · 看典书房</span>
           <span style={{ display: 'flex', gap: 8 }}>
-            <RailIcon kind="search" />
-            <RailIcon kind="add" />
+            <RailIcon
+              kind="search"
+              ariaLabel="过滤板上内容"
+              active={searchOpen}
+              onClick={() => setSearchOpen((v) => !v)}
+            />
+            <RailIcon
+              kind="add"
+              ariaLabel="添加便签"
+              active={postitOpen}
+              onClick={() => setPostitOpen((v) => !v)}
+            />
           </span>
         </div>
 
-        <RailContent />
+        <RailContent
+          width={width}
+          searchOpen={searchOpen}
+          postitOpen={postitOpen}
+          onCloseSearch={() => setSearchOpen(false)}
+          onClosePostit={() => setPostitOpen(false)}
+        />
 
         {/* Dock area at bottom */}
         <DockSection />

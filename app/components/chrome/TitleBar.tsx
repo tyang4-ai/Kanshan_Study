@@ -3,7 +3,7 @@ import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
 
-export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings';
+export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings' | 'persona' | 'debate';
 
 // Helper: opens each panel with the locked title.
 export function useToolbarOpeners() {
@@ -13,6 +13,8 @@ export function useToolbarOpeners() {
     onOpenTrends:   () => openTab('trends', '看势 · 热榜雷达'),
     onOpenStats:    () => openTab('stats', '看镜 · 数据看板'),
     onOpenSettings: () => openTab('settings', '看山书房 · 设置'),
+    onOpenPersona:  () => openTab('persona', '看文 · 读者反应'),
+    onOpenDebate:   () => openTab('debate', '看文 · 看纹辩论'),
   };
 }
 
@@ -23,6 +25,8 @@ export function TitleBar() {
   const onOpenTrends   = () => openTab('trends', '看势 · 热榜雷达');
   const onOpenStats    = () => openTab('stats', '看镜 · 数据看板');
   const onOpenSettings = () => openTab('settings', '看山书房 · 设置');
+  const onOpenPersona  = () => openTab('persona', '看文 · 读者反应');
+  const onOpenDebate   = () => openTab('debate', '看文 · 看纹辩论');
 
   return (
     <div style={{
@@ -39,10 +43,15 @@ export function TitleBar() {
         看山书房 — 影像组学与基因组学.md
       </div>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: '#A89B7E', fontSize: 12 }}>
-        <ToolbarIcon kind="vault" onClick={onOpenVault}/>
-        <ToolbarIcon kind="trends" onClick={onOpenTrends}/>
-        <ToolbarIcon kind="stats" onClick={onOpenStats} tourId="stats-button"/>
-        <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button"/>
+        {/* Talk-to cluster — the 4 agents the user converses with. 看山 chat is bottom-right floating bubble (Task E). */}
+        <ToolbarIcon kind="persona" onClick={onOpenPersona} tourId="persona-button" title="看文 · 读者反应"/>
+        <ToolbarIcon kind="debate" onClick={onOpenDebate} tourId="debate-button" title="看文 · 看纹辩论"/>
+        <ToolbarIcon kind="stats" onClick={onOpenStats} tourId="stats-button" title="看镜 · 数据看板"/>
+        <span style={{ width: 1, height: 16, background: 'rgba(168,155,126,0.25)' }} aria-hidden />
+        {/* Tool cluster — surfaces dispatched by 看山, also user-launchable for direct access. */}
+        <ToolbarIcon kind="vault" onClick={onOpenVault} title="看典 · 档案库"/>
+        <ToolbarIcon kind="trends" onClick={onOpenTrends} title="看势 · 热榜雷达"/>
+        <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button" title="看山书房 · 设置"/>
         <BudgetChip />
         <ProfileChip />
       </div>
@@ -50,15 +59,18 @@ export function TitleBar() {
   );
 }
 
-export function ToolbarIcon({ kind, onClick, tourId }: { kind: ToolbarKind; onClick: () => void; tourId?: string }) {
+export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKind; onClick: () => void; tourId?: string; title?: string }) {
   const icons: Record<ToolbarKind, React.ReactNode> = {
     vault:    <path d="M3 5h12v9H3z M5 5V3h8v2 M3 9h12" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round"/>,
     stats:    <path d="M3 14V8 M7 14V4 M11 14V10 M15 14V6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>,
     trends:   <><path d="M3 13l4-4 3 3 5-6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none"/><circle cx="15" cy="6" r="1.2" fill="currentColor"/></>,
     settings: <><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M9 1v3 M9 14v3 M1 9h3 M14 9h3 M3.4 3.4l2 2 M12.6 12.6l2 2 M3.4 14.6l2-2 M12.6 5.4l2-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></>,
+    persona:  <><circle cx="6" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="12" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M2 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5 M8 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/></>,
+    debate:   <><path d="M3 4h7l-2 4H3z M8 8h7l-2 4H8z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></>,
   };
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" onClick={onClick} style={{ cursor: 'pointer' }} data-tour-id={tourId}>
+      {title && <title>{title}</title>}
       {icons[kind]}
     </svg>
   );

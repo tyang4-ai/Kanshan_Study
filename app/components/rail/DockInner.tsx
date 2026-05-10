@@ -27,6 +27,12 @@ const FOX_TAB: Record<FoxId, { kind: TabKind; title: string } | null> = {
   xin: null,
 };
 
+// 4-vs-5 hierarchy reframe (2026-05-09): the 4 foxes the user converses with
+// directly (shan/wen/wen2/jing) read as primary; the 5 tool foxes
+// (mo/shui/dian/shi/xin) are dispatched-by-看山 and de-emphasized in the
+// expanded dock. All 9 stay clickable — preserves Q&A card #5.
+const TALK_TO_FOXES = new Set<FoxId>(['shan', 'wen', 'wen2', 'jing']);
+
 // Inline dock — simplified version of HybridDock for the rail.
 // Same logic but tuned for 320px width.
 export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
@@ -102,7 +108,11 @@ export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
           let size: number;
           let offsetX = 0;
           if (expanded) {
-            angle = expAngle(i); opacity = 1;
+            angle = expAngle(i);
+            // Tool foxes get a subtle 0.7 dim in expanded mode; talk-to foxes
+            // and the active fox keep full opacity. Hover handler restores via
+            // the wrapping `expanded` state itself (no per-fox hover tracking).
+            opacity = isActive || TALK_TO_FOXES.has(f.id) ? 1 : 0.7;
             size = isActive ? 120 : 100;
           } else if (isActive) {
             angle = restAngle(activeIdx, activeArr.length);

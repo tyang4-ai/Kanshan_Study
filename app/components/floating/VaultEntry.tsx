@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 
 export interface VaultEntryData {
   id: string;
@@ -19,12 +19,30 @@ interface VaultEntryProps {
   onOpen: (entry: VaultEntryData) => void;
 }
 
+const VAULT_DRAG_MIME = 'application/kanshan-vault';
+
 export function VaultEntry({ entry, onOpen }: VaultEntryProps) {
   const [hover, setHover] = useState(false);
+
+  const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
+    const payload = {
+      id: entry.id,
+      title: entry.title,
+      snippet: entry.snippet,
+      year: entry.year,
+      tags: entry.tags,
+      spine: entry.spine,
+    };
+    e.dataTransfer.setData(VAULT_DRAG_MIME, JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
     <div
       data-testid={`vault-entry-${entry.id}`}
       data-article-id={entry.id}
+      draggable
+      onDragStart={handleDragStart}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

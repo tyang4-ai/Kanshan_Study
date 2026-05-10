@@ -1,0 +1,23 @@
+{
+  "text": "放射基因组学（radiogenomics）是把医学影像特征与基因组学数据相关联的研究方向，目前主要应用于肿瘤的非侵入性分子诊断辅助。距离规模化临床落地仍存在三个关键瓶颈：(1) 外部验证不足 — Park 2020 的 77 项研究中仅 6% 提供独立外部验证；(2) 跨机构 AUC 滑落 0.08–0.15 是常态；(3) 监管审批路径与 PACS 数据脱敏成本高。建议关注 Aerts 2014 的 440 特征基线 + Wang 2023 的跨机构验证方法学。",
+  "citations": [
+    {
+      "answererId": "academic-aerts-hjwl",
+      "answererName": "Aerts H J W L et al.",
+      "url": "https://www.nature.com/articles/ncomms5006",
+      "snippet": "440 hand-crafted CT features predicting prognosis across multiple lung cancer cohorts."
+    },
+    {
+      "answererId": "academic-park-je",
+      "answererName": "Park J E et al.",
+      "url": "https://link.springer.com/article/10.1007/s00330-019-06555-0",
+      "snippet": "Only 6% of 77 surveyed radiomics studies provided independent external validation."
+    },
+    {
+      "answererId": "demo-author-radio-1",
+      "answererName": "@示例答主-甲",
+      "url": "https://www.zhihu.com/question/123456/answer/789012",
+      "snippet": "影像组学是从影像里抽 hand-crafted 特征做统计分析。"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "items": [
+    {
+      "id": "feed-1",
+      "type": "article",
+      "title": "影像组学外部验证那些事",
+      "excerpt": "外部验证不是把测试集换个名字 — 是把数据采集协议、设备厂商、人群分布全换一遍。我用 RIDER Lung CT 队列做过一次跨设备验证，AUC 从 0.74 掉到 0.62，落差比想象中大。",
+      "authorId": "demo-author-3",
+      "authorName": "@示例答主-丙",
+      "createdAt": "2026-05-08T10:12:00+08:00",
+      "url": "https://www.zhihu.com/p/article-feed-1"
+    },
+    {
+      "id": "feed-2",
+      "type": "answer",
+      "title": "为什么 AI 写作工具让答主声音同质化？",
+      "excerpt": "因为多数工具把『生成顺畅文本』当作目标，而不是『保留作者特异性』。语风需要从 1500 字以上的样本里抽指纹，不是几句风格描述能解决的。",
+      "authorId": "demo-author-4",
+      "authorName": "@示例答主-丁",
+      "createdAt": "2026-05-08T16:30:00+08:00",
+      "url": "https://www.zhihu.com/question/123/answer/456"
+    },
+    {
+      "id": "feed-3",
+      "type": "pin",
+      "excerpt": "今天 GB 45438 实施满半年，公开复盘看下来：可追溯标识合规率刚过 50%。AI 写作工具如果不在出处链路上做扎实，就是在赌监管不查。",
+      "authorId": "demo-author-5",
+      "authorName": "@示例答主-戊",
+      "createdAt": "2026-05-09T08:45:00+08:00",
+      "url": "https://www.zhihu.com/pin/789"
+    },
+    {
+      "id": "feed-4",
+      "type": "article",
+      "title": "TCIA 公开数据集 5 月新增三个肿瘤队列",
+      "excerpt": "对放射组学/基因组学方向，三个队列分别覆盖 NSCLC、HCC、GBM。已经上线的可以用来跑跨数据集泛化测试，是个好的外部验证基线。",
+      "authorId": "demo-author-6",
+      "authorName": "@示例答主-己",
+      "createdAt": "2026-05-07T12:00:00+08:00",
+      "url": "https://www.zhihu.com/p/article-feed-4"
+    },
+    {
+      "id": "feed-5",
+      "type": "question",
+      "title": "答主收益分成调整：长文权重上调 12%，短想法是不是要被冷处理？",
+      "excerpt": "看到收益规则更新通知后的几个核心问题：长文是否会挤压短想法的曝光？答主的内容结构是否需要重新规划？",
+      "authorId": "demo-author-7",
+      "authorName": "@示例答主-庚",
+      "createdAt": "2026-05-09T11:20:00+08:00",
+      "url": "https://www.zhihu.com/question/feed-5"
+    }
+  ],
+  "cursor": null
+}

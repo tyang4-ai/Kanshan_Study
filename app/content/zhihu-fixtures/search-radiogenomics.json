@@ -1,0 +1,67 @@
+[
+  {
+    "id": "ans-radio-001",
+    "type": "answer",
+    "title": "影像组学和基因组学的本质差别是什么？",
+    "abstract": "影像组学是从影像里抽 hand-crafted 特征做统计分析，基因组学是从测序数据做表达模式聚类。两者结合即放射基因组学（radiogenomics）。",
+    "author": { "id": "demo-author-radio-1", "displayName": "@示例答主-甲", "bio": "示例数据 · 放射肿瘤学方向" },
+    "publishedAt": "2024-09-12",
+    "relevanceScore": 0.91,
+    "authorityScore": 0.84,
+    "voteUp": 1437,
+    "commentCount": 89,
+    "url": "https://www.zhihu.com/question/123456/answer/789012"
+  },
+  {
+    "id": "art-aerts-2014",
+    "type": "article",
+    "title": "Decoding tumour phenotype by noninvasive imaging using a quantitative radiomics approach",
+    "abstract": "Aerts et al., Nature Communications 2014. The seminal radiomics paper introducing 440 hand-crafted CT features predicting prognosis across multiple lung cancer cohorts.",
+    "author": { "id": "academic-aerts-hjwl", "displayName": "Aerts H J W L et al.", "bio": "Dana-Farber / Harvard" },
+    "publishedAt": "2014-06-03",
+    "relevanceScore": 0.96,
+    "authorityScore": 0.98,
+    "voteUp": 0,
+    "commentCount": 0,
+    "url": "https://www.nature.com/articles/ncomms5006"
+  },
+  {
+    "id": "art-park-2020",
+    "type": "article",
+    "title": "Reproducibility and Generalizability in Radiomics Modeling",
+    "abstract": "Park J E et al., Eur Radiol 2020. Survey of 77 radiomics studies; only 6% provided truly independent external validation.",
+    "author": { "id": "academic-park-je", "displayName": "Park J E et al.", "bio": "Asan Medical Center" },
+    "publishedAt": "2020-01-15",
+    "relevanceScore": 0.94,
+    "authorityScore": 0.95,
+    "voteUp": 0,
+    "commentCount": 0,
+    "url": "https://link.springer.com/article/10.1007/s00330-019-06555-0"
+  },
+  {
+    "id": "ans-radio-002",
+    "type": "answer",
+    "title": "为什么放射基因组学进入临床这么慢？",
+    "abstract": "外部验证不够、监管审批路径不清晰、医院 PACS 数据脱敏成本高。",
+    "author": { "id": "demo-author-radio-2", "displayName": "@示例答主-乙", "bio": "示例数据 · 临床影像 AI" },
+    "publishedAt": "2025-02-08",
+    "relevanceScore": 0.87,
+    "authorityScore": 0.79,
+    "voteUp": 642,
+    "commentCount": 53,
+    "url": "https://www.zhihu.com/question/234567/answer/890123"
+  },
+  {
+    "id": "art-wang-2023",
+    "type": "article",
+    "title": "External Validation of a Deep Learning Radiomics Model for NSCLC",
+    "abstract": "Wang H et al., Radiology 2023. Cross-institutional AUC drop from 0.74 to 0.62 when validated on RIDER Lung CT cohort.",
+    "author": { "id": "academic-wang-h", "displayName": "Wang H et al.", "bio": "Memorial Sloan Kettering" },
+    "publishedAt": "2023-04-20",
+    "relevanceScore": 0.89,
+    "authorityScore": 0.93,
+    "voteUp": 0,
+    "commentCount": 0,
+    "url": "https://pubs.rsna.org/doi/10.1148/radiol.2023222345"
+  }
+]

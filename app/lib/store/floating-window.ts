@@ -3,7 +3,8 @@ import { create } from 'zustand';
 
 export type TabKind =
   | 'vault' | 'settings' | 'stats' | 'trends'
-  | 'persona' | 'debate' | 'voice-diff' | 'research';
+  | 'persona' | 'debate' | 'voice-diff' | 'research'
+  | 'kanshan-chat';
 
 export interface Tab {
   id: string;

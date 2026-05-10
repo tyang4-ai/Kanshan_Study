@@ -1,0 +1,74 @@
+[
+  {
+    "id": "rel-1",
+    "rank": 1,
+    "title": "AI 写作工具是否会让答主声音同质化？",
+    "heat": "8.2 万",
+    "ageHours": 2,
+    "ageLabel": "2 小时",
+    "tags": ["答主圈", "看墨相关"],
+    "hot": true,
+    "vibes": "看势：与你的写作工具论调直接相关，可作为下一篇切入点",
+    "vibesFox": "shi"
+  },
+  {
+    "id": "rel-2",
+    "rank": 2,
+    "title": "某顶刊撤回一篇影像组学论文，外部验证造假",
+    "heat": "4.7 万",
+    "ageHours": 5,
+    "ageLabel": "5 小时",
+    "tags": ["你的领域"],
+    "hot": true,
+    "vibes": "看势：踩你正在写的\"外部验证\"主题，是个鲜热引子",
+    "vibesFox": "shi"
+  },
+  {
+    "id": "rel-3",
+    "rank": 3,
+    "title": "GB 45438 实施半年，AI 内容标识合规情况复盘",
+    "heat": "2.1 万",
+    "ageHours": 11,
+    "ageLabel": "11 小时",
+    "tags": ["看心相关"],
+    "hot": false,
+    "vibes": "看势：你 9 月那篇合规文章可以更新一版",
+    "vibesFox": "shi"
+  },
+  {
+    "id": "rel-4",
+    "rank": 4,
+    "title": "TCIA 公开数据集 5 月新增三个肿瘤队列",
+    "heat": "1.4 万",
+    "ageHours": 24,
+    "ageLabel": "1 天",
+    "tags": ["你的领域"],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "rel-5",
+    "rank": 5,
+    "title": "答主收益分成调整：长文权重上调 12%",
+    "heat": "9,200",
+    "ageHours": 24,
+    "ageLabel": "1 天",
+    "tags": ["答主圈"],
+    "hot": false,
+    "vibes": "看镜：与你 4 月收益曲线相关，可作背景注脚",
+    "vibesFox": "jing"
+  },
+  {
+    "id": "rel-6",
+    "rank": 6,
+    "title": "基因组学+AI 联合建模，今年 SCI 发文涨 38%",
+    "heat": "6,400",
+    "ageHours": 48,
+    "ageLabel": "2 天",
+    "tags": ["你的领域"],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  }
+]

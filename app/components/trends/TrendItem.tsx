@@ -10,9 +10,10 @@ export interface TrendItemProps {
   hot: boolean;
   vibes: string;
   onClick?: () => void;
+  onPin?: () => void;
 }
 
-export function TrendItem({ rank, title, heat, ageLabel, tags, hot, vibes, onClick }: TrendItemProps) {
+export function TrendItem({ rank, title, heat, ageLabel, tags, hot, vibes, onClick, onPin }: TrendItemProps) {
   const [hover, setHover] = useState(false);
 
   const rowStyle: CSSProperties = {
@@ -109,6 +110,32 @@ export function TrendItem({ rank, title, heat, ageLabel, tags, hot, vibes, onCli
         </div>
         {vibes && <div style={vibesStyle}>{vibes}</div>}
       </div>
+      {onPin && hover && (
+        <button
+          type="button"
+          data-testid="trend-pin-btn"
+          aria-label="钉到便签板"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPin();
+          }}
+          style={{
+            alignSelf: 'center',
+            flexShrink: 0,
+            padding: '3px 8px',
+            background: 'transparent',
+            border: '1px solid rgba(23,114,246,0.5)',
+            color: '#1772F6',
+            fontFamily: '"Noto Serif SC", serif',
+            fontSize: 10,
+            letterSpacing: 1,
+            borderRadius: 2,
+            cursor: 'pointer',
+          }}
+        >
+          钉
+        </button>
+      )}
     </div>
   );
 }

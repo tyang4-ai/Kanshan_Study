@@ -10,16 +10,18 @@ const PersonaTab   = dynamic(() => import('./PersonaTab').then((m) => m.PersonaT
 const DebateTab    = dynamic(() => import('./DebateTab').then((m) => m.DebateTab),    { ssr: false });
 const VoiceDiffTab = dynamic(() => import('./VoiceDiffTab').then((m) => m.VoiceDiffTab), { ssr: false });
 const ResearchTab  = dynamic(() => import('./ResearchTab').then((m) => m.ResearchTab),  { ssr: false });
+const KanshanChatTab = dynamic(() => import('./KanshanChatTab').then((m) => m.KanshanChatTab), { ssr: false });
 
 export function TabBody({ tab }: { tab: Tab }) {
   switch (tab.kind) {
-    case 'vault':      return <VaultTab     {...tab.props} />;
-    case 'settings':   return <SettingsTab  {...tab.props} />;
-    case 'stats':      return <StatsTab     {...tab.props} />;
-    case 'trends':     return <TrendsTab    {...tab.props} />;
-    case 'persona':    return <PersonaTab   {...tab.props} />;
-    case 'debate':     return <DebateTab    {...tab.props} />;
-    case 'voice-diff': return <VoiceDiffTab {...tab.props} />;
-    case 'research':   return <ResearchTab  {...tab.props} />;
+    case 'vault':         return <VaultTab     {...tab.props} />;
+    case 'settings':      return <SettingsTab  {...tab.props} />;
+    case 'stats':         return <StatsTab     {...tab.props} />;
+    case 'trends':        return <TrendsTab    {...tab.props} />;
+    case 'persona':       return <PersonaTab   {...tab.props} />;
+    case 'debate':        return <DebateTab    {...tab.props} />;
+    case 'voice-diff':    return <VoiceDiffTab {...tab.props} />;
+    case 'research':      return <ResearchTab  {...tab.props} />;
+    case 'kanshan-chat':  return <KanshanChatTab />;
   }
 }

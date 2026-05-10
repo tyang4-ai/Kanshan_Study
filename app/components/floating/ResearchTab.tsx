@@ -9,6 +9,7 @@ import {
   markTrendsAcknowledged,
 } from '@/components/floating/TrendsConfirmModal';
 import { useEditorStore } from '@/lib/store/editor';
+import { useCorkboardStore } from '@/lib/store/corkboard';
 import researchDataJson from '@/content/seed/research-radiogenomics.json';
 
 type ResearchScope = 'quick' | 'deep' | 'thorough';
@@ -237,6 +238,16 @@ export function ResearchTab({ selection }: ResearchTabProps) {
             source={s}
             onClick={() => {
               console.log('[research-source]', s);
+            }}
+            onPin={() => {
+              useCorkboardStore.getState().addPin({
+                kind: 'research',
+                sourceId: s.id,
+                content: { title: s.text, snippet: s.host, url: s.url },
+                createdBy: 'user',
+                w: 180,
+                h: 130,
+              });
             }}
           />
         ))}

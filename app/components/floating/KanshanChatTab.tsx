@@ -1,0 +1,329 @@
+'use client';
+
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useFloatingWindowStore, type TabKind } from '@/lib/store/floating-window';
+import { useCorkboardStore } from '@/lib/store/corkboard';
+import type { KanshanTool, KanshanToolCall } from '@/lib/agents/kanshan-router';
+
+interface ChatTurn {
+  role: 'user' | 'kanshan';
+  content: string;
+  toolCall?: KanshanToolCall;
+  ts: number;
+}
+
+const TOOL_LABEL: Record<KanshanTool, string> = {
+  open_research: '打开看水 · 深度研究',
+  open_trends: '打开看势 · 热榜雷达',
+  open_vault: '打开看典 · 档案库',
+  open_persona: '召集看文 · 读者反应',
+  open_debate: '召集看文/看纹 · 辩论',
+  pin_to_corkboard: '钉到便签板',
+  run_compliance_check: '让看心审一遍',
+};
+
+const TOOL_TAB: Record<KanshanTool, { kind: TabKind; title: string } | null> = {
+  open_research: { kind: 'research', title: '看水 · 深度研究' },
+  open_trends: { kind: 'trends', title: '看势 · 热榜雷达' },
+  open_vault: { kind: 'vault', title: '看典 · 档案库' },
+  open_persona: { kind: 'persona', title: '看文 · 读者反应' },
+  open_debate: { kind: 'debate', title: '看文 · 看纹辩论' },
+  pin_to_corkboard: null,
+  run_compliance_check: null,
+};
+
+export function KanshanChatTab() {
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const [draft, setDraft] = useState('');
+  const [composing, setComposing] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const sendingRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const openTab = useFloatingWindowStore((s) => s.openTab);
+  const addPin = useCorkboardStore((s) => s.addPin);
+
+  // Auto-scroll to bottom on new turn
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [turns.length, streaming]);
+
+  const dispatchTool = (toolCall: KanshanToolCall, replyText: string) => {
+    const target = TOOL_TAB[toolCall.tool];
+    if (target) {
+      const args = toolCall.args ?? {};
+      const props: Record<string, unknown> = {};
+      if (typeof args.query === 'string') props.preloadQuery = args.query;
+      openTab(target.kind, target.title, props);
+      return;
+    }
+    if (toolCall.tool === 'pin_to_corkboard') {
+      const args = toolCall.args ?? {};
+      const title = typeof args.title === 'string' ? args.title : replyText.slice(0, 40);
+      const snippet = typeof args.snippet === 'string' ? args.snippet : undefined;
+      addPin({
+        kind: 'note',
+        content: { title, snippet, annotation: replyText },
+        createdBy: 'kanshan',
+        w: 180,
+        h: 100,
+      });
+      return;
+    }
+    if (toolCall.tool === 'run_compliance_check') {
+      // Compliance is a silent sweep; for the chat surface we just acknowledge.
+      // Real wiring lands in plan #14 once 看心 has a dedicated tab kind.
+      return;
+    }
+  };
+
+  const send = async () => {
+    if (sendingRef.current) return;
+    const text = draft.trim();
+    if (!text) return;
+    sendingRef.current = true;
+    setStreaming(true);
+    setDraft('');
+    const userTurn: ChatTurn = { role: 'user', content: text, ts: Date.now() };
+    const historyForRequest = turns.map((t) => ({
+      role: t.role,
+      content: t.content,
+    }));
+    setTurns((prev) => [...prev, userTurn]);
+
+    try {
+      const res = await fetch('/api/agents/kanshan/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history: historyForRequest, userMessage: text }),
+      });
+      if (!res.ok || !res.body) {
+        setTurns((prev) => [
+          ...prev,
+          { role: 'kanshan', content: '看山一时未通 — 请稍后重试。', ts: Date.now() },
+        ]);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let replyText: string | null = null;
+      let toolCall: KanshanToolCall | undefined;
+
+      const processFrame = (frame: string) => {
+        const lines = frame.split('\n');
+        let event = '';
+        let dataLine = '';
+        for (const ln of lines) {
+          if (ln.startsWith('event:')) event = ln.slice(6).trim();
+          else if (ln.startsWith('data:')) dataLine = ln.slice(5).trim();
+        }
+        if (!event || !dataLine) return;
+        try {
+          const data = JSON.parse(dataLine);
+          if (event === 'reply' && typeof data.text === 'string') {
+            replyText = data.text;
+          } else if (event === 'tool_call') {
+            toolCall = data as KanshanToolCall;
+          }
+        } catch {
+          // ignore malformed frame
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop() ?? '';
+        for (const f of frames) processFrame(f);
+      }
+
+      if (replyText) {
+        const reply: ChatTurn = {
+          role: 'kanshan',
+          content: replyText,
+          toolCall,
+          ts: Date.now(),
+        };
+        setTurns((prev) => [...prev, reply]);
+        if (toolCall) {
+          // Defer dispatch one tick so the user sees the reply first.
+          setTimeout(() => dispatchTool(toolCall!, replyText!), 250);
+        }
+      }
+    } catch {
+      setTurns((prev) => [
+        ...prev,
+        { role: 'kanshan', content: '网络中断 — 请稍后重试。', ts: Date.now() },
+      ]);
+    } finally {
+      setStreaming(false);
+      sendingRef.current = false;
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (composing || e.nativeEvent.keyCode === 229) return;
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void send();
+    }
+  };
+
+  const containerStyle: CSSProperties = {
+    width: '100%', height: '100%',
+    background: '#FAFBFD',
+    display: 'flex', flexDirection: 'column',
+    fontFamily: '"Noto Sans SC", -apple-system, sans-serif',
+    overflow: 'hidden',
+    color: '#1A1F2A',
+  };
+
+  const headerStyle: CSSProperties = {
+    flexShrink: 0,
+    padding: '10px 14px',
+    background: 'linear-gradient(180deg, #2C4258 0%, #1F2F40 100%)',
+    display: 'flex', alignItems: 'center', gap: 12,
+  };
+
+  const bodyStyle: CSSProperties = {
+    flex: 1, overflowY: 'auto',
+    padding: '16px 20px',
+    display: 'flex', flexDirection: 'column', gap: 12,
+    background: '#FAFBFD',
+  };
+
+  const composerStyle: CSSProperties = {
+    flexShrink: 0,
+    padding: 12,
+    borderTop: '1px solid rgba(168,155,126,0.25)',
+    background: '#fff',
+    display: 'flex', gap: 10, alignItems: 'flex-end',
+  };
+
+  return (
+    <div style={containerStyle} data-testid="kanshan-chat-tab">
+      <div style={headerStyle}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 14,
+          background: '#A89B7E', color: '#fff',
+          fontFamily: '"Noto Serif SC", serif', fontSize: 14, fontWeight: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 8px rgba(168,155,126,0.6)',
+        }}>山</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: 1.5,
+            fontFamily: '"Noto Serif SC", serif', color: '#E8EEF5' }}>
+            看山 · 编排
+          </div>
+          <div style={{ fontSize: 10, color: '#8FA1B6', marginTop: 1,
+            fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.4 }}>
+            ORCHESTRATOR · 听话差遣
+          </div>
+        </div>
+      </div>
+
+      <div ref={scrollRef} style={bodyStyle} data-testid="kanshan-chat-body">
+        {turns.length === 0 && (
+          <div style={{
+            textAlign: 'center', color: 'rgba(26,31,42,0.5)',
+            fontSize: 12, fontFamily: '"Noto Serif SC", serif',
+            padding: '40px 0',
+          }}>
+            让看山想想 — 「找点研究」「召个读者」「钉一张便签」…
+          </div>
+        )}
+        {turns.map((t, i) => (
+          <ChatBubble key={t.ts + '-' + i} turn={t} />
+        ))}
+        {streaming && (
+          <div style={{ alignSelf: 'flex-start', fontSize: 12, color: '#A89B7E',
+            fontFamily: '"Noto Serif SC", serif' }}>
+            看山想想…
+          </div>
+        )}
+      </div>
+
+      <div style={composerStyle}>
+        <textarea
+          data-testid="kanshan-chat-input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
+          onKeyDown={handleKeyDown}
+          placeholder="说点什么…(Enter 发送 · Shift+Enter 换行)"
+          rows={2}
+          style={{
+            flex: 1,
+            padding: '8px 10px',
+            fontFamily: '"Noto Serif SC", serif',
+            fontSize: 13,
+            border: '1px solid rgba(168,155,126,0.35)',
+            borderRadius: 2,
+            background: '#FAFBFD',
+            color: '#1A1F2A',
+            outline: 'none',
+            resize: 'vertical',
+            minHeight: 40,
+            maxHeight: 120,
+          }}
+        />
+        <button
+          data-testid="kanshan-chat-send"
+          type="button"
+          onClick={() => void send()}
+          disabled={streaming || !draft.trim()}
+          style={{
+            padding: '10px 14px',
+            background: streaming || !draft.trim() ? '#D1CDB7' : '#2A2419',
+            color: '#FAF8F3',
+            border: 'none',
+            borderRadius: 2,
+            fontFamily: '"Noto Serif SC", serif',
+            fontSize: 13,
+            letterSpacing: 2,
+            cursor: streaming || !draft.trim() ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {streaming ? '…' : '差遣 →'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChatBubble({ turn }: { turn: ChatTurn }) {
+  const isUser = turn.role === 'user';
+  const align: CSSProperties = isUser
+    ? { alignSelf: 'flex-end', maxWidth: '70%' }
+    : { alignSelf: 'flex-start', maxWidth: '85%' };
+  const bubble: CSSProperties = {
+    padding: '10px 12px',
+    borderRadius: 10,
+    background: isUser ? '#2A2419' : '#FAF8F3',
+    color: isUser ? '#FAF8F3' : '#1A1F2A',
+    fontFamily: '"Noto Serif SC", serif',
+    fontSize: 13,
+    lineHeight: 1.6,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+    border: isUser ? 'none' : '1px solid rgba(168,155,126,0.3)',
+    whiteSpace: 'pre-wrap',
+  };
+  return (
+    <div style={align} data-testid={isUser ? 'chat-bubble-user' : 'chat-bubble-kanshan'}>
+      <div style={bubble}>{turn.content}</div>
+      {turn.toolCall && (
+        <div style={{
+          marginTop: 6, fontSize: 10, color: '#7A6F5A',
+          fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.5,
+        }}>
+          → {TOOL_LABEL[turn.toolCall.tool]}
+        </div>
+      )}
+    </div>
+  );
+}

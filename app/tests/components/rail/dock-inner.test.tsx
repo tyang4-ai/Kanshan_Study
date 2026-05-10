@@ -65,7 +65,7 @@ describe('DockInner', () => {
     expect(wenTail.getAttribute('data-rotate')).toBe('35');
   });
 
-  it('expands all 9 tails on hover (all opacity:1)', () => {
+  it('expands all 9 tails on hover (talk-to + active = 1, tools = 0.7)', () => {
     const { getByTestId, container } = render(
       <DockInner activeArr={['mo']} onToggleFox={() => {}} />
     );
@@ -76,9 +76,15 @@ describe('DockInner', () => {
     const tails = container.querySelectorAll('[data-testid="tail"]');
     expect(tails.length).toBe(9);
 
+    // Per #13.99: talk-to foxes (shan/wen/wen2/jing) and the active fox stay
+    // at opacity 1; tool foxes (mo/shui/dian/shi/xin) are de-emphasized to 0.7.
+    // mo is active here so it stays at 1.
+    const TALK_TO = new Set(['shan', 'wen', 'wen2', 'jing']);
     tails.forEach((tail) => {
+      const foxId = tail.getAttribute('data-fox');
       const wrapper = tail.parentElement!;
-      expect(wrapper.style.opacity).toBe('1');
+      const expected = foxId === 'mo' || (foxId && TALK_TO.has(foxId)) ? '1' : '0.7';
+      expect(wrapper.style.opacity).toBe(expected);
     });
   });
 

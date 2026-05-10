@@ -1,0 +1,98 @@
+[
+  {
+    "id": "all-1",
+    "rank": 1,
+    "title": "中美 AI 算力竞速进入第二阶段",
+    "heat": "128 万",
+    "ageHours": 3,
+    "ageLabel": "3 小时",
+    "tags": ["科技"],
+    "hot": true,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "all-2",
+    "rank": 2,
+    "title": "某 985 改革本科课程：AI 通识必修",
+    "heat": "67 万",
+    "ageHours": 6,
+    "ageLabel": "6 小时",
+    "tags": ["教育"],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "all-3",
+    "rank": 3,
+    "title": "上海地铁试点全线 5G-A 信号",
+    "heat": "34 万",
+    "ageHours": 8,
+    "ageLabel": "8 小时",
+    "tags": [],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "all-4",
+    "rank": 4,
+    "title": "海盐 6.0 航海家计划开放申请",
+    "heat": "21 万",
+    "ageHours": 10,
+    "ageLabel": "10 小时",
+    "tags": ["知乎"],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "all-5",
+    "rank": 5,
+    "title": "今夏台风季预测，登陆数预计偏多",
+    "heat": "17 万",
+    "ageHours": 12,
+    "ageLabel": "12 小时",
+    "tags": [],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "all-6",
+    "rank": 6,
+    "title": "AI 写作工具是否会让答主声音同质化？",
+    "heat": "8.2 万",
+    "ageHours": 2,
+    "ageLabel": "2 小时",
+    "tags": ["答主圈"],
+    "hot": true,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "all-7",
+    "rank": 7,
+    "title": "某顶刊撤回一篇影像组学论文",
+    "heat": "4.7 万",
+    "ageHours": 5,
+    "ageLabel": "5 小时",
+    "tags": ["学术"],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  },
+  {
+    "id": "all-8",
+    "rank": 8,
+    "title": "GB 45438 半年合规复盘",
+    "heat": "2.1 万",
+    "ageHours": 11,
+    "ageLabel": "11 小时",
+    "tags": [],
+    "hot": false,
+    "vibes": "",
+    "vibesFox": null
+  }
+]
