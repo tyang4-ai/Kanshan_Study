@@ -1,9 +1,22 @@
 'use client';
 
-import { useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { useCorkboardStore, type CorkboardPin } from '@/lib/store/corkboard';
 import { withGridPositions } from '@/lib/corkboard/layout';
 import { Pushpin } from '@/components/atoms/Pushpin';
+
+// R6 demo-flow review (Tan Shulin) P1: corkboard cold-load showed
+// "空板，点右上 + 写一张便签…" on a fresh browser because the persisted
+// store starts at pins:[] with no demo content. Pre-seed once on first
+// mount so the 0:00 cold-open beat has visible working-memory cards.
+// The localStorage flag below ensures the seed runs at most once per
+// browser — if the user clears all their cards, we don't refill them.
+const SEED_FLAG = 'kanshan-corkboard-seeded';
+const DEMO_SEED = [
+  { annotation: '调研一下 影像组学 选题 — 看势热榜 #01 有矛盾点', createdBy: 'user' as const },
+  { annotation: '明天考完试后写个总结（按 看墨 润色一遍再发）', createdBy: 'user' as const },
+  { annotation: '看典 D-25 「影像 AI 的幸存者偏差陷阱」 引用待补', createdBy: 'kanshan' as const },
+];
 
 const VAULT_DRAG_MIME = 'application/kanshan-vault';
 
@@ -45,6 +58,23 @@ export function Corkboard({
   const [postitDraft, setPostitDraft] = useState('');
   const [composing, setComposing] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (window.localStorage.getItem(SEED_FLAG)) return;
+      if (pins.length > 0) {
+        // User already has pins (e.g., a returning visitor whose seed flag
+        // was lost) — just stamp the flag and skip.
+        window.localStorage.setItem(SEED_FLAG, '1');
+        return;
+      }
+      for (const p of DEMO_SEED) addPostit(p.annotation, p.createdBy);
+      window.localStorage.setItem(SEED_FLAG, '1');
+    } catch {
+      /* localStorage blocked — accept the cold-open hit */
+    }
+  }, [pins.length, addPostit]);
 
   // Vertical scroll past N=12 — see plan #13.99 Task C "Auto-size strategy".
   const scrollEnabled = pins.length > 12;

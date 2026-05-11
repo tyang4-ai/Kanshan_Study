@@ -350,11 +350,24 @@ export function PersonaTab({ selection }: PersonaTabProps) {
             {allSelectedMasks.map((m, i) => {
               const foxId: FoxId = ('fox' in m ? m.fox : 'wen') as FoxId;
               const f = FOX_BY_ID[foxId];
+              // R6 demo-flow review (Tan Shulin) P2: all 4 masks are backed by
+              // 看文 (fox='wen'), so reusing f.initial '文' made every avatar
+              // look identical at first glance. Tint the avatar background per
+              // mask role (路人/业内/社畜/边界) and use the mask label's
+              // leading character so the four readers are visually distinct.
+              const tintByMask: Record<string, { bg: string; glow: string }> = {
+                passerby:    { bg: '#7A8B9F', glow: 'rgba(122,139,159,0.35)' },
+                expert:      { bg: '#1772F6', glow: 'rgba(23,114,246,0.35)' },
+                whitecollar: { bg: '#D89C3F', glow: 'rgba(216,156,63,0.35)' },
+                boundary:    { bg: '#C0392B', glow: 'rgba(192,57,43,0.35)' },
+              };
+              const tint = tintByMask[m.id] ?? { bg: f.glow, glow: `${f.glowSoft}55` };
+              const initial = m.label.charAt(0);
               const avatarStyle: CSSProperties = {
                 width: 22,
                 height: 22,
                 borderRadius: 11,
-                background: f.glow,
+                background: tint.bg,
                 color: '#fff',
                 fontFamily: '"Noto Serif SC", serif',
                 fontSize: 11,
@@ -364,12 +377,12 @@ export function PersonaTab({ selection }: PersonaTabProps) {
                 justifyContent: 'center',
                 marginLeft: i === 0 ? 0 : -6,
                 border: '1.5px solid #fff',
-                boxShadow: `0 0 4px ${f.glowSoft}55`,
+                boxShadow: `0 0 4px ${tint.glow}`,
                 zIndex: allSelectedMasks.length - i,
               };
               return (
                 <div key={`${m.id}-${i}`} title={m.label} style={avatarStyle}>
-                  {f.initial}
+                  {initial}
                 </div>
               );
             })}

@@ -9,6 +9,11 @@ describe('Corkboard', () => {
   beforeEach(() => {
     useCorkboardStore.getState().clear();
     localStorage.removeItem('kanshan-corkboard');
+    // R6 demo-flow review (Tan Shulin) P1: Corkboard now seeds 3 demo
+    // post-its on first mount when both pins are empty AND the seed flag
+    // is unset. Tests that want to assert empty/single-pin state should
+    // set the flag in their own beforeEach so the seed effect bails.
+    localStorage.setItem('kanshan-corkboard-seeded', '1');
   });
 
   it('renders empty state when no pins', () => {
