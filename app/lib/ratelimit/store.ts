@@ -45,10 +45,26 @@ interface Row {
   concurrent: number | string;
 }
 
+export interface CheckAndIncrementOptions {
+  /** Per-request multiplier applied to HOUR/DAY/CONCURRENT caps. BYO-key
+   *  holders get a higher cap so a legitimate user with their own quota isn't
+   *  bottlenecked by the demo-mode default, while still being metered enough
+   *  that a fan-out attacker with a bogus `Bearer sk-X` can't starve us. */
+  multiplier?: number;
+  now?: Date;
+}
+
 export async function checkAndIncrement(
   ipHash: string,
-  now: Date = new Date(),
+  optsOrNow: CheckAndIncrementOptions | Date = {},
 ): Promise<RateCheckResult> {
+  // Back-compat: legacy callers passed `Date` as the second positional arg.
+  const opts: CheckAndIncrementOptions = optsOrNow instanceof Date ? { now: optsOrNow } : optsOrNow;
+  const now = opts.now ?? new Date();
+  const mult = Math.max(1, opts.multiplier ?? 1);
+  const hourCap = HOUR_LIMIT * mult;
+  const dayCap = DAY_LIMIT * mult;
+  const concurrentCap = CONCURRENT_LIMIT * mult;
   const day = dayBucket(now);
   const hour = hourBucket(now);
 
@@ -77,7 +93,7 @@ export async function checkAndIncrement(
   const countDay = typeof row.count_day === 'string' ? Number(row.count_day) : row.count_day;
   const concurrent = typeof row.concurrent === 'string' ? Number(row.concurrent) : row.concurrent;
 
-  if (concurrent > CONCURRENT_LIMIT) {
+  if (concurrent > concurrentCap) {
     // Roll back the concurrent bump so we don't deadlock the bucket.
     await db.execute(sql`
       update rate_limit set concurrent = greatest(concurrent - 1, 0), updated_at = now()
@@ -86,11 +102,11 @@ export async function checkAndIncrement(
     return { ok: false, mode: 'concurrent', resetAt: now.getTime() + 30_000 };
   }
 
-  if (countHour > HOUR_LIMIT) {
+  if (countHour > hourCap) {
     return { ok: false, mode: 'hour', resetAt: nextHourBoundary(now) };
   }
 
-  if (countDay > DAY_LIMIT) {
+  if (countDay > dayCap) {
     return { ok: false, mode: 'day', resetAt: nextDayBoundary(now) };
   }
 
