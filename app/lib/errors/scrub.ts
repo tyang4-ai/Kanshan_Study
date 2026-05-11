@@ -49,9 +49,16 @@ const SECRET_PATTERNS: RegExp[] = [
 const REDACTED = '[redacted]';
 const GENERIC_FALLBACK = '上游服务暂不可用';
 
+// R8 adversarial review (Ren Bo) P0: zero-width-space + bidi-control + other
+// invisible-Unicode characters slipped past the alphanumeric secret patterns.
+// `sk-aaaa<U+200B>bbbb...` was not redacted because [a-zA-Z0-9_-] doesn't span
+// U+200B. Strip invisibles BEFORE pattern matching so the regexes see a
+// contiguous token shape. Covers ZWSP, ZWNJ, ZWJ, ZWNBSP, BOM, bidi-controls.
+const INVISIBLE_CHARS = /[​-‏⁠﻿‪-‮⁦-⁩]/g;
+
 export function scrubErrorForClient(msg: string): string {
   if (!msg || typeof msg !== 'string') return GENERIC_FALLBACK;
-  let out = msg;
+  let out = msg.replace(INVISIBLE_CHARS, '');
   for (const pattern of SECRET_PATTERNS) {
     out = out.replace(pattern, REDACTED);
   }

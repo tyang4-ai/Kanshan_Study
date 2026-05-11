@@ -11,7 +11,9 @@ import { RoundSelector } from '@/components/persona/RoundSelector';
 import { RoundDivider } from '@/components/persona/RoundDivider';
 import { UserBubble } from '@/components/persona/UserBubble';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
-import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
+// FOX_BY_ID + FoxId were used by the v1 custom mask glow fallback. R8 P0
+// fix replaced the per-fox fallback with a length-mixed hash → no longer
+// needed here. Kept the import block for git-blame continuity removed.
 import { fetchWithErrorToast } from '@/lib/fetch-helpers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
 
@@ -348,8 +350,6 @@ export function PersonaTab({ selection }: PersonaTabProps) {
             style={{ display: 'flex', alignItems: 'center' }}
           >
             {allSelectedMasks.map((m, i) => {
-              const foxId: FoxId = ('fox' in m ? m.fox : 'wen') as FoxId;
-              const f = FOX_BY_ID[foxId];
               // R6 demo-flow review (Tan Shulin) P2: all 4 masks are backed by
               // 看文 (fox='wen'), so reusing f.initial '文' made every avatar
               // look identical at first glance. Tint the avatar background per
@@ -365,15 +365,25 @@ export function PersonaTab({ selection }: PersonaTabProps) {
               // CustomMaskForm) have user-supplied id strings — they always hit
               // the fallback and looked identical. Hash the mask id into a stable
               // hue so two custom masks render in different colors.
-              const customHue = (id: string): string => {
-                let h = 0;
-                for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-                return `hsl(${h % 360}, 52%, 48%)`;
+              //
+              // R8 adversarial review (Ren Bo) P0: the v1 hash had cross-length
+              // collisions in the 360-bucket space (e.g. 'c' and 'bar' both
+              // landed on hue 99) which broke the visual-differentiation
+              // contract the fix was meant to provide. Now mix length and use
+              // both saturation + lightness perturbation, so two custom masks
+              // with hash-colliding hues still differ enough to read apart.
+              const customColor = (id: string): { bg: string; glow: string } => {
+                let h = id.length;
+                for (let i = 0; i < id.length; i++) h = ((h * 33) ^ id.charCodeAt(i)) >>> 0;
+                const hue = h % 360;
+                const sat = 42 + ((h >>> 8) % 22);   // 42..63 — saturation perturbation
+                const light = 42 + ((h >>> 16) % 14); // 42..55 — lightness perturbation
+                return {
+                  bg: `hsl(${hue}, ${sat}%, ${light}%)`,
+                  glow: `hsla(${hue}, ${sat}%, ${Math.min(light + 12, 70)}%, 0.45)`,
+                };
               };
-              const tint = tintByMask[m.id] ?? {
-                bg: customHue(m.id),
-                glow: `${f.glowSoft}55`,
-              };
+              const tint = tintByMask[m.id] ?? customColor(m.id);
               const initial = m.label.charAt(0);
               const avatarStyle: CSSProperties = {
                 width: 22,

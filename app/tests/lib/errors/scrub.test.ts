@@ -128,6 +128,42 @@ describe('scrubErrorForClient — non-secret messages pass through (possibly tru
   });
 });
 
+describe('scrubErrorForClient — invisible-Unicode bypass defense (R8 Ren Bo P0)', () => {
+  it('redacts a sk- key with a ZWSP (U+200B) interruption', () => {
+    const input = `error: sk-aaaaaaaa​bbbbbbbbbbbbbbbbbbbb leaked`;
+    const out = scrubErrorForClient(input);
+    expect(out).toContain('error:');
+    expect(out).toContain('leaked');
+    expect(out).toContain('[redacted]');
+    expect(out).not.toContain('sk-aaaaaaaa');
+    expect(out).not.toContain('bbbbbbbb');
+  });
+
+  it('redacts a cfat_ token with a ZWNJ (U+200C) interruption (whole-message secret falls to generic)', () => {
+    const input = `cfat_FAKE0000FAKE0000FAKE‌0000FAKE0000FAKE0000`;
+    const out = scrubErrorForClient(input);
+    // After stripping ZWNJ and redacting, only the [redacted] marker remains;
+    // the meaningful-content guard falls back to the generic message.
+    expect(out).not.toContain('cfat_FAKE');
+    expect(out).not.toContain('FAKE0000FAKE0000');
+  });
+
+  it('redacts a key with a BOM (U+FEFF) interruption while keeping context', () => {
+    const input = `key dump: sk-FAKE00000000﻿FAKE0000FAKE0000FAKE invalid`;
+    const out = scrubErrorForClient(input);
+    expect(out).toContain('key dump:');
+    expect(out).toContain('invalid');
+    expect(out).toContain('[redacted]');
+  });
+
+  it('redacts a key wrapped in bidi-override controls (U+202E / U+2066)', () => {
+    const input = `‮sk-FAKE0000FAKE0000FAKE0000FAKE‬ end`;
+    const out = scrubErrorForClient(input);
+    expect(out).not.toContain('FAKE0000FAKE0000');
+    expect(out).toContain('[redacted]');
+  });
+});
+
 describe('scrubErrorForClient — known false-negatives (documented limits)', () => {
   // Hu Wei flagged these — short truncations may slip through the {6,} length
   // gate. Documented so future tightening of the regex is testable.
