@@ -39,6 +39,7 @@ export function Corkboard({
   const removePin = useCorkboardStore((s) => s.removePin);
   const movePin = useCorkboardStore((s) => s.movePin);
   const updateAnnotation = useCorkboardStore((s) => s.updateAnnotation);
+  const bringToFront = useCorkboardStore((s) => s.bringToFront);
 
   const [filter, setFilter] = useState('');
   const [postitDraft, setPostitDraft] = useState('');
@@ -52,7 +53,7 @@ export function Corkboard({
   // When search panel is hidden, treat filter as empty regardless of stale
   // state. This avoids needing setState-in-effect to reset on close.
   const activeFilter = searchOpen ? filter : '';
-  const visiblePins = activeFilter
+  const filtered = activeFilter
     ? positioned.filter((p) => {
         const f = activeFilter.toLowerCase();
         return (
@@ -62,6 +63,14 @@ export function Corkboard({
         );
       })
     : positioned;
+  // Layering: post-it notes always render above other pins (judges/users
+  // most often want hand-written annotations on top). Within each group,
+  // array order = z-order, which the store's bringToFront keeps fresh on
+  // click. Stable sort via index keeps positions deterministic.
+  const visiblePins = [
+    ...filtered.filter((p) => p.kind !== 'note'),
+    ...filtered.filter((p) => p.kind === 'note'),
+  ];
 
   const closeSearchAndReset = () => {
     setFilter('');
@@ -233,6 +242,7 @@ export function Corkboard({
             onDragStart={handlePinDragStart(pin.id)}
             onRemove={() => removePin(pin.id)}
             onAnnotationChange={(text) => updateAnnotation(pin.id, text)}
+            onFocus={() => bringToFront(pin.id)}
           />
         ))}
 
@@ -347,9 +357,10 @@ interface PinViewProps {
   onDragStart: (e: DragEvent<HTMLDivElement>) => void;
   onRemove: () => void;
   onAnnotationChange: (text: string) => void;
+  onFocus: () => void;
 }
 
-function PinView({ pin, onDragStart, onRemove, onAnnotationChange }: PinViewProps) {
+function PinView({ pin, onDragStart, onRemove, onAnnotationChange, onFocus }: PinViewProps) {
   const [hover, setHover] = useState(false);
   const [composing, setComposing] = useState(false);
   const isNote = pin.kind === 'note';
@@ -397,7 +408,11 @@ function PinView({ pin, onDragStart, onRemove, onAnnotationChange }: PinViewProp
       data-pin-id={pin.id}
       data-created-by={pin.createdBy}
       draggable
-      onDragStart={onDragStart}
+      onDragStart={(e) => {
+        onFocus();
+        onDragStart(e);
+      }}
+      onMouseDown={onFocus}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={wrapperStyle}

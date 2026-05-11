@@ -58,4 +58,29 @@ describe('useCorkboardStore', () => {
     expect(stored).toBeTruthy();
     expect(stored).toContain('"annotation":"x"');
   });
+
+  it('bringToFront moves the targeted pin to the end of the array', () => {
+    const a = useCorkboardStore.getState().addPin({
+      kind: 'vault', content: { title: 'a' }, createdBy: 'user', w: 180, h: 120,
+    });
+    const b = useCorkboardStore.getState().addPin({
+      kind: 'vault', content: { title: 'b' }, createdBy: 'user', w: 180, h: 120,
+    });
+    const c = useCorkboardStore.getState().addPin({
+      kind: 'note', content: { annotation: 'c' }, createdBy: 'user', w: 160, h: 80,
+    });
+    useCorkboardStore.getState().bringToFront(a);
+    const ids = useCorkboardStore.getState().pins.map((p) => p.id);
+    expect(ids).toEqual([b, c, a]);
+  });
+
+  it('bringToFront is a no-op when the id is missing', () => {
+    useCorkboardStore.getState().addPin({
+      kind: 'vault', content: { title: 'a' }, createdBy: 'user', w: 180, h: 120,
+    });
+    const before = useCorkboardStore.getState().pins.map((p) => p.id);
+    useCorkboardStore.getState().bringToFront('does-not-exist');
+    const after = useCorkboardStore.getState().pins.map((p) => p.id);
+    expect(after).toEqual(before);
+  });
 });

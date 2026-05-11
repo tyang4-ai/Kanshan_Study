@@ -32,6 +32,11 @@ interface CorkboardState {
   removePin: (id: string) => void;
   movePin: (id: string, x: number, y: number, bounds?: { w: number; h: number }) => void;
   updateAnnotation: (id: string, annotation: string) => void;
+  /** Bump a pin to the top of the visual stack within its own kind-group.
+   * Render order = array order, so we move the pin to the end of the pins
+   * array. Post-its still render above non-notes via the sort in Corkboard.tsx,
+   * but within post-its (or within cards), this gives last-clicked-is-on-top. */
+  bringToFront: (id: string) => void;
   clear: () => void;
   /** Persona-fix #4 (2026-05-09 周敏 review): clear only 看山-pinned cards,
    * leaving user-pinned cards intact. Lets a user reset the orchestrator's
@@ -111,6 +116,14 @@ export const useCorkboardStore = create<CorkboardState>()(
             p.id === id ? { ...p, content: { ...p.content, annotation } } : p,
           ),
         })),
+
+      bringToFront: (id) =>
+        set((s) => {
+          const target = s.pins.find((p) => p.id === id);
+          if (!target) return s;
+          const rest = s.pins.filter((p) => p.id !== id);
+          return { pins: [...rest, target] };
+        }),
 
       clear: () => set(() => ({ pins: [] })),
 
