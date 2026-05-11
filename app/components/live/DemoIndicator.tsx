@@ -1,6 +1,6 @@
 'use client';
 import type { CSSProperties } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const wrap: CSSProperties = {
   position: 'fixed',
@@ -47,22 +47,27 @@ const exitBtn: CSSProperties = {
 };
 
 // Persona-review 2026-05-11 R2 P0 (casual user Tang Yu): /live mode entered
-// accidentally has no escape; users got stuck. Adds an explicit 退出 button
-// that navigates back to `/`. Plain anchor so the navigation works even if
-// React state is mid-update.
+// accidentally has no escape; users got stuck. Adds an explicit 退出 button.
+//
+// R3 demo-flow judge regression: Next.js <Link href="/"> prefetched the home
+// route which collided with the DemoModeProvider's window.fetch patch and
+// made every subsequent click navigate to /. Reverted to router.push so the
+// prefetch never fires.
 export function DemoIndicator() {
+  const router = useRouter();
   return (
     <div data-testid="demo-indicator" style={wrap}>
       <span style={dot} />
       <span>LIVE DEMO · 缓存模式</span>
-      <Link
-        href="/"
+      <button
+        type="button"
         data-testid="demo-exit"
         aria-label="退出演示模式，回到常规工作台"
-        style={{ ...exitBtn, textDecoration: 'none', display: 'inline-block' }}
+        onClick={() => router.push('/')}
+        style={exitBtn}
       >
         退出
-      </Link>
+      </button>
     </div>
   );
 }
