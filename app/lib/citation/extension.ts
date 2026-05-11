@@ -36,13 +36,19 @@ export const CitationMark = Mark.create({
   parseHTML() {
     return [{ tag: 'sup[data-citation-id]' }];
   },
-  renderHTML({ HTMLAttributes, mark }) {
+  renderHTML({ HTMLAttributes }) {
+    // R4 presentation + casual user persona-review 2026-05-11 P0: the third
+    // array element was `mark.attrs.label` (a string), which ProseMirror
+    // rendered as literal text *in addition to* the marked text content,
+    // producing `<sup>[3][3]</sup>` per render cycle. Each persistence round
+    // doubled the labels — judges saw `[3][3][3][3][3][v7][v7][v7][v7]`.
+    // The fix: use 0 as the content placeholder so marked text goes there.
     return ['sup',
       mergeAttributes(HTMLAttributes, {
         class: 'citation-sup',
         style: 'cursor:pointer; font-family:JetBrains Mono, monospace;',
       }),
-      mark.attrs.label as string,
+      0,
     ];
   },
 });

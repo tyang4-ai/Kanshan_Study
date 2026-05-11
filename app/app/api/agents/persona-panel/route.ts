@@ -17,6 +17,7 @@ import { personaRoundKey, personaFollowupKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
 import type { Provider } from '@/lib/llm';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
+import { scrubErrorForClient } from '@/lib/errors/scrub';
 
 const CustomMaskSchema = z.object({
   id: z.string(),
@@ -164,7 +165,7 @@ async function roundsStream(
       return buffered;
     });
   } catch (err) {
-    return errorStream((err as Error).message, { fallback: PERSONA_FALLBACK });
+    return errorStream(scrubErrorForClient((err as Error).message), { fallback: PERSONA_FALLBACK });
   }
 
   return replayStream(steps, {
@@ -214,7 +215,7 @@ async function followupStream(
     });
   } catch (err) {
     const fallbackMask = masks[0] ?? FIXED_MASKS[0];
-    return errorStream((err as Error).message, {
+    return errorStream(scrubErrorForClient((err as Error).message), {
       fallback: [FOLLOWUP_FALLBACK(userMessage, fallbackMask)],
     });
   }

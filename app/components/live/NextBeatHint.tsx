@@ -18,10 +18,14 @@ interface DemoScript {
 
 const SCRIPT = script as DemoScript;
 
+// R4 presentation persona-review 2026-05-11 P0 (Sun Liwei): the script
+// teleprompter at top-right collided with LoreEnvelope (also top-right at
+// `top:88, right:22`). Moved to bottom-right *above* the LIVE DEMO chip
+// (chip lives at `bottom:12`; we sit at `bottom:60` with a 4px gap).
 const wrap: CSSProperties = {
   position: 'fixed',
   right: 16,
-  top: 16,
+  bottom: 60,
   zIndex: 2500,
   width: 280,
   padding: '10px 14px 12px',

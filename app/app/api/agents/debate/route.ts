@@ -6,6 +6,7 @@ import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
 import { debateKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
+import { scrubErrorForClient } from '@/lib/errors/scrub';
 
 const Body = z.object({
   selection: z.string().min(1).max(4000),
@@ -77,7 +78,7 @@ export async function POST(req: Request): Promise<Response> {
       return buffered;
     });
   } catch (err) {
-    const inner = errorStream((err as Error).message);
+    const inner = errorStream(scrubErrorForClient((err as Error).message));
     return new Response(wrapRelease(inner, guestId), sseHeaders());
   }
 

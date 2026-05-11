@@ -165,7 +165,10 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
     const errEv = events.find((e) => e.event === 'error');
     expect(errEv).toBeDefined();
     const errData = errEv!.data as { message: string; fallback: PersonaMessage[] };
-    expect(errData.message).toMatch(/DEEPSEEK_API_KEY/);
+    // R4 security (Cao Renxin): SSE error bodies are scrubbed of API-key
+    // references — "DEEPSEEK_API_KEY is not set" must NOT round-trip.
+    expect(errData.message).not.toMatch(/DEEPSEEK_API_KEY/);
+    expect(errData.message).toBe('上游服务暂不可用');
     expect(Array.isArray(errData.fallback)).toBe(true);
     expect(errData.fallback.length).toBeGreaterThan(0);
     const last = events[events.length - 1];

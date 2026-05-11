@@ -8,15 +8,7 @@ import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
 import { voiceFillKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
-
-// R2 security (Wang Zhihui / Zhao Mingfei) P2: don't leak raw provider error
-// bodies to the client. The original `err.message` could include an upstream
-// "Invalid API key sk-..." round-trip. Server still logs the full message.
-function scrubErrorForClient(msg: string): string {
-  if (/api[\s_-]?key|sk-[a-z0-9]{6,}|bearer/i.test(msg)) return '上游服务暂不可用';
-  if (msg.length > 200) return msg.slice(0, 200) + '…';
-  return msg;
-}
+import { scrubErrorForClient } from '@/lib/errors/scrub';
 
 const BodySchema = z.object({
   bullets: z.string().max(2000),

@@ -73,8 +73,17 @@ interface VoiceFingerprint {
 // when the per-user fingerprint file is missing (e.g., for unknown accounts).
 const fingerprintCache: Record<string, VoiceFingerprint | null> = {};
 
+// R4 security (Cao Renxin) P1: allowlist userId before the dynamic import.
+// Bundler static resolution is the current mitigation against path traversal
+// but we shouldn't depend on it — defense in depth.
+const KNOWN_USER_IDS: ReadonlySet<string> = new Set(['me', 'guwanxi']);
+
 async function loadVoiceFingerprint(userId: string): Promise<VoiceFingerprint | null> {
   if (userId in fingerprintCache) return fingerprintCache[userId];
+  if (!KNOWN_USER_IDS.has(userId)) {
+    fingerprintCache[userId] = null;
+    return null;
+  }
   try {
     // Dynamic import gives bundler-friendly path resolution + tree-shakes
     // unused per-user fingerprints out of the client bundle.
@@ -166,7 +175,7 @@ async function draftGeneric(
     { role: 'system', content: GENERIC_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
   ];
-  return chat(messages, { model: 'deepseek-chat', temperature: 0.6, maxTokens: 600, apiKey, provider });
+  return chat(messages, { temperature: 0.6, maxTokens: 600, apiKey, provider });
 }
 
 function buildSampleBlock(samples: SourceSample[]): string {
@@ -231,7 +240,6 @@ async function draftVoice(
 
   try {
     const result = await chatJson<VoiceLLMResult>(messages, {
-      model: 'deepseek-chat',
       temperature: 0.7,
       maxTokens: 900,
       apiKey,
@@ -247,7 +255,7 @@ async function draftVoice(
         { role: 'system', content: VOICE_SYSTEM_PROMPT },
         { role: 'user', content: userMsg },
       ],
-      { model: 'deepseek-chat', temperature: 0.7, maxTokens: 900, apiKey, provider }
+      { temperature: 0.7, maxTokens: 900, apiKey, provider }
     );
     return { text, voiceSpans: [] };
   }
@@ -312,7 +320,6 @@ async function rewriteForVoice(
   ];
   try {
     const result = await chatJson<VoiceLLMResult>(messages, {
-      model: 'deepseek-chat',
       temperature: 0.7,
       maxTokens: 900,
       apiKey,
@@ -324,7 +331,6 @@ async function rewriteForVoice(
     };
   } catch {
     const text = await chat(messages, {
-      model: 'deepseek-chat',
       temperature: 0.7,
       maxTokens: 900,
       apiKey,

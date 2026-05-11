@@ -111,11 +111,10 @@ export function TipTapEditor({
       // back in the effect below. Per-account so 顾婉昔 ↔ me don't bleed.
       if (typeof window === 'undefined') return;
       try {
+        // R4 code-quality (Hu Wei) P0: single regex exec per keystroke.
         const accountRaw = window.localStorage.getItem('kanshan-account');
-        const accountId =
-          accountRaw && /"active":"(\w+)"/.exec(accountRaw)?.[1]
-            ? /"active":"(\w+)"/.exec(accountRaw)?.[1]
-            : 'me';
+        const m = accountRaw ? /"active":"(\w+)"/.exec(accountRaw) : null;
+        const accountId = m?.[1] ?? 'me';
         window.localStorage.setItem(`kanshan-editor-doc:${accountId}`, e.getHTML());
       } catch {
         // private mode / quota — ignore; the editor in-memory state is fine
