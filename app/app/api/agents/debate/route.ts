@@ -8,7 +8,7 @@ import { proxyAuth } from '@/lib/apikey/proxy';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
 
 const Body = z.object({
-  selection: z.string().min(1),
+  selection: z.string().min(1).max(4000),
   turns: z.number().int().min(2).max(10).default(6),
 });
 

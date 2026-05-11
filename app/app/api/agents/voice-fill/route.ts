@@ -10,8 +10,8 @@ import { proxyAuth } from '@/lib/apikey/proxy';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
 
 const BodySchema = z.object({
-  bullets: z.string(),
-  selection: z.string(),
+  bullets: z.string().max(2000),
+  selection: z.string().max(4000),
   mode: z.enum(['fill', 'polish']),
 });
 

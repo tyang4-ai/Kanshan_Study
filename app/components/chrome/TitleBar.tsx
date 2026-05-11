@@ -131,7 +131,7 @@ export function BudgetChip() {
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '2px 6px', fontSize: 10, letterSpacing: 0.6,
-        color: 'rgba(168,155,126,0.6)',
+        color: 'rgba(192,178,148,0.92)',
         fontFamily: 'JetBrains Mono, monospace',
       }}
       title="知乎 API 每日额度 — 看势(热榜) / 搜索 / 直答"

@@ -17,7 +17,7 @@ const TurnSchema = z.object({
 
 const Body = z.object({
   history: z.array(TurnSchema).default([]),
-  userMessage: z.string().min(1),
+  userMessage: z.string().min(1).max(2000),
 });
 
 function sseHeaders(): ResponseInit {

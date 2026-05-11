@@ -38,13 +38,13 @@ const PersonaMessageSchema = z.object({
 });
 
 const Body = z.object({
-  selection: z.string().min(1),
+  selection: z.string().min(1).max(4000),
   fixedIds: z.array(z.string()).optional(),
   custom: z.array(CustomMaskSchema).optional(),
   rounds: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   mode: z.enum(['rounds', 'followup']).optional(),
   history: z.array(PersonaMessageSchema).optional(),
-  userMessage: z.string().optional(),
+  userMessage: z.string().max(2000).optional(),
 });
 
 function sseHeaders(): ResponseInit {

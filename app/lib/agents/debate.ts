@@ -72,7 +72,10 @@ export async function* debateStream(
         { role: 'system', content: sys },
         { role: 'user', content: '请回复' },
       ],
-      { temperature: 0.75, maxTokens: 400, apiKey, provider },
+      // Sun Wei R2 P1 2026-05-11: maxTokens=400 against a 60-100 字 prompt
+      // gave 150-200 字 outputs (LLM fills its budget). Drop to 220 so the
+      // bubble stays compact and the script's 30s / 6-turn pace works.
+      { temperature: 0.75, maxTokens: 220, apiKey, provider },
     );
     const turn: DebateTurn = {
       id: crypto.randomUUID(),

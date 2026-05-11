@@ -52,9 +52,11 @@ function tokenize(html: string): Token[] {
   return tokens;
 }
 
-let renderCounter = 0;
-
 export function renderResearchBody(html: string): ReactNode {
+  // Per-call counter — was module-scope, which made server-rendered and
+  // client-rendered keys diverge after the first call and caused React
+  // hydration warnings (R2 code-quality persona P0 2026-05-11).
+  let renderCounter = 0;
   const tokens = tokenize(html);
   // Group into <p> blocks; each <p> wraps its inline children. Inline tokens
   // (sup, span, text) outside a <p> render as siblings.
