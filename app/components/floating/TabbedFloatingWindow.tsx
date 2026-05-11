@@ -70,7 +70,24 @@ export function TabbedFloatingWindow() {
           cursor: isDragging ? 'grabbing' : 'move',
         }}
       >
-        <div className="flex flex-1 overflow-x-auto overflow-y-hidden">
+        <div
+          role="tablist"
+          aria-label="浮窗标签"
+          className="flex flex-1 overflow-x-auto overflow-y-hidden"
+          onKeyDown={(e) => {
+            // A11y persona-review R2 P1 (Yang Zhihua / Xu Ling): tab strip
+            // must support arrow-key roving tabindex per WAI-ARIA tabs pattern.
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
+            e.preventDefault();
+            const idx = tabs.findIndex((t) => t.id === activeTab.id);
+            const next =
+              e.key === 'ArrowLeft'  ? (idx - 1 + tabs.length) % tabs.length
+              : e.key === 'ArrowRight' ? (idx + 1) % tabs.length
+              : e.key === 'Home'       ? 0
+                                       : tabs.length - 1;
+            focusTab(tabs[next].id);
+          }}
+        >
           {tabs.map((tab) => (
             <TabPill
               key={tab.id}
@@ -112,18 +129,33 @@ function TabPill({
 }: {
   tab: Tab; active: boolean; onFocus: () => void; onClose: () => void;
 }) {
+  // A11y persona-review R2 P0 (Yang Zhihua / Xu Ling): was a <div onClick>
+  // — keyboard users couldn't switch tabs. Now real role="tab" with proper
+  // aria-selected + roving tabindex (only active tab is in tab order; arrow
+  // keys on the tablist move the active state, handled by parent).
   return (
     <div
+      role="tab"
+      aria-selected={active}
+      tabIndex={active ? 0 : -1}
       onClick={onFocus}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onFocus();
+        }
+      }}
       className={[
-        'flex shrink-0 cursor-pointer items-center gap-2 px-3 py-2 text-xs',
+        'flex shrink-0 cursor-pointer items-center gap-2 px-3 py-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
         active ? 'bg-slate-50 text-slate-900' : 'text-slate-300 hover:bg-white/5',
       ].join(' ')}
       style={{ fontFamily: '"Noto Serif SC", serif', letterSpacing: 0.5 }}
     >
       <span className="whitespace-nowrap">{tab.title}</span>
       <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
+        aria-label={`关闭 ${tab.title}`}
         className="ml-1 opacity-50 hover:opacity-100"
         title="关闭标签"
       >

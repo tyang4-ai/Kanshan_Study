@@ -104,6 +104,23 @@ export function TipTapEditor({
     ],
     content,
     immediatelyRender: false,
+    onUpdate({ editor: e }) {
+      // Casual user persona-review R3 (Pan Xiaolin): edits didn't survive a
+      // page reload — the editor remounted from the seed `content` prop.
+      // Persist on every change to localStorage; the next mount reads it
+      // back in the effect below. Per-account so 顾婉昔 ↔ me don't bleed.
+      if (typeof window === 'undefined') return;
+      try {
+        const accountRaw = window.localStorage.getItem('kanshan-account');
+        const accountId =
+          accountRaw && /"active":"(\w+)"/.exec(accountRaw)?.[1]
+            ? /"active":"(\w+)"/.exec(accountRaw)?.[1]
+            : 'me';
+        window.localStorage.setItem(`kanshan-editor-doc:${accountId}`, e.getHTML());
+      } catch {
+        // private mode / quota — ignore; the editor in-memory state is fine
+      }
+    },
     editorProps: {
       handleClickOn(_view, _pos, _node, _nodePos, event) {
         const openTab = useFloatingWindowStore.getState().openTab;
@@ -145,6 +162,24 @@ export function TipTapEditor({
     setEditor(editor as Editor | null);
     return () => setEditor(null);
   }, [editor, setEditor]);
+
+  // Restore persisted doc on mount (per-account). Mirror of the onUpdate
+  // writer above. Runs after the initial seed-content render so that an
+  // empty localStorage falls back to the seed cleanly.
+  useEffect(() => {
+    if (!editor || typeof window === 'undefined') return;
+    try {
+      const accountRaw = window.localStorage.getItem('kanshan-account');
+      const accountId =
+        (accountRaw && /"active":"(\w+)"/.exec(accountRaw)?.[1]) || 'me';
+      const persisted = window.localStorage.getItem(`kanshan-editor-doc:${accountId}`);
+      if (persisted && persisted.trim().length > 0 && persisted !== editor.getHTML()) {
+        editor.commands.setContent(persisted, { emitUpdate: false });
+      }
+    } catch {
+      // ignore
+    }
+  }, [editor]);
 
   // Defense-in-depth: ProseMirror's `handleClickOn` runs only when the click
   // hits a node-with-content; clicks that land on a mark-only sup may slip
