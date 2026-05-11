@@ -60,6 +60,51 @@ interface SeedEntry {
   tags: string[];
 }
 
+interface VoiceFingerprint {
+  register?: string;
+  cadenceNotes?: string[];
+  signaturePhrases?: string[];
+  forbiddenPhrases?: string[];
+  openingPattern?: string;
+  endingPattern?: string;
+}
+
+// Cache fingerprints by userId — read once per process. Falls back to null
+// when the per-user fingerprint file is missing (e.g., for unknown accounts).
+const fingerprintCache: Record<string, VoiceFingerprint | null> = {};
+
+async function loadVoiceFingerprint(userId: string): Promise<VoiceFingerprint | null> {
+  if (userId in fingerprintCache) return fingerprintCache[userId];
+  try {
+    // Dynamic import gives bundler-friendly path resolution + tree-shakes
+    // unused per-user fingerprints out of the client bundle.
+    const mod = await import(`@/content/corpus/${userId}/voice-fingerprint.json`);
+    fingerprintCache[userId] = mod.default as VoiceFingerprint;
+  } catch {
+    fingerprintCache[userId] = null;
+  }
+  return fingerprintCache[userId];
+}
+
+function buildFingerprintBlock(fp: VoiceFingerprint | null): string {
+  if (!fp) return '';
+  const lines: string[] = ['【作者语风指纹】'];
+  if (fp.register) lines.push(`Register: ${fp.register}`);
+  if (fp.cadenceNotes?.length) {
+    lines.push('节奏要点：');
+    fp.cadenceNotes.forEach((n) => lines.push(`  - ${n}`));
+  }
+  if (fp.signaturePhrases?.length) {
+    lines.push(`常用语：${fp.signaturePhrases.join(' / ')}（在合适处使用 1-3 个，不要堆砌）`);
+  }
+  if (fp.forbiddenPhrases?.length) {
+    lines.push(`禁用语：${fp.forbiddenPhrases.join(' / ')}（任何一项都不得出现）`);
+  }
+  if (fp.openingPattern) lines.push(`开头：${fp.openingPattern}`);
+  if (fp.endingPattern) lines.push(`结尾：${fp.endingPattern}`);
+  return lines.join('\n');
+}
+
 interface VoiceLLMSpan {
   start: number;
   end: number;
@@ -155,10 +200,13 @@ async function draftVoice(
   samples: SourceSample[],
   mustPreserveTerms: string[],
   mustPreserveCitations: string[],
+  fingerprint: VoiceFingerprint | null,
   apiKey?: string,
   provider?: Provider,
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
+  const fingerprintBlock = buildFingerprintBlock(fingerprint);
+  const fingerprintPrefix = fingerprintBlock ? `${fingerprintBlock}\n\n` : '';
   const termBlock =
     mustPreserveTerms.length > 0
       ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中，不得替换或删除）`
@@ -173,8 +221,8 @@ async function draftVoice(
       : '';
   const userMsg =
     mode === 'fill'
-      ? `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${termBlock}${citationBlock}\n\n请用作者的文风写一段 200-350 字的中文段落。返回 JSON。`
-      : `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【原段】\n${selection}${termBlock}${citationBlock}${scopeRule}\n\n请按作者文风重写原段，200-350 字。返回 JSON。`;
+      ? `${fingerprintPrefix}【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${termBlock}${citationBlock}\n\n请用作者的文风写一段 200-350 字的中文段落。返回 JSON。`
+      : `${fingerprintPrefix}【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}\n\n【原段】\n${selection}${termBlock}${citationBlock}${scopeRule}\n\n请按作者文风重写原段，200-350 字。返回 JSON。`;
 
   const messages: ChatMessage[] = [
     { role: 'system', content: VOICE_SYSTEM_PROMPT },
@@ -241,10 +289,13 @@ async function rewriteForVoice(
   mustPreserveTerms: string[],
   mustPreserveCitations: string[],
   selection: string,
+  fingerprint: VoiceFingerprint | null,
   apiKey?: string,
   provider?: Provider,
 ): Promise<{ text: string; voiceSpans: VoiceSpan[] }> {
   const sampleBlock = buildSampleBlock(samples);
+  const fingerprintBlock = buildFingerprintBlock(fingerprint);
+  const fingerprintPrefix = fingerprintBlock ? `${fingerprintBlock}\n\n` : '';
   const termBlock =
     mustPreserveTerms.length > 0
       ? `\n\n【必须保留的术语】${mustPreserveTerms.join(' / ')}（任何一项必须按此写法出现在输出中）`
@@ -254,7 +305,7 @@ async function rewriteForVoice(
       ? `\n\n【必须保留的引用】${mustPreserveCitations.join(' ')}`
       : '';
   const sourceBlock = selection ? `\n\n【原段】\n${selection}\n\n【范围约束】重写不得引入【原段】未提及的具体概念。` : '';
-  const userMsg = `【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${sourceBlock}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}${termBlock}${citationBlock}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
+  const userMsg = `${fingerprintPrefix}【作者样本】\n${sampleBlock}\n\n【要点】\n${bullets}${sourceBlock}\n\n【上一稿】\n${prevDraft}\n\n【需重点改进】${targetHint(weakest)}${termBlock}${citationBlock}\n\n请重写这一段，仍 200-350 字。返回 JSON。`;
   const messages: ChatMessage[] = [
     { role: 'system', content: VOICE_SYSTEM_PROMPT },
     { role: 'user', content: userMsg },
@@ -300,6 +351,10 @@ export async function* voiceFillStream(
   const query = (mode === 'polish' ? selection : bullets || selection).trim();
   const samples = await loadSamples(userId, query);
   const sampleBodies = samples.map((s) => s.body);
+  // Voice fingerprint distillation — prose-level cadence markers + signature
+  // phrases. Persona-review 2026-05-10 王婉清 P1: samples alone produced
+  // "professional-anonymous" voice; fingerprint surfaces the author DNA.
+  const fingerprint = await loadVoiceFingerprint(userId);
 
   const jieba = createJieba();
   const sourceForTerms = mode === 'polish' ? selection : bullets;
@@ -310,7 +365,7 @@ export async function* voiceFillStream(
   const generic = await draftGeneric(bullets, mode, selection, mustPreserveTerms, mustPreserveCitations, apiKey, provider);
   yield { event: 'generic', data: { text: generic } };
 
-  const first = await draftVoice(bullets, mode, selection, samples, mustPreserveTerms, mustPreserveCitations, apiKey, provider);
+  const first = await draftVoice(bullets, mode, selection, samples, mustPreserveTerms, mustPreserveCitations, fingerprint, apiKey, provider);
   let currentDraft = first.text;
   let currentSpans = first.voiceSpans;
   let currentScore = await scoreVoice(currentDraft, baseline, sampleBodies, sourceText);
@@ -335,7 +390,7 @@ export async function* voiceFillStream(
   while (!accepted && iter < MAX_ITERS) {
     iter++;
     const weakest = pickWeakestSubScore(currentScore.sub);
-    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, mustPreserveTerms, mustPreserveCitations, selection, apiKey, provider);
+    const next = await rewriteForVoice(currentDraft, bullets, samples, weakest, mustPreserveTerms, mustPreserveCitations, selection, fingerprint, apiKey, provider);
     currentDraft = next.text;
     currentSpans = next.voiceSpans;
     currentScore = await scoreVoice(currentDraft, baseline, sampleBodies, sourceText);

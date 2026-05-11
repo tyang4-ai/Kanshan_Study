@@ -144,9 +144,15 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
 
   const grouped = useMemo(() => {
     const m: Record<string, VaultEntryData[]> = {};
-    filtered.forEach((e) => {
+    // Dedupe by id before grouping — React 19 Strict Mode + debounced search
+    // can briefly merge searchResults + initialEntries during reconciliation,
+    // surfacing a duplicate-key warning (persona-review 2026-05-10 小李 P0).
+    const seen = new Set<string>();
+    for (const e of filtered) {
+      if (seen.has(e.id)) continue;
+      seen.add(e.id);
       (m[e.year] ||= []).push(e);
-    });
+    }
     return Object.entries(m).sort((a, b) => Number(b[0]) - Number(a[0]));
   }, [filtered]);
 
@@ -359,7 +365,7 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
           </div>
         )}
         {grouped.map(([year, yearEntries]) => (
-          <div key={year} style={{ marginTop: 14 }}>
+          <div key={`vault-year-${year}`} style={{ marginTop: 14 }}>
             <div
               style={{
                 display: 'flex',
@@ -403,7 +409,7 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
               </span>
             </div>
             {yearEntries.map((e) => (
-              <VaultEntry key={e.id} entry={e} onOpen={handleOpen} />
+              <VaultEntry key={`vault-entry-${e.id}`} entry={e} onOpen={handleOpen} />
             ))}
           </div>
         ))}

@@ -367,7 +367,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
 
         {/* Right — voice-aligned draft */}
         <DiffColumn
-          label="VOICE · 据档案库重写"
+          label={state.done && !voiceSafe ? 'VOICE · 据档案库重写 · 看墨不推荐' : 'VOICE · 据档案库重写'}
           accent="#1F8B66"
           accentBg="rgba(31,139,102,0.07)"
           subtitle={`档案库 ${state.voiceSources.length || '…'} 篇旧文 · 文风指纹 · 引用可溯`}
@@ -386,6 +386,14 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
               initial={{ opacity: 0, x: 12 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
+              // Dim VOICE column when scopeFidelity < 0.5 (persona-review
+              // 2026-05-10 王婉清 P1: system warned but still presented at
+              // full strength — the visual signal now matches the warning).
+              style={
+                !voiceSafe
+                  ? { opacity: 0.55, filter: 'grayscale(0.4)' }
+                  : undefined
+              }
             >
               <p>{renderVoiceMarks(state.voice, state.voiceSpans)}</p>
               {signals.length > 0 && <SignalsRow signals={signals} />}

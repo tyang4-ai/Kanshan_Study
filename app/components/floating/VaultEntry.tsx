@@ -103,7 +103,11 @@ export function VaultEntry({ entry, onOpen }: VaultEntryProps) {
             </span>
           )}
         </div>
+        {/* Snippet — bumps to 14px on hover for 腾讯会议 share readability
+            (persona-review 2026-05-10 林青 polish note: 12px Songti is
+            unreadable at 3-sec projector pace). */}
         <div
+          className="vault-entry-snippet"
           style={{
             fontSize: 12,
             color: '#3A3633',
@@ -114,6 +118,7 @@ export function VaultEntry({ entry, onOpen }: VaultEntryProps) {
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             marginBottom: 5,
+            transition: 'font-size 0.18s ease, line-height 0.18s ease',
           }}
         >
           {entry.snippet}

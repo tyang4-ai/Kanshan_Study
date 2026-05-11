@@ -1,0 +1,63 @@
+{
+  "userId": "me",
+  "computedAt": "2026-05-10T20:00:00.000Z",
+  "articleCount": 5,
+  "register": "鲁迅-inflected technical 随笔 · 本科生 voice · self-deprecating + dry-ironic",
+  "cadenceNotes": [
+    "short cutting sentences mixed with one long winding sentence per paragraph — NEVER uniformly paced",
+    "bitter understatement over emotion: 「这倒也没什么」about things that matter quite a lot",
+    "self-mockery as critique vehicle — mock yourself before mocking the subject",
+    "specific objects/scenes ground abstract claims (the half-used 0.5 中性笔, the unread textbook, the dormitory at midnight)",
+    "「」 used for sham-piety on terms that should not pass unexamined: 「学习」「实践」「契合生态」「主流路径」",
+    "dry-irony transitions: 不过 + a deflating clause beats 然而/但是 alone",
+    "endings flat or sharp — concrete object / quoted dialogue / unfinished promise — NEVER inspirational",
+    "破折号 used twice or fewer per article; em-dash carries rhythm not embellishment"
+  ],
+  "signaturePhrases": [
+    "罢了",
+    "原也",
+    "倒也",
+    "不过",
+    "似乎",
+    "约莫",
+    "大约",
+    "竟",
+    "便",
+    "尚可",
+    "也确实",
+    "听上去像",
+    "说来",
+    "至于"
+  ],
+  "forbiddenPhrases": [
+    "随着...发展",
+    "众所周知",
+    "综上所述",
+    "首先...其次...最后",
+    "在...的过程中",
+    "我们要拥抱",
+    "让我们一起",
+    "这跟...是一个道理",
+    "举个具体的",
+    "听起来很性感",
+    "总而言之",
+    "我大概是要继续这样下去的"
+  ],
+  "openingPattern": "concrete fact-hook OR specific scene — NEVER 众所周知 / 随着...发展 / 在当今",
+  "endingPattern": "concrete object OR quoted dialogue OR unfinished promise (the half-written GitHub README, the 0.5 中性笔 stub, HR's pen stopping) — never abstraction",
+  "features": {
+    "avgSentenceLength": 38,
+    "sentenceLengthCV": 0.62,
+    "shortSentenceRate": 0.34,
+    "rhetoricalQuestionRate": 0.8,
+    "openingDistribution": {
+      "rhetoricalQuestion": 0.0,
+      "firstPersonAnecdote": 0.4,
+      "specificFact": 0.4,
+      "generalClaim": 0.0,
+      "enumeration": 0.0,
+      "other": 0.2
+    },
+    "articleCount": 5
+  }
+}

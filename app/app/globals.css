@@ -192,16 +192,33 @@
 }
 
 /* TipTap Placeholder extension — attaches data-placeholder to empty <p>.
-   Without this ::before rule the canvas is blank for sighted users
-   (persona-review 2026-05-10 吴敏 P0). */
-.ProseMirror p.is-editor-empty:first-child::before,
-.ProseMirror p.is-empty:first-child::before {
-  content: attr(data-placeholder);
-  color: rgba(122, 102, 85, 0.42);
-  pointer-events: none;
-  float: left;
-  height: 0;
-  font-style: italic;
+   Wrapped in @layer utilities to win Tailwind v4 cascade specificity, and
+   uses an attribute selector instead of :first-child because TipTap's DOM
+   may wrap the <p> in a container (persona-review 2026-05-10 吴敏 + Round-3
+   regression: previous rule was in DOM but getComputedStyle returned 'none').
+   The combined class+attribute selector raises specificity above Tailwind's
+   preflight ::before reset. */
+@layer utilities {
+  .ProseMirror p.is-editor-empty[data-placeholder]::before,
+  .ProseMirror p.is-empty[data-placeholder]::before {
+    content: attr(data-placeholder);
+    color: rgba(122, 102, 85, 0.42);
+    pointer-events: none;
+    float: left;
+    height: 0;
+    font-style: italic;
+  }
+
+  /* Vault entry snippet — bumps font-size on hover for projector legibility
+     (persona-review 2026-05-10 林青 polish note: 14px Songti at 3-sec pace). */
+  .vault-entry-snippet {
+    font-size: 12px;
+  }
+  .vault-entry-snippet:hover,
+  *:hover > .vault-entry-snippet {
+    font-size: 14px;
+    line-height: 1.7;
+  }
 }
 
 
