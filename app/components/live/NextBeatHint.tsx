@@ -67,6 +67,27 @@ const navStyle: CSSProperties = {
   fontSize: 10,
   fontFamily: 'JetBrains Mono, monospace',
   color: 'rgba(159,182,214,0.55)',
+  alignItems: 'center',
+};
+
+// R8 VC re-review (Lin Maohua) P0: prev / next labels in the teleprompter
+// were plain SPANs with no click handler. Judges saw them, tried to click
+// them, nothing happened, and concluded the script was cosmetic — costing
+// demo coherence points. These are now real buttons.
+const navBtnStyle: CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(159,182,214,0.25)',
+  color: 'rgba(159,182,214,0.85)',
+  padding: '2px 8px',
+  borderRadius: 2,
+  fontFamily: 'JetBrains Mono, monospace',
+  fontSize: 10,
+  cursor: 'pointer',
+};
+const navBtnDisabled: CSSProperties = {
+  ...navBtnStyle,
+  opacity: 0.35,
+  cursor: 'not-allowed',
 };
 
 interface NextBeatHintProps {
@@ -108,9 +129,24 @@ export function NextBeatHint({ initialIdx = 0, autoAdvance = false }: NextBeatHi
       <div style={titleStyle}>{beat.title}</div>
       <div style={bodyStyle}>{beat.body}</div>
       <div style={navStyle}>
-        <span>← prev</span>
-        <span>·</span>
-        <span>next →</span>
+        <button
+          type="button"
+          data-testid="next-beat-prev"
+          onClick={retreat}
+          disabled={idx === 0}
+          style={idx === 0 ? navBtnDisabled : navBtnStyle}
+        >
+          ← prev
+        </button>
+        <button
+          type="button"
+          data-testid="next-beat-next"
+          onClick={advance}
+          disabled={idx === last}
+          style={idx === last ? navBtnDisabled : navBtnStyle}
+        >
+          next →
+        </button>
         {idx === last && <span style={{ marginLeft: 'auto', color: '#A89B7E' }}>fin</span>}
       </div>
     </div>

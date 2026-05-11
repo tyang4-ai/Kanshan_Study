@@ -179,12 +179,23 @@ export function ProfileChip() {
         } catch {
           /* localStorage blocked — fall back to seed */
         }
-        editor.commands.setContent(next ?? defaultDocForAccount(target));
+        // R8 casual-user (Sun Yulin) P0: previously did `setContent(newDoc)`
+        // BEFORE `switchTo(target)`. setContent fired TipTapEditor.onUpdate,
+        // which read `kanshan-account` (still the SOURCE account) and wrote
+        // the new doc to `kanshan-editor-doc:{source}` — destroying the source
+        // account's draft on every round-trip. Order fixed below: switch
+        // account first, then setContent with `emitUpdate:false` so the
+        // hydration write doesn't clobber the target's persisted draft
+        // we just decided to use.
+        switchTo(target);
+        editor.commands.setContent(next ?? defaultDocForAccount(target), { emitUpdate: false });
+      } else {
+        switchTo(target);
       }
     } catch {
       /* SSR / HMR boundary — store not loaded, skip */
+      switchTo(target);
     }
-    switchTo(target);
     // Soft toast on / so the user notices the switch happened. On /live the
     // teleprompter narrates the switch so a toast is redundant noise.
     if (demoMode !== 'live') {
