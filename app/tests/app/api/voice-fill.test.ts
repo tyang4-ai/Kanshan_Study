@@ -163,7 +163,14 @@ describe('POST /api/agents/voice-fill', () => {
     );
     const body = await readSse(res);
     expect(body).toMatch(/event: error\ndata: /);
-    expect(body).toMatch(/DEEPSEEK_API_KEY is not set/);
+    // R2 security (Wang Zhihui / Zhao Mingfei) scrubs API key references
+    // from client-facing error bodies. Raw upstream messages like
+    // "DEEPSEEK_API_KEY is not set" / "Invalid sk-..." must NOT round-trip
+    // through SSE; a generic 「上游服务暂不可用」 is shown instead. Server
+    // logs still see the full message.
+    expect(body).not.toMatch(/DEEPSEEK_API_KEY/);
+    expect(body).not.toMatch(/sk-[a-z0-9]/);
+    expect(body).toMatch(/上游服务暂不可用/);
     // finally: releaseConcurrent decremented even on error path
     expect(releaseConcurrent).toHaveBeenCalledWith('guest-x');
   });

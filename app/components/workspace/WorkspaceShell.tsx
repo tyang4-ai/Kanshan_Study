@@ -78,10 +78,28 @@ export function WorkspaceShell() {
 
   return (
     <div className="flex h-screen w-screen flex-col" style={{ background: '#2A2724' }}>
+      {/* R2 a11y P0 (Yang Zhihua): skip-link so keyboard users don't have to
+          tab through 15+ topbar buttons before reaching the editor. Visually
+          hidden until focused. */}
+      <a
+        href="#main-workspace"
+        data-testid="skip-link"
+        className="absolute z-[3000] -translate-y-full bg-white px-3 py-1 text-xs underline outline focus:translate-y-0"
+        style={{
+          left: 8,
+          top: 8,
+          color: '#1772F6',
+          border: '1px solid #1772F6',
+          fontFamily: '"Noto Serif SC", serif',
+        }}
+      >
+        跳到编辑区
+      </a>
       {/* A11y persona-review R2: wrap the primary work area in a <main>
           landmark so screen-reader users can jump straight to it. The
           editor + side rails are the principal content. */}
       <main
+        id="main-workspace"
         className="flex min-h-0 flex-1"
         style={{ background: '#FAF8F3' }}
         onMouseDownCapture={onEditorMouseDownCapture}

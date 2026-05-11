@@ -9,6 +9,15 @@ import { voiceFillKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
 
+// R2 security (Wang Zhihui / Zhao Mingfei) P2: don't leak raw provider error
+// bodies to the client. The original `err.message` could include an upstream
+// "Invalid API key sk-..." round-trip. Server still logs the full message.
+function scrubErrorForClient(msg: string): string {
+  if (/api[\s_-]?key|sk-[a-z0-9]{6,}|bearer/i.test(msg)) return '上游服务暂不可用';
+  if (msg.length > 200) return msg.slice(0, 200) + '…';
+  return msg;
+}
+
 const BodySchema = z.object({
   bullets: z.string().max(2000),
   selection: z.string().max(4000),
@@ -73,7 +82,7 @@ export async function POST(req: Request): Promise<Response> {
     const encoder = new TextEncoder();
     const errStream = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: msg })}\n\n`));
+        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: scrubErrorForClient(msg) })}\n\n`));
         controller.close();
       },
     });
@@ -93,7 +102,7 @@ export async function POST(req: Request): Promise<Response> {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         const encoder = new TextEncoder();
-        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: msg })}\n\n`));
+        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: scrubErrorForClient(msg) })}\n\n`));
       } finally {
         if (guestId) await releaseConcurrent(guestId);
         controller.close();

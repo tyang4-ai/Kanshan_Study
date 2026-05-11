@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { useCorkboardStore, type CorkboardPin } from '@/lib/store/corkboard';
 import { withGridPositions } from '@/lib/corkboard/layout';
 import { Pushpin } from '@/components/atoms/Pushpin';
@@ -49,28 +49,32 @@ export function Corkboard({
   // Vertical scroll past N=12 — see plan #13.99 Task C "Auto-size strategy".
   const scrollEnabled = pins.length > 12;
 
-  const positioned = withGridPositions(pins, width);
+  // R2 code-quality (Wei Zhang) P2: useMemo so we don't recompute the grid
+  // + filter + sort on every render. bringToFront mutates `pins` order so
+  // the dependency list is correct; width changes are rare.
+  const positioned = useMemo(() => withGridPositions(pins, width), [pins, width]);
   // When search panel is hidden, treat filter as empty regardless of stale
   // state. This avoids needing setState-in-effect to reset on close.
   const activeFilter = searchOpen ? filter : '';
-  const filtered = activeFilter
-    ? positioned.filter((p) => {
-        const f = activeFilter.toLowerCase();
-        return (
-          (p.content.title ?? '').toLowerCase().includes(f) ||
-          (p.content.snippet ?? '').toLowerCase().includes(f) ||
-          (p.content.annotation ?? '').toLowerCase().includes(f)
-        );
-      })
-    : positioned;
-  // Layering: post-it notes always render above other pins (judges/users
-  // most often want hand-written annotations on top). Within each group,
-  // array order = z-order, which the store's bringToFront keeps fresh on
-  // click. Stable sort via index keeps positions deterministic.
-  const visiblePins = [
-    ...filtered.filter((p) => p.kind !== 'note'),
-    ...filtered.filter((p) => p.kind === 'note'),
-  ];
+  const visiblePins = useMemo(() => {
+    const f = activeFilter.toLowerCase();
+    const filtered = activeFilter
+      ? positioned.filter(
+          (p) =>
+            (p.content.title ?? '').toLowerCase().includes(f) ||
+            (p.content.snippet ?? '').toLowerCase().includes(f) ||
+            (p.content.annotation ?? '').toLowerCase().includes(f),
+        )
+      : positioned;
+    // Layering: post-it notes always render above other pins (judges/users
+    // most often want hand-written annotations on top). Within each group,
+    // array order = z-order, which the store's bringToFront keeps fresh on
+    // click. Stable sort via index keeps positions deterministic.
+    return [
+      ...filtered.filter((p) => p.kind !== 'note'),
+      ...filtered.filter((p) => p.kind === 'note'),
+    ];
+  }, [positioned, activeFilter]);
 
   const closeSearchAndReset = () => {
     setFilter('');

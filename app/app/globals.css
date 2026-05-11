@@ -180,15 +180,20 @@
    `.tiptap` is the class TipTap React adds alongside `.ProseMirror` on the
    editable element — kill the focus ring on both. */
 .ProseMirror,
-.ProseMirror:focus,
-.ProseMirror:focus-visible,
 .ProseMirror-focused,
-.tiptap,
-.tiptap:focus,
+.tiptap {
+  outline: 0;
+  box-shadow: none;
+}
+/* R2 a11y (Yang Zhihua / Xu Ling) WCAG 2.4.7 fix: keyboard-focused editor
+   must show a visible focus indicator. :focus-visible only paints when focus
+   arrived via keyboard, so mouse clicks stay clean. */
+.ProseMirror:focus-visible,
 .tiptap:focus-visible {
-  outline: 0 !important;
-  outline-style: none !important;
-  box-shadow: none !important;
+  outline: 2px solid rgba(23, 114, 246, 0.55);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(23, 114, 246, 0.12);
+  border-radius: 2px;
 }
 
 /* TipTap Placeholder extension — attaches data-placeholder to empty <p>.
