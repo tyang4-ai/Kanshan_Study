@@ -68,3 +68,12 @@ export const useZhihuBudgetStore = create<ZhihuBudgetState>()(
     },
   ),
 );
+
+// Demo-day escape hatch: presenter can run `window.__resetBudget()` in devtools
+// if the chip needs to be cleared mid-demo (e.g., after a 429 burst). Cheap,
+// keeps quota recovery one keystroke away during 腾讯会议 share.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __resetBudget: () => void }).__resetBudget = () => {
+    useZhihuBudgetStore.getState()._reset();
+  };
+}

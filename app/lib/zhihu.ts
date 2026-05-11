@@ -88,7 +88,14 @@ async function realFetchHmac(path: string, init?: RequestInit): Promise<unknown>
     const body = await res.text().catch(() => '');
     throw new Error(`Zhihu ${path} → ${res.status} ${body.slice(0, 200)}`);
   }
-  return res.json();
+  // CDN may return 200 with HTML error page — guard res.json() to throw a
+  // readable error instead of bare SyntaxError that crashes route handlers.
+  try {
+    return await res.json();
+  } catch {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Zhihu ${path} → invalid JSON body: ${body.slice(0, 100)}`);
+  }
 }
 
 /**
@@ -147,7 +154,13 @@ async function realFetchDataPlatform(
     const body = await res.text().catch(() => '');
     throw new Error(`Zhihu ${path} → ${res.status} ${body.slice(0, 200)}`);
   }
-  const json = (await res.json()) as Record<string, unknown>;
+  let json: Record<string, unknown>;
+  try {
+    json = (await res.json()) as Record<string, unknown>;
+  } catch {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Zhihu ${path} → invalid JSON body: ${body.slice(0, 100)}`);
+  }
   // /api/v1/content/* endpoints wrap in {Code, Message, Data}.
   // /v1/chat/completions returns OpenAI shape at top level (no Code field).
   if (json && typeof json === 'object' && 'Code' in json) {

@@ -100,4 +100,23 @@ describe('zhihu adapter real-mode error handling', () => {
     const { getStoryList } = await import('@/lib/zhihu');
     await expect(getStoryList()).rejects.toThrow(/ZHIHU_APP_KEY/);
   });
+
+  it('getHotList throws readable error on 200 OK + non-JSON body (CDN HTML page)', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('<html>502 bad gateway</html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    );
+    const { getHotList } = await import('@/lib/zhihu');
+    await expect(getHotList()).rejects.toThrow(/invalid JSON body/);
+  });
+
+  it('getStoryList throws readable error on 200 OK + non-JSON body (HMAC path)', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('not-json', { status: 200 }),
+    );
+    const { getStoryList } = await import('@/lib/zhihu');
+    await expect(getStoryList()).rejects.toThrow(/invalid JSON body/);
+  });
 });

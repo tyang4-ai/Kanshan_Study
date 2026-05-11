@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { TOUR_STEPS } from '@/lib/tour/steps';
 
 describe('TOUR_STEPS', () => {
-  it('has exactly 8 steps', () => {
-    expect(TOUR_STEPS.length).toBe(8);
+  it('has exactly 5 action-led steps (trimmed from 8 per persona-review 2026-05-10)', () => {
+    expect(TOUR_STEPS.length).toBe(5);
   });
 
   it('all step ids are unique', () => {
@@ -11,8 +11,16 @@ describe('TOUR_STEPS', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('final step id is lore-final', () => {
-    expect(TOUR_STEPS[TOUR_STEPS.length - 1].id).toBe('lore-final');
+  it('first step is editor (action-led, not concept-led)', () => {
+    expect(TOUR_STEPS[0].id).toBe('editor');
+  });
+
+  it('final step is envelope (lore portal teaser)', () => {
+    expect(TOUR_STEPS[TOUR_STEPS.length - 1].id).toBe('envelope');
+  });
+
+  it('includes profile-chip step (new target for persona-switch demo)', () => {
+    expect(TOUR_STEPS.some((s) => s.id === 'profile-chip')).toBe(true);
   });
 
   it('all selectors are non-empty and start with [data-tour-id=', () => {

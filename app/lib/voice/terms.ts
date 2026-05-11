@@ -1,7 +1,17 @@
 import type { Jieba } from './features';
+import mustPreserveAllowlistJson from '@/content/voice/must-preserve-terms.json';
 
 const HAN = /^[一-鿿]+$/;
 const HAN_OR_LATIN_NOUN = /^[一-鿿\w-]+$/;
+
+// Domain-role nouns: 来访者 / 患者 / 答主 / 医师 / 心理咨询师 / 法医 / 研究者 …
+// Drafter must NOT substitute these even when keyterm extraction misses them.
+// Persona-review 2026-05-10 王婉清 P1: VOICE column rewrote 来访者→你.
+const ROLE_SUFFIX = /[者师医家士员][一-鿿]?$/;
+
+const MUST_PRESERVE_ALLOWLIST: ReadonlySet<string> = new Set(
+  mustPreserveAllowlistJson as string[],
+);
 
 const STOPWORDS: ReadonlySet<string> = new Set([
   '我们', '他们', '她们', '它们', '自己', '什么', '怎么', '为什么', '因为',
@@ -47,7 +57,34 @@ export function extractKeyTerms(text: string, jieba: Jieba): string[] {
     out.push(t);
     if (out.length >= MAX_TERMS) break;
   }
-  return out;
+  // Promote domain-role nouns (来访者, 心理咨询师, 答主, …) and allowlist
+  // entries to the front of must-preserve. These survive even when keyterm
+  // extraction misses them (jieba splits them or stopword overlap).
+  const forced = new Set<string>();
+  // Quick scan for role-suffix tokens directly in the source text by sliding
+  // 2-5 char windows. Cheap and avoids re-tokenization edge cases.
+  for (let i = 0; i < text.length; i++) {
+    for (let len = 2; len <= 5 && i + len <= text.length; len++) {
+      const cand = text.slice(i, i + len);
+      if (!HAN.test(cand)) continue;
+      if (STOPWORDS.has(cand)) continue;
+      if (ROLE_SUFFIX.test(cand) || MUST_PRESERVE_ALLOWLIST.has(cand)) {
+        forced.add(cand);
+      }
+    }
+  }
+  // Prepend forced terms, dedupe against existing out.
+  const final: string[] = [];
+  for (const t of forced) {
+    if (!seen.has(t)) {
+      final.push(t);
+      seen.add(t);
+    }
+  }
+  for (const t of out) {
+    if (!final.includes(t)) final.push(t);
+  }
+  return final.slice(0, MAX_TERMS);
 }
 
 /**

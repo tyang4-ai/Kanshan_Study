@@ -75,9 +75,15 @@ export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
       // multi-instance variant was producing.
       const existing = state.tabs.find((t) => t.kind === kind);
       if (existing) {
+        // Reusing an existing tab — also force `open: true` (in case the
+        // window was closed) so the user gets visible feedback even when the
+        // re-dispatch updates props on a backgrounded tab. Persona-review
+        // 2026-05-10 小李 P1: silent success-path when window already open.
         return {
           open: true,
           activeTabId: existing.id,
+          // Re-fit window pos+size if the user had closed it and is reopening.
+          pos: !state.open ? computeDefaultPos(state.size) : state.pos,
           tabs: state.tabs.map((t) =>
             t.id === existing.id ? { ...t, title, props } : t,
           ),

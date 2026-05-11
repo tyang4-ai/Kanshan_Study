@@ -1,5 +1,6 @@
 'use client';
 // Phase #13.99 — talk-to / tool reframe (revision tag for HMR invalidation)
+import { useEffect } from 'react';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
@@ -97,6 +98,18 @@ export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKin
 
 export function BudgetChip() {
   const remaining = useZhihuBudgetStore((s) => s.remaining);
+  // Cross-tab + manual-clear sync: when another tab (or presenter via
+  // devtools `localStorage.removeItem`) modifies the budget key, re-hydrate.
+  // Persona-review 2026-05-10 吴敏 P1: chip was unrecoverable mid-demo.
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key === 'kanshan-zhihu-budget' || e.key === null) {
+        useZhihuBudgetStore.persist?.rehydrate?.();
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
   const shi = remaining('hot_list');
   const sou = remaining('zhihu_search');
   const da  = remaining('zhida');
@@ -127,20 +140,29 @@ export function ProfileChip() {
   const switchTo = useAccountStore((s) => s.switchTo);
   const label = active === 'guwanxi' ? '顾婉昔' : '我';
   const initial = active === 'guwanxi' ? '顾' : '我';
-  const onClick = () => {
+  const onClick = async () => {
     const target = active === 'guwanxi' ? 'me' : 'guwanxi';
     const targetLabel = target === 'guwanxi' ? '顾婉昔 (演示账号)' : '我的账号';
-    // Per-account doc loading is post-MVP; currently both accounts share the
-    // editor instance. Confirm prevents accidental loss of any in-progress
-    // edits (persona-review 2026-05-10 吴敏 P1).
-    if (typeof window !== 'undefined' && !window.confirm(`切换到 ${targetLabel}？\n\n未保存的编辑内容会保留在当前编辑器，但 vault / 数据 上下文会切换。`)) {
+    // Per-account doc loading is post-MVP — for now we explicitly clear the
+    // editor on switch so content doesn't leak across accounts (persona-review
+    // 2026-05-10 吴敏 P0: previous copy "未保存的编辑内容会保留" was misleading;
+    // dialog now matches what the code does).
+    if (typeof window !== 'undefined' && !window.confirm(`切换到 ${targetLabel}？\n\n当前编辑器内容会清空。`)) {
       return;
+    }
+    // Clear editor before profile flips so the new account starts clean.
+    try {
+      const { useEditorStore } = await import('@/lib/store/editor');
+      useEditorStore.getState().editor?.commands.setContent('');
+    } catch {
+      /* SSR / HMR boundary — store not loaded, skip */
     }
     switchTo(target);
   };
   return (
     <button
       onClick={onClick}
+      data-tour-id="profile-chip"
       aria-label={`切换账号: 当前 ${label}, 点击切换到 ${active === 'guwanxi' ? '我的账号' : '顾婉昔 (演示账号)'}`}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,

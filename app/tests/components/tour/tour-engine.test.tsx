@@ -26,21 +26,21 @@ describe('TourEngine', () => {
   });
 
   it('renders backdrop + card on mount when first step element exists', () => {
-    mountAnchor('left-rail');
+    mountAnchor('editor');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     expect(getByTestId('tour-overlay')).toBeTruthy();
     expect(getByTestId('tour-card')).toBeTruthy();
   });
 
-  it('shows step 1/8 indicator', () => {
-    mountAnchor('left-rail');
+  it('shows step 1/N indicator (N matches TOUR_STEPS length)', () => {
+    mountAnchor('editor');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     expect(getByTestId('tour-card').textContent).toContain(`STEP 1/${TOUR_STEPS.length}`);
   });
 
   it('next button advances idx', () => {
-    mountAnchor('left-rail');
     mountAnchor('editor');
+    mountAnchor('fox-tails');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     expect(getByTestId('tour-card').getAttribute('data-step-idx')).toBe('0');
     fireEvent.click(getByTestId('tour-next'));
@@ -48,7 +48,7 @@ describe('TourEngine', () => {
   });
 
   it('skip writes kanshan-tour-done and calls onComplete', () => {
-    mountAnchor('left-rail');
+    mountAnchor('editor');
     const onComplete = vi.fn();
     const { getByTestId } = render(<TourEngine onComplete={onComplete} />);
     fireEvent.click(getByTestId('tour-skip'));
@@ -69,8 +69,9 @@ describe('TourEngine', () => {
   });
 
   it('tolerates missing refs: skips invalid steps', () => {
-    // Only mount editor (index 1). Engine should auto-advance from idx 0.
-    mountAnchor('editor');
+    // Only mount fox-tails (now idx 1). Engine auto-advances past missing
+    // editor (idx 0) to find the next available anchor.
+    mountAnchor('fox-tails');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     expect(getByTestId('tour-card').getAttribute('data-step-idx')).toBe('1');
   });
@@ -84,7 +85,7 @@ describe('TourEngine', () => {
   });
 
   it('uses 0.3 dim cutout when anchor exists', async () => {
-    mountAnchor('left-rail');
+    mountAnchor('editor');
     const { findByTestId } = render(<TourEngine onComplete={() => {}} />);
     // rect is set inside requestAnimationFrame, so wait for it.
     const cutout = await findByTestId('tour-cutout-0');
@@ -92,7 +93,7 @@ describe('TourEngine', () => {
   });
 
   it('appears with cubic-bezier transition on the card', () => {
-    mountAnchor('left-rail');
+    mountAnchor('editor');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     const card = getByTestId('tour-card');
     const style = card.getAttribute('style') ?? '';
@@ -101,9 +102,9 @@ describe('TourEngine', () => {
   });
 
   it('renders per-step data-testid', () => {
-    mountAnchor('left-rail');
+    mountAnchor('editor');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
-    expect(getByTestId('tour-step-left-rail')).toBeTruthy();
+    expect(getByTestId('tour-step-editor')).toBeTruthy();
   });
 
   it('clamps step counter at last step (never N+1/N)', () => {
@@ -136,8 +137,9 @@ describe('TourEngine', () => {
   });
 
   it('viewport clamp: anchor that spans the viewport keeps card inside (no negative top)', async () => {
-    // Mount the editor anchor (step 2) with a bounding rect that fills the
-    // entire viewport — same shape that produced the y=-29 off-screen bug.
+    // Mount the editor anchor (step 1 / idx 0 in the new 5-step tour) with a
+    // bounding rect that fills the entire viewport — same shape that produced
+    // the y=-29 off-screen bug.
     const el = document.createElement('div');
     el.setAttribute('data-tour-id', 'editor');
     el.getBoundingClientRect = () =>
@@ -188,8 +190,8 @@ describe('TourEngine', () => {
     };
 
     try {
-      // Step idx 1 = editor anchor.
-      const { getByTestId } = render(<TourEngine onComplete={() => {}} initialStep={1} />);
+      // Step idx 0 = editor anchor in the new 5-step tour.
+      const { getByTestId } = render(<TourEngine onComplete={() => {}} initialStep={0} />);
 
       // rAF fires inside useLayoutEffect — wait for the rect → top/left to land
       // on the card style. Initial render uses centeredPosition (top:50%);
@@ -220,7 +222,7 @@ describe('TourEngine', () => {
   });
 
   it('reflows on resize', () => {
-    const el = mountAnchor('left-rail');
+    const el = mountAnchor('editor');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     expect(getByTestId('tour-card')).toBeTruthy();
     el.getBoundingClientRect = () =>

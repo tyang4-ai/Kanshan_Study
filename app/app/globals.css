@@ -191,6 +191,19 @@
   box-shadow: none !important;
 }
 
+/* TipTap Placeholder extension — attaches data-placeholder to empty <p>.
+   Without this ::before rule the canvas is blank for sighted users
+   (persona-review 2026-05-10 吴敏 P0). */
+.ProseMirror p.is-editor-empty:first-child::before,
+.ProseMirror p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: rgba(122, 102, 85, 0.42);
+  pointer-events: none;
+  float: left;
+  height: 0;
+  font-style: italic;
+}
+
 
 /* InlineMark variants — colors per compliance brand palette */
 .inline-mark-ai-touched {

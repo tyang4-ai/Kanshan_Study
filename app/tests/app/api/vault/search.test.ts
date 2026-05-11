@@ -69,13 +69,13 @@ describe('POST /api/vault/search', () => {
     expect(data.hits.length).toBe((guwanxiSeed as SeedEntry[]).length);
   });
 
-  it('missing header returns me entries (empty array)', async () => {
+  it('missing header returns me entries (5 鲁迅-voice articles per Round-2 fix)', async () => {
     const req = makeReq({});
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await POST(req as any);
     const data = (await res.json()) as SearchResponse;
     expect(data.hits.length).toBe((meSeed as SeedEntry[]).length);
-    expect(data.hits.length).toBe(0);
+    expect(data.hits.length).toBeGreaterThan(0);
   });
 
   it('malformed body returns 400', async () => {
