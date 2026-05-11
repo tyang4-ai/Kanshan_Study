@@ -49,8 +49,16 @@ function computeDefaultPos(size: { w: number; h: number }): { x: number; y: numb
   return { x, y: 80 };
 }
 
-const tabId = (kind: TabKind) =>
-  `${kind}:${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+const tabId = (kind: TabKind) => {
+  // Use crypto.randomUUID when available (browser + Node 19+) for collision-free
+  // IDs. Fallback for older runtimes / SSR keeps the original timestamp+random
+  // shape but with a longer suffix to reduce collision risk.
+  const uuid =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${kind}:${uuid}`;
+};
 
 export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
   open: false,

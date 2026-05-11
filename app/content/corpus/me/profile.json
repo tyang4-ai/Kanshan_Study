@@ -7,14 +7,19 @@
   "bio": "用 Claude Code 搭 看山书房 的人。本人。",
   "stats": {
     "answers": 0,
-    "articles": 0,
+    "articles": 5,
     "followers": 0,
     "borrows": 0
   },
   "voiceRegisterNotes": {
-    "_note": "User will paste real articles into content/corpus/me/articles/ later. voiceFingerprintStatus stays 'pending' until then; plan #6 (voice writer) MUST handle 'pending' gracefully (fall back to guwanxi fingerprint or skip 'me' branch entirely)."
+    "_note": "Articles in content/corpus/me/articles/ are synthetic drafts (LLM-generated 2026-05-10, tagged [示例数据] in frontmatter). Real user will edit to their actual voice before demo day. voiceFingerprintStatus is 'synthetic' until the human edit pass lands; after edits, flip to 'live'.",
+    "openingHook": "concrete fact or scene from undergrad / hackathon life, NOT 众所周知 / 随着... openings",
+    "register": "本科生 voice — direct, slightly self-deprecating, comfortable with technical jargon when relevant",
+    "sentenceLength": "mixed short + long, no enumeration scaffolds (首先...其次...)",
+    "selfReference": "我 used naturally, anchored to specific moments (川大 / 这次黑客松 / 大一时)",
+    "ending": "lands on a specific takeaway, not a TED-talk uplift"
   },
-  "voiceFingerprintStatus": "pending",
+  "voiceFingerprintStatus": "synthetic",
   "voiceFingerprintPath": null,
-  "articleCount": 0
+  "articleCount": 5
 }

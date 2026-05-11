@@ -83,7 +83,9 @@ export type FeedPage = z.infer<typeof FeedPage>;
 // these summaries (NOT wrapped in {data: {...}}). The adapter unwraps before
 // passing to Zod.
 export const Story = z.object({
-  work_id: z.string(),
+  // Some 知乎 endpoints return numeric IDs even for fields documented as string —
+  // coerce defensively (matches PinPublishResponse.created_at pattern).
+  work_id: z.union([z.string(), z.number()]).transform(String),
   title: z.string(),
   artwork: z.string().optional(),     // landscape cover URL
   tab_artwork: z.string().optional(), // portrait cover URL

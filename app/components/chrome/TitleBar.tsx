@@ -102,6 +102,9 @@ export function BudgetChip() {
   const da  = remaining('zhida');
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-label={`知乎 API 每日剩余额度: 看势 ${shi} 分之 100, 搜索 ${sou} 分之 1000, 直答 ${da} 分之 100`}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '2px 6px', fontSize: 10, letterSpacing: 0.6,
@@ -124,10 +127,21 @@ export function ProfileChip() {
   const switchTo = useAccountStore((s) => s.switchTo);
   const label = active === 'guwanxi' ? '顾婉昔' : '我';
   const initial = active === 'guwanxi' ? '顾' : '我';
-  const onClick = () => switchTo(active === 'guwanxi' ? 'me' : 'guwanxi');
+  const onClick = () => {
+    const target = active === 'guwanxi' ? 'me' : 'guwanxi';
+    const targetLabel = target === 'guwanxi' ? '顾婉昔 (演示账号)' : '我的账号';
+    // Per-account doc loading is post-MVP; currently both accounts share the
+    // editor instance. Confirm prevents accidental loss of any in-progress
+    // edits (persona-review 2026-05-10 吴敏 P1).
+    if (typeof window !== 'undefined' && !window.confirm(`切换到 ${targetLabel}？\n\n未保存的编辑内容会保留在当前编辑器，但 vault / 数据 上下文会切换。`)) {
+      return;
+    }
+    switchTo(target);
+  };
   return (
     <button
       onClick={onClick}
+      aria-label={`切换账号: 当前 ${label}, 点击切换到 ${active === 'guwanxi' ? '我的账号' : '顾婉昔 (演示账号)'}`}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '2px 6px', borderRadius: 4, border: 'none',

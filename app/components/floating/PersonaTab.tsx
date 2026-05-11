@@ -368,7 +368,7 @@ export function PersonaTab({ selection }: PersonaTabProps) {
                 zIndex: allSelectedMasks.length - i,
               };
               return (
-                <div key={m.id} title={m.label} style={avatarStyle}>
+                <div key={`${m.id}-${i}`} title={m.label} style={avatarStyle}>
                   {f.initial}
                 </div>
               );

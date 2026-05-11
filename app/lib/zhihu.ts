@@ -22,9 +22,15 @@ import type { ZhihuBudgetKind } from './zhihu/budget';
 function noteConsume(kind: ZhihuBudgetKind, n = 1): void {
   if (typeof window === 'undefined') return;
   // Lazy import keeps the client store off the server bundle hot path.
-  import('./zhihu/budget').then(({ useZhihuBudgetStore }) => {
-    useZhihuBudgetStore.getState().consume(kind, n);
-  });
+  // Best-effort: if the store fails to load (HMR boundary, SSR edge), silently
+  // skip — the chip is informational, not load-bearing.
+  import('./zhihu/budget')
+    .then(({ useZhihuBudgetStore }) => {
+      useZhihuBudgetStore.getState().consume(kind, n);
+    })
+    .catch(() => {
+      /* no-op */
+    });
 }
 
 /**

@@ -6,6 +6,20 @@ import { Tail } from '@/components/atoms/Tail';
 import { ShanFigure } from '@/components/atoms/ShanFigure';
 import { FoxRail } from '@/components/atoms/FoxRail';
 import { useFloatingWindowStore, type TabKind } from '@/lib/store/floating-window';
+import { useEditorStore } from '@/lib/store/editor';
+import { useAiErrorStore } from '@/lib/store/ai-error';
+
+// Read the current editor's selected text. Returns null when no editor mounted
+// or no non-empty selection — caller decides whether to gate (mo/voice-diff) or
+// proceed with no-selection fallback (persona/debate/research panels accept it).
+function getEditorSelection(): string | null {
+  const editor = useEditorStore.getState().editor;
+  if (!editor) return null;
+  const { from, to, empty } = editor.state.selection;
+  if (empty) return null;
+  const text = editor.state.doc.textBetween(from, to, ' ').trim();
+  return text || null;
+}
 
 interface DockInnerProps {
   activeArr: FoxId[];
@@ -41,20 +55,35 @@ export function DockInner({ activeArr, onToggleFox }: DockInnerProps) {
   const expanded = hover || pinned;
   const openTab = useFloatingWindowStore((s) => s.openTab);
 
-  const handleFoxClick = (id: FoxId) => (e: MouseEvent) => {
-    e.stopPropagation();
+  // Centralized fox→tab dispatch. 看墨 (mo / voice-diff) requires a selection
+  // to rewrite — gate with a toast if empty. Other foxes pass selection
+  // through when present but accept empty (persona/debate/research panels
+  // handle no-selection states themselves).
+  const dispatchFox = (id: FoxId): void => {
     onToggleFox(id);
     const target = FOX_TAB[id];
-    if (target) openTab(target.kind, target.title);
+    if (!target) return;
+    const selection = getEditorSelection();
+    if (target.kind === 'voice-diff' && !selection) {
+      useAiErrorStore.getState().push({
+        message: '请先在编辑器选中要润色的段落，再让看墨重写。',
+      });
+      return;
+    }
+    const props = selection ? { mode: 'polish' as const, selection } : undefined;
+    openTab(target.kind, target.title, props);
+  };
+
+  const handleFoxClick = (id: FoxId) => (e: MouseEvent) => {
+    e.stopPropagation();
+    dispatchFox(id);
   };
 
   // FoxRail icons (the small dock buttons) toggle the active fox AND open the
   // corresponding floating tab. Without this, clicking a rail icon only set
   // the active fox state and the user got no visible feedback.
   const handleRailPick = (id: FoxId) => {
-    onToggleFox(id);
-    const target = FOX_TAB[id];
-    if (target) openTab(target.kind, target.title);
+    dispatchFox(id);
   };
 
   const figSize = 70;

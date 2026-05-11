@@ -292,7 +292,12 @@ export async function* voiceFillStream(
   apiKey?: string,
   provider?: Provider,
 ): AsyncGenerator<VoiceFillEvent, void, unknown> {
-  const query = `${bullets}\n${selection}`.trim();
+  // Vault embedding query: use ONLY the selection (or bullets in `fill` mode
+  // when there is no selection). Concatenating bullets + selection contaminated
+  // the search when bullets carried context from a different topic, causing
+  // the rewriter to drift onto the bullets' domain (persona-review 2026-05-10:
+  // psych selection + bioE bullets returned bioE samples → bioE draft).
+  const query = (mode === 'polish' ? selection : bullets || selection).trim();
   const samples = await loadSamples(userId, query);
   const sampleBodies = samples.map((s) => s.body);
 

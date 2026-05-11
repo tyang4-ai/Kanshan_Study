@@ -31,7 +31,7 @@ async function main(): Promise<void> {
     'Content-Type': 'application/json',
   };
   console.log('—— headers ——');
-  console.log(`  Authorization:       Bearer ${accessSecret.slice(0, 6)}…(${accessSecret.length} chars)`);
+  console.log(`  Authorization:       Bearer ${accessSecret.slice(0, 4)}…[REDACTED]`);
   console.log(`  X-Request-Timestamp: ${ts}`);
 
   const url = 'https://developer.zhihu.com/api/v1/content/hot_list?Limit=3';

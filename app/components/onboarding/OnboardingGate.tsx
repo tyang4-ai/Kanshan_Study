@@ -45,6 +45,10 @@ export function OnboardingGate({ guestModeAvailable = true }: OnboardingGateProp
   const writeRecord = (record: OnboardingRecord) => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
     setHidden(true);
+    // Notify TourTrigger (mounted earlier with 'done' state since localStorage
+    // was empty at that time) to re-check and auto-start the tour now that
+    // onboarding has been completed within this session.
+    window.dispatchEvent(new CustomEvent('kanshan-onboarding-done'));
   };
 
   const submitByoKey = () => {

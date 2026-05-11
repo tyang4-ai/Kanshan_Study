@@ -26,6 +26,7 @@ export function FoxRail({ activeIds, onPick, style = {} }: FoxRailProps) {
           <button key={f.id}
             onClick={(e) => { e.stopPropagation(); onPick(f.id); }}
             title={`${f.name} · ${f.verb}`}
+            aria-label={`${f.name} · ${f.verb}${f.verbSubtitle ? ` (${f.verbSubtitle})` : ''}`}
             aria-pressed={isActive}
             style={{
               width: 22, height: 22, borderRadius: 11,

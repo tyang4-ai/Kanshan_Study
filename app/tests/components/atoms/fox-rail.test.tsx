@@ -24,15 +24,15 @@ describe('FoxRail', () => {
 
   it('aria-pressed reflects active state', () => {
     render(<FoxRail activeIds={['mo']} onPick={() => {}} />);
-    expect(screen.getByTitle(/看墨/).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByTitle(/^看文/).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTitle(/刘看墨/).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTitle(/^刘看文/).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('tooltip title carries fox name + verb (e.g. 看墨 · 内容精加工; only shan keeps 刘 prefix)', () => {
+  it('tooltip title carries fox name + verb (all 9 use 刘看X family-naming per A4 IP authorization)', () => {
     render(<FoxRail activeIds={['mo']} onPick={() => {}} />);
-    expect(screen.getByTitle('看墨 · 内容精加工')).toBeInTheDocument();
-    expect(screen.getByTitle('看水 · 灵感激发')).toBeInTheDocument();
-    expect(screen.getByTitle('看心 · 思路梳理')).toBeInTheDocument();
+    expect(screen.getByTitle('刘看墨 · 内容精加工')).toBeInTheDocument();
+    expect(screen.getByTitle('刘看水 · 灵感激发')).toBeInTheDocument();
+    expect(screen.getByTitle('刘看心 · 思路梳理')).toBeInTheDocument();
     expect(screen.getByTitle('刘看山 · orchestrate')).toBeInTheDocument();
   });
 });

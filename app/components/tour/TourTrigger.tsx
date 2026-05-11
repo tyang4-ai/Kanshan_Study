@@ -24,6 +24,19 @@ export function TourTrigger() {
     setAuto(readPostMountAuto());
   }, [auto]);
 
+  // When OnboardingGate dismisses mid-session, it dispatches this event so we
+  // can re-evaluate and auto-fire the tour without requiring a page reload.
+  // Without this, a first-time visitor would dismiss the gate and never see
+  // the tour because TourTrigger's mount-time read returned 'done'.
+  useEffect(() => {
+    const handler = () => {
+      const state = readPostMountAuto();
+      if (state === 'auto') setAuto('auto');
+    };
+    window.addEventListener('kanshan-onboarding-done', handler);
+    return () => window.removeEventListener('kanshan-onboarding-done', handler);
+  }, []);
+
   return (
     <>
       <button

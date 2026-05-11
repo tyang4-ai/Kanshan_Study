@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   console.log(`  X-App-Key:    ${headers['X-App-Key']}`);
   console.log(`  X-Timestamp:  ${headers['X-Timestamp']}`);
   console.log(`  X-Log-Id:     ${headers['X-Log-Id']}`);
-  console.log(`  X-Sign:       ${headers['X-Sign'].slice(0, 12)}…(${headers['X-Sign'].length} chars)`);
+  console.log(`  X-Sign:       ${headers['X-Sign'].slice(0, 4)}…[REDACTED]`);
   console.log(`  X-Extra-Info: ${JSON.stringify(headers['X-Extra-Info'])}`);
 
   const url = 'https://openapi.zhihu.com/openapi/hackathon_story/list';

@@ -98,18 +98,33 @@ describe('DockInner', () => {
     const { container } = render(<DockInner activeArr={['mo']} onToggleFox={() => {}} />);
     const moTail = container.querySelector('[data-fox="mo"]')!;
     const moWrapper = moTail.parentElement!;
-    expect(moWrapper.getAttribute('title')).toBe('看墨 · 内容精加工');
+    expect(moWrapper.getAttribute('title')).toBe('刘看墨 · 内容精加工');
 
     const shuiTail = container.querySelector('[data-fox="shui"]')!;
-    expect(shuiTail.parentElement!.getAttribute('title')).toBe('看水 · 灵感激发');
+    expect(shuiTail.parentElement!.getAttribute('title')).toBe('刘看水 · 灵感激发');
   });
 
   describe('click → toggleFox + open tab', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       useFloatingWindowStore.setState({
         open: false,
         tabs: [],
         activeTabId: null,
+      });
+      // Seed a fake editor with a non-empty selection so 看墨 click passes the
+      // voice-diff selection gate (added 2026-05-10 to fix mo panel opening
+      // empty in persona-review). Other foxes don't gate on selection.
+      const { useEditorStore } = await import('@/lib/store/editor');
+      // Minimal Editor shim — only state.doc.textBetween + state.selection
+      // are read by getEditorSelection().
+      useEditorStore.setState({
+        editor: {
+          state: {
+            selection: { from: 0, to: 5, empty: false },
+            doc: { textBetween: () => '一段示例选区' },
+          },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
       });
     });
 
@@ -158,6 +173,30 @@ describe('DockInner', () => {
       expect(state.tabs).toHaveLength(1);
       expect(state.tabs[0].kind).toBe('voice-diff');
       expect(state.open).toBe(true);
+    });
+
+    it('clicking 看墨 with EMPTY editor selection → no tab opens, toast pushed', async () => {
+      const { useEditorStore } = await import('@/lib/store/editor');
+      const { useAiErrorStore } = await import('@/lib/store/ai-error');
+      // Drop editor selection (override the beforeEach seed).
+      useEditorStore.setState({
+        editor: {
+          state: {
+            selection: { from: 0, to: 0, empty: true },
+            doc: { textBetween: () => '' },
+          },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      });
+      useAiErrorStore.setState({ current: null });
+      const onToggle = vi.fn();
+      const { getByTestId } = render(
+        <DockInner activeArr={['mo']} onToggleFox={onToggle} />,
+      );
+      fireEvent.click(getByTestId('fox-rail-mo'));
+      const tabs = useFloatingWindowStore.getState().tabs;
+      expect(tabs).toHaveLength(0);
+      expect(useAiErrorStore.getState().current?.message).toContain('选中');
     });
 
     it('FoxRail icon click on 看势 → opens trends tab', () => {

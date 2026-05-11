@@ -195,7 +195,7 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
         )}
         {messages.map((m, i) => (
           <PersonaMessage
-            key={m.id}
+            key={`${m.id}-${i}`}
             foxId={m.foxId}
             mask={m.mask}
             text={m.text}

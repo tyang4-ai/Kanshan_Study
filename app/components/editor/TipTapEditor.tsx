@@ -82,7 +82,15 @@ export function TipTapEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: '此处落笔…' }),
+      // Placeholder shows when editor doc has only an empty paragraph. Without
+      // showOnlyCurrent:false + includeChildren:true, deleting all content
+      // leaves a blank canvas with no copy — looks broken on the projector
+      // (persona-review 2026-05-10 吴敏 P0).
+      Placeholder.configure({
+        placeholder: '此处落笔… (Ctrl+Shift+M 让看墨润色)',
+        showOnlyCurrent: false,
+        includeChildren: true,
+      }),
       Highlight.configure({ multicolor: true }),
       TextStyle,
       Color,

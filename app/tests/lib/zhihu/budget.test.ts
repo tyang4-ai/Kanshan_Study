@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useZhihuBudgetStore, DAILY_QUOTA } from '@/lib/zhihu/budget';
 
 describe('useZhihuBudgetStore', () => {
@@ -41,5 +41,36 @@ describe('useZhihuBudgetStore', () => {
     s.consume('zhihu_search');
     expect(useZhihuBudgetStore.getState().remaining('zhihu_search'))
       .toBe(DAILY_QUOTA.zhihu_search - 1);
+  });
+});
+
+describe('todayBJT day boundary (UTC+8)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('immediately before BJT midnight (UTC 15:59:59) returns the same date', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-10T15:59:59Z'));
+    const store = useZhihuBudgetStore;
+    store.setState({ lastReset: '2026-05-10' });
+    store.getState().consume('hot_list', 7);
+    store.getState().resetIfNewDay();
+    // BJT 23:59:59 on 2026-05-10 — same day, should NOT reset
+    expect(store.getState().remaining('hot_list')).toBe(DAILY_QUOTA.hot_list - 7);
+  });
+
+  it('immediately after BJT midnight (UTC 16:00:01) triggers reset', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-10T16:00:01Z'));
+    const store = useZhihuBudgetStore;
+    store.setState({
+      lastReset: '2026-05-10',
+      consumed: { hot_list: 7, zhihu_search: 0, zhida: 0 },
+    });
+    store.getState().resetIfNewDay();
+    // BJT 00:00:01 on 2026-05-11 — NEW day, should reset
+    expect(store.getState().remaining('hot_list')).toBe(DAILY_QUOTA.hot_list);
+    expect(store.getState().lastReset).toBe('2026-05-11');
   });
 });
