@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
+import { useDemoMode } from '@/lib/demo-mode/context';
 
 export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings' | 'persona' | 'debate';
 
@@ -40,9 +41,18 @@ export function TitleBar() {
       fontFamily: '"Noto Sans SC", sans-serif',
     }}>
       {/* Mac-style traffic-light buttons removed per user direction (Windows themed). */}
-      <div style={{ flex: 1, textAlign: 'left', fontSize: 12, color: '#A89B7E',
-        fontFamily: '"Noto Serif SC", serif', letterSpacing: 2 }}>
-        看山书房 — 影像组学与基因组学.md
+      {/* Demo-flow judge persona-review 2026-05-11 P0: the locked tagline must be
+          on screen (the demo script's opening hook calls it out by name). */}
+      <div style={{ flex: 1, textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 14,
+        fontFamily: '"Noto Serif SC", serif', minWidth: 0 }}>
+        <span data-testid="titlebar-name" style={{ fontSize: 12, color: '#A89B7E', letterSpacing: 2, flexShrink: 0 }}>
+          看山书房
+        </span>
+        <span data-testid="titlebar-tagline" style={{ fontSize: 11, color: 'rgba(168,155,126,0.72)', letterSpacing: 1.5,
+          fontFamily: '"Noto Serif SC", serif',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          灵感激发 · 思路梳理 · 内容精加工
+        </span>
       </div>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: '#A89B7E', fontSize: 12 }}>
         {/* Talk-to cluster — the 4 agents the user converses with. 看山 chat is bottom-right floating bubble (Task E). */}
@@ -138,6 +148,7 @@ export function BudgetChip() {
 export function ProfileChip() {
   const active = useAccountStore((s) => s.active);
   const switchTo = useAccountStore((s) => s.switchTo);
+  const demoMode = useDemoMode();
   const label = active === 'guwanxi' ? '顾婉昔' : '我';
   const initial = active === 'guwanxi' ? '顾' : '我';
   const onClick = async () => {
@@ -147,7 +158,16 @@ export function ProfileChip() {
     // editor on switch so content doesn't leak across accounts (persona-review
     // 2026-05-10 吴敏 P0: previous copy "未保存的编辑内容会保留" was misleading;
     // dialog now matches what the code does).
-    if (typeof window !== 'undefined' && !window.confirm(`切换到 ${targetLabel}？\n\n当前编辑器内容会清空。`)) {
+    //
+    // Demo-flow judge persona-review 2026-05-11 P0: in /live mode, skip the
+    // native confirm() since the demo script intends to switch deterministically.
+    // The native confirm freezes Chrome MCP automation for 45s+ and looks
+    // jarring on a 腾讯会议 share.
+    if (
+      demoMode !== 'live' &&
+      typeof window !== 'undefined' &&
+      !window.confirm(`切换到 ${targetLabel}？\n\n当前编辑器内容会清空。`)
+    ) {
       return;
     }
     // Clear editor before profile flips so the new account starts clean.

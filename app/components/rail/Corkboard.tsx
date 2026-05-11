@@ -222,7 +222,7 @@ export function Corkboard({
               right: 0,
               textAlign: 'center',
               fontSize: 11,
-              color: 'rgba(26,31,42,0.4)',
+              color: 'rgba(26,31,42,0.62)',
               fontFamily: '"Noto Serif SC", serif',
               padding: '0 16px',
               pointerEvents: 'none',

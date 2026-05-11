@@ -232,7 +232,7 @@ async function draftVoice(
   try {
     const result = await chatJson<VoiceLLMResult>(messages, {
       model: 'deepseek-chat',
-      temperature: 0.85,
+      temperature: 0.7,
       maxTokens: 900,
       apiKey,
       provider,
@@ -247,7 +247,7 @@ async function draftVoice(
         { role: 'system', content: VOICE_SYSTEM_PROMPT },
         { role: 'user', content: userMsg },
       ],
-      { model: 'deepseek-chat', temperature: 0.85, maxTokens: 900, apiKey, provider }
+      { model: 'deepseek-chat', temperature: 0.7, maxTokens: 900, apiKey, provider }
     );
     return { text, voiceSpans: [] };
   }
@@ -313,7 +313,7 @@ async function rewriteForVoice(
   try {
     const result = await chatJson<VoiceLLMResult>(messages, {
       model: 'deepseek-chat',
-      temperature: 0.85,
+      temperature: 0.7,
       maxTokens: 900,
       apiKey,
       provider,
@@ -325,7 +325,7 @@ async function rewriteForVoice(
   } catch {
     const text = await chat(messages, {
       model: 'deepseek-chat',
-      temperature: 0.85,
+      temperature: 0.7,
       maxTokens: 900,
       apiKey,
       provider,

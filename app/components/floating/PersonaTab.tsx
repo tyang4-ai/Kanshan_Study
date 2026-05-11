@@ -457,6 +457,30 @@ export function PersonaTab({ selection }: PersonaTabProps) {
           gap: 12,
         }}
       >
+        {items.length === 0 && !streaming && (
+          <div
+            data-testid="persona-empty-state"
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '20px 16px',
+              color: 'rgba(26,31,42,0.62)',
+              fontFamily: '"Noto Serif SC", serif',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 14, color: '#1A1F2A' }}>等你召集读者</div>
+            <div style={{ fontSize: 11, lineHeight: 1.6, maxWidth: 280 }}>
+              选中编辑器里一段文字 → 右键 →「召集读者团」
+              <br />
+              看文 会戴 4 张面具同步评议，看纹 可以再剪一张你自定义的脸。
+            </div>
+          </div>
+        )}
         {items.map((it, i) => {
           if (it.kind === 'divider') {
             return (

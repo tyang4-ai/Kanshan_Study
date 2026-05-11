@@ -11,6 +11,7 @@ import {
 import { useEditorStore } from '@/lib/store/editor';
 import { useCorkboardStore } from '@/lib/store/corkboard';
 import researchDataJson from '@/content/seed/research-radiogenomics.json';
+import { renderResearchBody } from '@/lib/research/sanitize';
 
 type ResearchScope = 'quick' | 'deep' | 'thorough';
 
@@ -215,7 +216,7 @@ export function ResearchTab({ selection }: ResearchTabProps) {
         {researchData.sections.map((section, i) => (
           <div key={i}>
             <H>{section.heading}</H>
-            <div dangerouslySetInnerHTML={{ __html: section.body }}/>
+            <div>{renderResearchBody(section.body)}</div>
           </div>
         ))}
       </div>

@@ -306,6 +306,7 @@ export function KanshanChatTab() {
       <div style={composerStyle}>
         <textarea
           data-testid="kanshan-chat-input"
+          aria-label="向看山说一句话"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onCompositionStart={() => setComposing(true)}

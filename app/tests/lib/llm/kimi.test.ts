@@ -128,10 +128,15 @@ describe('kimi client', () => {
     expect(out).toEqual({ y: 2 });
   });
 
-  it('chatJson throws SyntaxError on malformed JSON', async () => {
+  it('chatJson throws typed LlmJsonParseError on malformed JSON', async () => {
     mockFetchOk('not json');
+    // Persona-review 2026-05-11 P0 (Wei Zhang code-quality): wrap the bare
+    // JSON.parse SyntaxError in a typed LlmJsonParseError so route handlers
+    // can emit a clean SSE `event: error` instead of bubbling a 500. The error
+    // carries the raw response in `.raw` for debugging.
+    const { LlmJsonParseError } = await import('@/lib/llm/kimi');
     await expect(
       chatJson<unknown>([{ role: 'user', content: 'x' }]),
-    ).rejects.toThrow(SyntaxError);
+    ).rejects.toBeInstanceOf(LlmJsonParseError);
   });
 });

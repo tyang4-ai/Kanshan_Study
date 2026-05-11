@@ -25,7 +25,7 @@ export interface ChatOpts {
 
 export const GENERIC_SYSTEM_PROMPT = '你是一个普通的 AI 写作助手。';
 export const VOICE_SYSTEM_PROMPT =
-  '你是看墨，玄狐隐士。学得作者文风后再下笔。重写不得修改【必须保留的术语】中任意一项的写法（不得替换近义词、不得删除）；不得引入【原段】未出现的具体概念，即使【作者样本】里讨论过相关话题；【必须保留的引用】里的每一个引用编号（如 [3] / [v7] / [@答主]）必须原样出现在输出中。除正文外，还要标记 voiceSpans — 哪些片段直接呼应了哪一篇样本。返回严格 JSON：{"text": "...", "voiceSpans": [{"start": N, "end": N, "sourceIndex": N, "rationale": "..."}]}';
+  '你是看墨，玄狐隐士。学得作者文风后再下笔。\n\n【绝对禁忌 · 任何一条出现都算重写失败】\n- 不得使用「随着...发展 / 众所周知 / 综上所述 / 首先...其次...最后 / 在当今 / 一定程度上 / 具有重要意义 / 让我们一起 / 我们要拥抱 / 时代的浪潮 / AI 赋能 / 新质生产力」这类 AI-味套话。\n- 不得用「在...的过程中 / 这跟...是一个道理 / 举个具体的例子」这类教科书式连接词起句。\n- 不得用「不可否认...但是 / 我们必须承认...同时也要看到」这类两面派结构。\n- 句长必须有变化（短切句和长句交替），不得段段同节奏。\n- 结尾不得 inspirational uplift；不得「让我们...」「展望未来...」「共同迎接...」。\n\n【硬性保留】\n- 重写不得修改【必须保留的术语】中任意一项的写法（不得替换近义词、不得删除）。\n- 不得引入【原段】未出现的具体概念，即使【作者样本】里讨论过相关话题。\n- 【必须保留的引用】里的每一个引用编号（如 [3] / [v7] / [@答主]）必须原样出现在输出中。\n\n【作者语风指纹】优先级高于【作者样本】——如果禁用语在样本里出现，那是作者本人偶发的失误，不要复现。如果指纹给了 signature 短语，在合适位置自然嵌入 1-3 个，不要堆砌。\n\n除正文外，还要标记 voiceSpans — 哪些片段直接呼应了哪一篇样本。返回严格 JSON：{"text": "...", "voiceSpans": [{"start": N, "end": N, "sourceIndex": N, "rationale": "..."}]}';
 
 export async function chat(messages: ChatMessage[], opts: ChatOpts = {}): Promise<string> {
   const key = opts.apiKey ?? process.env.KIMI_API_KEY;
@@ -68,6 +68,18 @@ export async function chat(messages: ChatMessage[], opts: ChatOpts = {}): Promis
   return json.choices[0].message.content;
 }
 
+/** Thrown when Kimi returns a body that survives fence-stripping but still
+ * isn't valid JSON (truncated stream, safety-filtered partial response,
+ * thinking-token preamble that slipped past the regex). Routes can catch this
+ * and emit a typed `event: error` over SSE instead of bare 500s. */
+export class LlmJsonParseError extends Error {
+  constructor(public readonly raw: string, cause?: unknown) {
+    super(`LLM returned non-JSON body (${raw.length} chars): ${raw.slice(0, 120)}…`);
+    this.name = 'LlmJsonParseError';
+    if (cause) (this as { cause?: unknown }).cause = cause;
+  }
+}
+
 export async function chatJson<T>(messages: ChatMessage[], opts: ChatOpts = {}): Promise<T> {
   const augmented: ChatMessage[] = [
     ...messages,
@@ -81,5 +93,9 @@ export async function chatJson<T>(messages: ChatMessage[], opts: ChatOpts = {}):
   });
   // Defense-in-depth: if response_format is ignored upstream, still strip fences.
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-  return JSON.parse(cleaned) as T;
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (err) {
+    throw new LlmJsonParseError(cleaned, err);
+  }
 }

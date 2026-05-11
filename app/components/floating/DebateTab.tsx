@@ -193,6 +193,39 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
             备用样例 · 实时调用失败
           </div>
         )}
+        {messages.length === 0 && !currentTurn && !fallbackActive && (
+          <div
+            data-testid="debate-loading-state"
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '20px 16px',
+              color: 'rgba(26,31,42,0.62)',
+              fontFamily: '"Noto Serif SC", serif',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                background: '#A8221C',
+                animation: 'pulse 1.4s ease-in-out infinite',
+              }}
+            />
+            <div style={{ fontSize: 14, color: '#1A1F2A' }}>看文 与 看纹 落座中…</div>
+            <div style={{ fontSize: 11, lineHeight: 1.6, maxWidth: 280 }}>
+              正方·力挺 vs 反方·质疑 · 6 回合实时往返
+              <br />
+              每回合都引用原文具体片段做论据。
+            </div>
+          </div>
+        )}
         {messages.map((m, i) => (
           <PersonaMessage
             key={`${m.id}-${i}`}

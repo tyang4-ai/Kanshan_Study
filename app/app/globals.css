@@ -202,7 +202,7 @@
   .ProseMirror p.is-editor-empty[data-placeholder]::before,
   .ProseMirror p.is-empty[data-placeholder]::before {
     content: attr(data-placeholder);
-    color: rgba(122, 102, 85, 0.42);
+    color: rgba(108, 88, 70, 0.62);
     pointer-events: none;
     float: left;
     height: 0;
