@@ -79,11 +79,12 @@ export async function POST(req: Request): Promise<Response> {
     });
   }
 
-  const creds = proxyAuth(req);
-  const intent = intentKey(body.history, body.userMessage);
-
+  // R7 production review (Jiang Hanzhi) P1: pull proxyAuth into the try so a
+  // missing-key throw becomes an SSE error + release, not an uncaught 500.
   let steps: ReplayStep[];
   try {
+    const creds = proxyAuth(req);
+    const intent = intentKey(body.history, body.userMessage);
     steps = await withCache<ReplayStep[]>('kanshan-chat', intent, async () => {
       const reply = await runKanshanTurn(
         body.history,

@@ -167,8 +167,12 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
     const errData = errEv!.data as { message: string; fallback: PersonaMessage[] };
     // R4 security (Cao Renxin): SSE error bodies are scrubbed of API-key
     // references — "DEEPSEEK_API_KEY is not set" must NOT round-trip.
+    // R7 production review (Jiang Hanzhi) P0: scrubber now redacts the secret
+    // substring rather than the entire message, so the user/operator still has
+    // diagnostic context. Assert the *match* is gone and `[redacted]` is in
+    // the message, instead of pinning the whole-message fallback.
     expect(errData.message).not.toMatch(/DEEPSEEK_API_KEY/);
-    expect(errData.message).toBe('上游服务暂不可用');
+    expect(errData.message).toContain('[redacted]');
     expect(Array.isArray(errData.fallback)).toBe(true);
     expect(errData.fallback.length).toBeGreaterThan(0);
     const last = events[events.length - 1];

@@ -130,7 +130,9 @@ describe('DockInner', () => {
 
     const cases: Array<{ id: FoxId; expectedKind: string | null }> = [
       { id: 'mo', expectedKind: 'voice-diff' },
-      { id: 'wen', expectedKind: 'debate' },
+      // R7 demo verify (Liang Haining) P1: 看文 button default is the
+      // 4-mask 读者反应 panel (matches the 0:30 demo beat) — 看纹 stays on debate.
+      { id: 'wen', expectedKind: 'persona' },
       { id: 'wen2', expectedKind: 'debate' },
       { id: 'shui', expectedKind: 'research' },
       { id: 'dian', expectedKind: 'vault' },

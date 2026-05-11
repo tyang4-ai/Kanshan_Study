@@ -65,11 +65,13 @@ export async function POST(req: Request): Promise<Response> {
     });
   }
 
-  const creds = proxyAuth(req);
-  const intent = debateKey({ selection: body.selection, turns: body.turns });
-
+  // R7 production review (Jiang Hanzhi) P1: pull proxyAuth + key gen into the
+  // try block so a missing-key throw becomes an SSE error event + concurrent
+  // release, not an uncaught 500 + counter leak.
   let steps: ReplayStep[];
   try {
+    const creds = proxyAuth(req);
+    const intent = debateKey({ selection: body.selection, turns: body.turns });
     steps = await withCache<ReplayStep[]>('persona-debate', intent, async () => {
       const buffered: ReplayStep[] = [];
       for await (const turn of debateStream(body.selection, body.turns, creds.key, creds.provider)) {

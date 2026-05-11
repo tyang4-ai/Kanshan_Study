@@ -14,30 +14,52 @@
 //   - Generic "API_KEY" / "TOKEN" / "Bearer" mentions
 //   - Long random alphanumeric strings (likely secrets)
 
+// R7 production-readiness review (Jiang Hanzhi) P0: the previous policy
+// replaced the entire message with 「上游服务暂不可用」 whenever ANY pattern
+// fired. That over-scrubbed (a) common Chinese error sentences that
+// happened to contain "api key" / "secret" / "bearer" and (b) any payload
+// containing a 32-char alphanumeric run (TipTap doc IDs, UUIDs concat'd,
+// long Chinese text). Demo-day debugging surfaced only the opaque fallback.
+//
+// New policy: redact the *matched substring* with `[redacted]`, keeping the
+// surrounding context so the user/operator still has actionable signal.
+// Only the two cases that genuinely can't be salvaged — empty input and
+// a message that's *all* secret — fall back to the generic string.
+//
+// Patterns flagged (case-insensitive). Order matters: high-confidence /
+// long-shape secrets first, generic keyword catchers last.
+
 const SECRET_PATTERNS: RegExp[] = [
-  /sk-[a-zA-Z0-9_-]{6,}/,
-  /sk-ant-[a-zA-Z0-9_-]{6,}/,
-  /cfat_[a-zA-Z0-9]{20,}/,
-  /vc[kp]_[a-zA-Z0-9]{20,}/,
-  /gh[pousr]_[A-Za-z0-9]{20,}/,
-  /AKIA[0-9A-Z]{16}/,
-  /eyJ[a-zA-Z0-9_-]{20,}\.eyJ[a-zA-Z0-9_-]{20,}/,
-  /X2L[A-Z0-9]{20,}/i,
-  /api[\s_-]?key/i,
-  /bearer/i,
-  /access[\s_-]?token/i,
-  /secret/i,
-  // Long base64-ish blob: 24+ chars of [A-Za-z0-9+/=]
-  /[A-Za-z0-9+/=]{32,}/,
+  /sk-ant-[a-zA-Z0-9_-]{6,}/g,
+  /sk-[a-zA-Z0-9_-]{16,}/g, // tightened 6 → 16 so "sk-12345" length-shorts pass; real keys are 32+
+  /cfat_[a-zA-Z0-9]{20,}/g,
+  /vc[kp]_[a-zA-Z0-9]{20,}/g,
+  /gh[pousr]_[A-Za-z0-9]{20,}/g,
+  /AKIA[0-9A-Z]{16}/g,
+  /eyJ[a-zA-Z0-9_-]{20,}\.eyJ[a-zA-Z0-9_-]{20,}/g,
+  /X2L[A-Z0-9]{20,}/gi,
+  // Env-var-name shape: SOMETHING_KEY / SOMETHING_SECRET / SOMETHING_TOKEN
+  /\b[A-Z][A-Z0-9_]+_(API_KEY|KEY|SECRET|TOKEN|PASSWORD)\b/g,
+  // Long base64-ish blob: 40+ chars (raised from 32 so it doesn't catch
+  // medium-length normal content). Tuned to still catch full JWTs / long
+  // hex hashes / opaque tokens.
+  /[A-Za-z0-9+/=]{40,}/g,
 ];
 
+const REDACTED = '[redacted]';
 const GENERIC_FALLBACK = '上游服务暂不可用';
 
 export function scrubErrorForClient(msg: string): string {
   if (!msg || typeof msg !== 'string') return GENERIC_FALLBACK;
+  let out = msg;
   for (const pattern of SECRET_PATTERNS) {
-    if (pattern.test(msg)) return GENERIC_FALLBACK;
+    out = out.replace(pattern, REDACTED);
   }
-  if (msg.length > 200) return msg.slice(0, 200) + '…';
-  return msg;
+  // If redaction ate the entire message (or left only redaction markers /
+  // punctuation), fall back to the generic so we don't surface naked
+  // `[redacted]` to the client — it's confusing without context.
+  const meaningful = out.replace(/\[redacted\]/g, '').replace(/[\s.,:;!?，。：；！？]+/g, '');
+  if (meaningful.length === 0) return GENERIC_FALLBACK;
+  if (out.length > 200) return out.slice(0, 200) + '…';
+  return out;
 }

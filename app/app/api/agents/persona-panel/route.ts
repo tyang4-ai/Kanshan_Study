@@ -105,7 +105,25 @@ export async function POST(req: Request): Promise<Response> {
     ? FIXED_MASKS.filter((m) => body.fixedIds!.includes(m.id))
     : FIXED_MASKS;
   const masks: SelectedMask[] = [...selectedFixed, ...(body.custom ?? [])];
-  const creds = proxyAuth(req);
+
+  // R7 production review (Jiang Hanzhi) P1: proxyAuth missing-key throw used
+  // to bypass the SSE error path and leak the concurrent counter. Wrap so a
+  // misconfigured deploy surfaces 「[redacted] is not set」 cleanly to the client.
+  let creds: ReturnType<typeof proxyAuth>;
+  try {
+    creds = proxyAuth(req);
+  } catch (err) {
+    if (guestId) await releaseConcurrent(guestId);
+    const msg = err instanceof Error ? err.message : String(err);
+    const encoder = new TextEncoder();
+    const errStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: scrubErrorForClient(msg) })}\n\n`));
+        controller.close();
+      },
+    });
+    return new Response(errStream, sseHeaders());
+  }
 
   if (mode === 'rounds') {
     const rounds = body.rounds ?? 1;

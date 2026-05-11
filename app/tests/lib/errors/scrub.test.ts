@@ -7,34 +7,84 @@ import { scrubErrorForClient } from '@/lib/errors/scrub';
 // SECRET_PATTERNS can't accidentally regress the chokepoint.
 
 const GENERIC = '上游服务暂不可用';
+const R = '[redacted]';
 
-describe('scrubErrorForClient — secret family matrix', () => {
-  // Each row: (label, input, expected). expected === GENERIC means "must be scrubbed".
-  const cases: Array<[label: string, input: string, expected: string]> = [
-    ['Kimi/OpenAI/DeepSeek sk- key',                'auth failed: sk-FAKE0000FAKE0000FAKE0000FAKE0000', GENERIC],
-    ['Anthropic sk-ant- key',                       'sk-ant-abcdef1234567890abcdef1234567890',           GENERIC],
-    ['Cloudflare cfat_ token',                       'cfat_FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000 leaked', GENERIC],
-    ['Vercel vcp_ token',                            'oops: vcp_FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000', GENERIC],
-    ['Vercel vck_ token',                            'oops: vck_FAKE0000FAKE0000FAKE0000FAKE0000', GENERIC],
-    ['GitHub ghp_ PAT',                              'fetch failed with ghp_abcdefghij1234567890abcdef',  GENERIC],
-    ['GitHub gho_ OAuth',                            'gho_abcdefghij1234567890abcdefghij',                GENERIC],
-    ['AWS AKIA access key',                          'AKIAFAKE000000EXAMPL invalid',                      GENERIC],
-    ['Supabase JWT pair',                            'jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.s', GENERIC],
-    ['Zhihu X2L Bearer (uppercase)',                 'X2LFAKE0000FAKE0000FAKE00000FAKE rejected',         GENERIC],
-    ['Zhihu X2L Bearer (lowercase via /i flag)',     'x2lfake0000fake0000fake00000fake rejected',         GENERIC],
-    ['raw env-name "API_KEY"',                       'API_KEY is not set',                                GENERIC],
-    ['raw env-name "DEEPSEEK_API_KEY" with space',   'DEEPSEEK_API_KEY is not set',                       GENERIC],
-    ['raw env-name "KIMI_API_KEY"',                  'KIMI_API_KEY missing in env',                       GENERIC],
-    ['raw env-name "api-key"',                       'api-key invalid',                                   GENERIC],
-    ['"Bearer" mention',                             'Bearer token rejected',                             GENERIC],
-    ['"access_token" mention',                       'access_token expired',                              GENERIC],
-    ['"access-token" mention',                       'access-token expired',                              GENERIC],
-    ['the word "secret" alone',                      'invalid secret arg',                                GENERIC],
-    ['Long base64 blob (32+ chars)',                 'AbCdEfGhIjKlMnOpQrStUvWxYz123456',                  GENERIC],
+describe('scrubErrorForClient — secret family matrix (substring redaction)', () => {
+  // Each row: (label, input, expectedContains[]).  Each expected fragment must
+  // appear in the output. `R` (= "[redacted]") is the redaction marker.
+  const cases: Array<[label: string, input: string, mustContain: string[], mustNotContain: string[]]> = [
+    ['Kimi/OpenAI/DeepSeek sk- key',
+      'auth failed: sk-FAKE0000FAKE0000FAKE0000FAKE0000', ['auth failed:', R], ['FAKE0000FAKE0000']],
+    ['Anthropic sk-ant- key',
+      'token=sk-ant-abcdef1234567890abcdef1234567890', ['token=', R], ['sk-ant-abcdef']],
+    ['Cloudflare cfat_ token',
+      'cfat_FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000 leaked', [R, 'leaked'], ['cfat_FAKE']],
+    ['Vercel vcp_ token',
+      'oops: vcp_FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000', ['oops:', R], ['vcp_FAKE']],
+    ['Vercel vck_ token',
+      'oops: vck_FAKE0000FAKE0000FAKE0000FAKE0000', ['oops:', R], ['vck_FAKE']],
+    ['GitHub ghp_ PAT',
+      'fetch failed with ghp_abcdefghij1234567890abcdef', ['fetch failed with', R], ['ghp_abcdef']],
+    ['GitHub gho_ OAuth',
+      'gho_abcdefghij1234567890abcdefghij found in body', [R, 'found in body'], ['gho_abcdef']],
+    ['AWS AKIA access key',
+      'AKIAFAKE000000EXAMPL invalid', [R, 'invalid'], ['AKIAFAKE']],
+    ['Supabase JWT pair',
+      'jwt error: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig123', ['jwt error:', R], ['eyJhbGc']],
+    ['Zhihu X2L Bearer (uppercase)',
+      'X2LFAKE0000FAKE0000FAKE00000FAKE rejected', [R, 'rejected'], ['X2LFAKE']],
+    ['Zhihu X2L Bearer (lowercase via /i flag)',
+      'x2lfake0000fake0000fake00000fake rejected', [R, 'rejected'], ['x2lfake0000']],
+    ['raw env-name "DEEPSEEK_API_KEY"',
+      'DEEPSEEK_API_KEY is not set', [R, 'is not set'], ['DEEPSEEK_API_KEY']],
+    ['raw env-name "KIMI_API_KEY"',
+      'KIMI_API_KEY missing in env', [R, 'missing in env'], ['KIMI_API_KEY']],
+    ['raw env-name "SUPABASE_SERVICE_ROLE_KEY"',
+      'SUPABASE_SERVICE_ROLE_KEY rotated', [R, 'rotated'], ['SUPABASE_SERVICE_ROLE_KEY']],
+    ['Long base64 blob (40+ chars)',
+      'opaque blob: AbCdEfGhIjKlMnOpQrStUvWxYz1234567890ABCDef', ['opaque blob:', R], ['AbCdEfGhIjKlMnOpQrStUvWxYz1234']],
   ];
 
-  it.each(cases)('scrubs %s', (_label, input, expected) => {
-    expect(scrubErrorForClient(input)).toBe(expected);
+  it.each(cases)('redacts %s', (_label, input, mustContain, mustNotContain) => {
+    const out = scrubErrorForClient(input);
+    for (const m of mustContain) {
+      expect(out).toContain(m);
+    }
+    for (const m of mustNotContain) {
+      expect(out).not.toContain(m);
+    }
+  });
+});
+
+describe('scrubErrorForClient — false-positive resistance (Jiang Hanzhi P0)', () => {
+  // The old whole-message replacement scrubbed any string containing "api key"
+  // or "secret" or "bearer" — including benign error messages. New policy only
+  // redacts env-var-shaped tokens (e.g. DEEPSEEK_API_KEY), not arbitrary
+  // mentions of the words, so these MUST pass through.
+  it('keeps a Chinese error sentence containing the word "secret"', () => {
+    const msg = '段落太长 — 内部参数 secret-stash 字符数超过 4000';
+    expect(scrubErrorForClient(msg)).toBe(msg);
+  });
+
+  it('keeps a benign "bearer rate limit exceeded" message', () => {
+    const msg = 'Bearer rate limit exceeded for this hour, retry at :00';
+    // 'Bearer' as a casual word shouldn't trigger; only env-var shapes do.
+    expect(scrubErrorForClient(msg)).toBe(msg);
+  });
+
+  it('keeps a Supabase row-not-found message with a short UUID fragment', () => {
+    const msg = 'Supabase row not found: 8f3a-9d4e-4b';
+    expect(scrubErrorForClient(msg)).toBe(msg);
+  });
+
+  it('keeps a medium-length Chinese explanation without secrets', () => {
+    const msg = '影像组学领域正在悄然发生深刻转向，由单纯的图像特征提取转变为与基因组学的联合建模。';
+    expect(scrubErrorForClient(msg)).toBe(msg);
+  });
+
+  it('keeps a 32-char alphanumeric run (no longer auto-redacted at 32)', () => {
+    // 32 chars — under the new 40+ threshold, should pass through.
+    expect(scrubErrorForClient('id=AbCdEfGhIjKlMnOpQrStUvWxYz123456')).toContain('AbCdEf');
   });
 });
 
@@ -60,13 +110,21 @@ describe('scrubErrorForClient — non-secret messages pass through (possibly tru
     expect(out.endsWith('…')).toBe(true);
   });
 
-  it('scrubs even when the secret is buried mid-string', () => {
-    expect(scrubErrorForClient(`prefix ${'sk-'}abcdefghij1234567890 suffix`)).toBe(GENERIC);
+  it('redacts the secret in place when buried mid-string', () => {
+    const out = scrubErrorForClient(`prefix ${'sk-'}abcdefghij1234567890ABCDEFGH suffix`);
+    expect(out).toContain('prefix');
+    expect(out).toContain(R);
+    expect(out).toContain('suffix');
+    expect(out).not.toContain('sk-abcdefghij');
   });
 
-  it('scrubs multi-line messages with one secret line', () => {
+  it('redacts the secret line but keeps the other lines in a multi-line message', () => {
     const multiline = ['line 1 ok', 'line 2 also ok', 'leak: cfat_FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000FAKE0000', 'line 4'].join('\n');
-    expect(scrubErrorForClient(multiline)).toBe(GENERIC);
+    const out = scrubErrorForClient(multiline);
+    expect(out).toContain('line 1 ok');
+    expect(out).toContain('line 4');
+    expect(out).toContain(R);
+    expect(out).not.toContain('cfat_FAKE');
   });
 });
 

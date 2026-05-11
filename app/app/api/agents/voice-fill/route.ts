@@ -53,14 +53,18 @@ export async function POST(req: Request): Promise<Response> {
     });
   }
   const { bullets, selection, mode } = parsed.data;
-  const user = getCurrentUser(req);
-  const baseline = loadBaseline(user.id);
-  const creds = proxyAuth(req);
 
-  const intent = voiceFillKey({ userId: user.id, mode, bullets, selection });
-
+  // R7 production review (Jiang Hanzhi) P1: proxyAuth / getCurrentUser /
+  // loadBaseline previously ran OUTSIDE the try/catch — a missing-key throw
+  // would surface as a raw 500 to the client AND leak the per-guest
+  // concurrent counter (no releaseConcurrent in that path). Pull them into
+  // the try so the SSE error + release fire correctly on misconfig.
   let steps: ReplayStep[];
   try {
+    const user = getCurrentUser(req);
+    const baseline = loadBaseline(user.id);
+    const creds = proxyAuth(req);
+    const intent = voiceFillKey({ userId: user.id, mode, bullets, selection });
     steps = await withCache<ReplayStep[]>('voice-fill', intent, async () => {
       const buffered: ReplayStep[] = [];
       for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline, creds.key, creds.provider)) {

@@ -283,3 +283,37 @@
 .margin-seal-reviewed { color: #1F8B66; border-color: rgba(31,139,102,0.33); }
 .margin-seal-flag     { color: #B85543; border-color: rgba(184,85,67,0.33); }
 .margin-seal-sourced  { color: #1F8B66; border-color: rgba(31,139,102,0.33); }
+/* R7 first-touch judge (Shi Junhe) P0: the 3-color citation system was
+   semantically distinct (data-kind=web/vault/zhihu) but rendered visually
+   identical (all dark text). Tinted backgrounds make the kind separation
+   readable on screen-share from 6 feet back. Blue circle for web, brown
+   square for vault, red badge for zhihu (matches CLAUDE.md spec). */
+/* Citation kind tinting — applies on top of TipTap's inline style. */
+.citation-sup {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 8px;
+  margin: 0 1px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  vertical-align: super;
+  line-height: 1;
+}
+.citation-sup[data-kind="web"] {
+  color: #1772F6;
+  background: rgba(23,114,246,0.12);
+  border: 1px solid rgba(23,114,246,0.4);
+}
+.citation-sup[data-kind="vault"] {
+  color: #8B4513;
+  background: rgba(139,69,19,0.12);
+  border: 1px solid rgba(139,69,19,0.4);
+  border-radius: 2px;  /* squared off — distinguishes vault from web at a glance */
+}
+.citation-sup[data-kind="zhihu"] {
+  color: #C0392B;
+  background: rgba(192,57,43,0.14);
+  border: 1px solid rgba(192,57,43,0.45);
+}

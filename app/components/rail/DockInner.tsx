@@ -32,8 +32,13 @@ interface DockInnerProps {
 const FOX_TAB: Record<FoxId, { kind: TabKind; title: string } | null> = {
   shan: null,
   mo: { kind: 'voice-diff', title: '看墨 · 语风' },
-  wen: { kind: 'debate', title: '看文 · 看纹辩论' },
-  wen2: { kind: 'debate', title: '看文 · 看纹辩论' },
+  // R7 demo verify (Liang Haining) P1: 看文 button was opening the debate panel
+  // by default, but the 0:30 demo beat lands on 看文·读者团 (persona). 看文 is the
+  // 「正方·力挺」 in the debate but its primary mode is the 4-mask reader panel —
+  // judges sliding their cursor onto the fox should land on persona, not debate.
+  // 看纹 (反方·质疑) keeps debate as its primary since that fox IS defined by it.
+  wen:  { kind: 'persona', title: '看文 · 读者反应' },
+  wen2: { kind: 'debate',  title: '看文 · 看纹辩论' },
   shui: { kind: 'research', title: '看水 · 深度研究' },
   dian: { kind: 'vault', title: '看典 · 档案库' },
   shi: { kind: 'trends', title: '看势 · 热点雷达' },
