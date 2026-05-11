@@ -11,8 +11,15 @@ describe('TOUR_STEPS', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('first step is editor (action-led, not concept-led)', () => {
-    expect(TOUR_STEPS[0].id).toBe('editor');
+  it('first step introduces the 9-fox cast (Y8-P1c, 2026-05-11)', () => {
+    // Casual review (Sun Yulin) flagged that the prior "选一段文字 · 让看墨重写"
+    // mentioned 看墨 before any fox had been introduced. Tour now leads with
+    // the roster, then dives into the action.
+    expect(TOUR_STEPS[0].id).toBe('fox-tails');
+  });
+
+  it('editor step still exists as the second card', () => {
+    expect(TOUR_STEPS[1].id).toBe('editor');
   });
 
   it('final step is envelope (lore portal teaser)', () => {

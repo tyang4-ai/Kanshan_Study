@@ -6,9 +6,12 @@ import { useCorkboardStore } from '@/lib/store/corkboard';
 import { CorkBg } from '@/components/atoms/CorkBg';
 import { RailIcon } from './RailIcon';
 import { RailContent } from './RailContent';
-import { DockSection } from './DockSection';
 
-// Left rail — corkboard at top, dock at the bottom.
+// Left rail — corkboard fills the rail. Bottom 9-fox dock removed (Y8-P2b,
+// 2026-05-11): the dock duplicated the RightToolbar's 9 specialized buttons
+// and visually collided with the corkboard BULLETIN header at tight widths.
+// Fox dispatch lives on the right toolbar only now; 看山 is reachable via the
+// KanshanChatBubble (bottom-right).
 // Width is driven by useRailWidthStore (clamped 220–560 inside the store).
 // LoreEnvelope is mounted at workspace shell level, NOT here.
 export function LeftRail() {
@@ -117,8 +120,7 @@ export function LeftRail() {
           onClosePostit={() => setPostitOpen(false)}
         />
 
-        {/* Dock area at bottom */}
-        <DockSection />
+        {/* Bottom 9-fox dock removed Y8-P2b (2026-05-11) — see header comment. */}
       </CorkBg>
 
       {/* Resize handle — sits on the right edge */}

@@ -51,17 +51,25 @@ export function KanshanChatBubble() {
         e.currentTarget.style.transform = 'scale(1)';
       }}
     >
+      {/* R8 Y8-P2b (2026-05-11): the placeholder '山' character was the last
+          piece of "demo art" on the chat trigger — judges read it as a graphic
+          design afterthought. Swap for the real 刘看山 IP per A4 ("默认授权").
+          The asset is the official 四视图 sheet (4 views in a row); we want
+          just the front-facing view, so crop via object-fit + object-position
+          rather than shipping a separately cropped file (avoids image-tooling
+          on a Windows host that has no sharp / jimp). */}
       <span
+        aria-hidden
         style={{
-          fontFamily: '"Noto Serif SC", serif',
-          fontSize: 22,
-          fontWeight: 600,
-          color: '#2A2419',
-          letterSpacing: 1,
+          display: 'block',
+          width: 42,
+          height: 42,
+          backgroundImage: 'url(/foxes/shan-fourview.png)',
+          backgroundSize: '400% 100%',
+          backgroundPosition: 'left center',
+          backgroundRepeat: 'no-repeat',
         }}
-      >
-        山
-      </span>
+      />
     </button>
   );
 }

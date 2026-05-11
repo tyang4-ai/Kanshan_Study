@@ -16,6 +16,7 @@ import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 // needed here. Kept the import block for git-blame continuity removed.
 import { fetchWithErrorToast } from '@/lib/fetch-helpers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
+import { useEditorStore } from '@/lib/store/editor';
 
 interface PersonaTabProps {
   mode?: 'auto' | 'pick' | 'recent';
@@ -88,6 +89,27 @@ export function PersonaTab({ selection }: PersonaTabProps) {
   const [isComposing, setIsComposing] = useState<boolean>(false);
 
   const abortRef = useRef<AbortController | null>(null);
+
+  // R8-P1b (2026-05-11): Ren Bo flagged that Ctrl+A → Delete in the editor
+  // leaves a stale 论点 banner + cached items in the persona panel. Subscribe
+  // to the editor; when its doc empties, abort + clear panel-local state.
+  const editor = useEditorStore((s) => s.editor);
+  useEffect(() => {
+    if (!editor) return;
+    const onUpdate = (): void => {
+      const len = editor.state.doc.textContent.trim().length;
+      if (len === 0) {
+        abortRef.current?.abort();
+        setItems([]);
+        setError(null);
+        setStreaming(false);
+      }
+    };
+    editor.on('update', onUpdate);
+    return () => {
+      editor.off('update', onUpdate);
+    };
+  }, [editor]);
 
   const selectedFixed: MaskMeta[] = FIXED_MASKS.filter((m) => selectedFixedIds.has(m.id));
   const selectedCustom: CustomMask[] = customMasks.filter((m) => selectedCustomIds.has(m.id));

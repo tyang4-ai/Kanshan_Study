@@ -5,6 +5,7 @@ import { useFloatingWindowStore, type TabKind } from '@/lib/store/floating-windo
 import { useCorkboardStore } from '@/lib/store/corkboard';
 import type { KanshanTool, KanshanToolCall } from '@/lib/agents/kanshan-router';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
+import { FOX_BY_ID } from '@/lib/foxes/registry';
 
 // Compliance copy locked per persona-review #13.99 (2026-05-09).
 // Asserts only what the architecture actually does:
@@ -42,11 +43,35 @@ const TOOL_TAB: Record<KanshanTool, { kind: TabKind; title: string } | null> = {
   run_compliance_check: null,
 };
 
+// S7-B1 (2026-05-11): the orchestrator's multi-agent dispatch was invisible
+// — looked like a single LLM with 9 buttons. Map each tool to the visible
+// fox(es) it routes to so the CoT animation can name them by glyph + glow.
+const TOOL_FOX: Record<KanshanTool, { label: string; glow: string }> = {
+  open_research: { label: '看水', glow: FOX_BY_ID.shui.glow },
+  open_trends: { label: '看势', glow: FOX_BY_ID.shi.glow },
+  open_vault: { label: '看典', glow: FOX_BY_ID.dian.glow },
+  open_persona: { label: '看文', glow: FOX_BY_ID.wen.glow },
+  open_debate: { label: '看文 + 看纹', glow: FOX_BY_ID.wen2.glow },
+  pin_to_corkboard: { label: '看典', glow: FOX_BY_ID.dian.glow },
+  run_compliance_check: { label: '看心', glow: FOX_BY_ID.xin.glow },
+};
+
+interface CotState {
+  toolLabel: string;
+  foxLabel: string;
+  foxGlow: string;
+  phase: 'reasoning' | 'dispatching';
+}
+
 export function KanshanChatTab() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState('');
   const [composing, setComposing] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  // S7-B1 (2026-05-11): chain-of-thought animation. Visible between the
+  // kanshan reply and the actual dispatch so judges see the orchestrator
+  // route to a specific fox — multi-agent moves from invisible to legible.
+  const [cot, setCot] = useState<CotState | null>(null);
   const sendingRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -57,7 +82,7 @@ export function KanshanChatTab() {
   useEffect(() => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [turns.length, streaming]);
+  }, [turns.length, streaming, cot]);
 
   const dispatchTool = (toolCall: KanshanToolCall, replyText: string) => {
     const target = TOOL_TAB[toolCall.tool];
@@ -160,8 +185,21 @@ export function KanshanChatTab() {
         };
         setTurns((prev) => [...prev, reply]);
         if (toolCall) {
-          // Defer dispatch one tick so the user sees the reply first.
-          setTimeout(() => dispatchTool(toolCall!, replyText!), 250);
+          // S7-B1: 2-phase 600ms CoT animation before dispatch.
+          //   t=0    show "看山 思考中…"
+          //   t=300  switch to "正在唤起 {fox}" with the fox's glow tint
+          //   t=600  fire dispatchTool, clear CoT
+          const fox = TOOL_FOX[toolCall.tool];
+          const target = TOOL_TAB[toolCall.tool];
+          const toolLabel = target?.title ?? TOOL_LABEL[toolCall.tool];
+          setCot({ toolLabel, foxLabel: fox.label, foxGlow: fox.glow, phase: 'reasoning' });
+          setTimeout(() => {
+            setCot({ toolLabel, foxLabel: fox.label, foxGlow: fox.glow, phase: 'dispatching' });
+          }, 300);
+          setTimeout(() => {
+            dispatchTool(toolCall!, replyText!);
+            setCot(null);
+          }, 600);
         }
       }
     } catch {
@@ -293,6 +331,33 @@ export function KanshanChatTab() {
             </div>
           );
         })}
+        {cot && (
+          <div
+            data-testid="kanshan-cot-banner"
+            data-phase={cot.phase}
+            style={{
+              alignSelf: 'flex-start',
+              maxWidth: '85%',
+              marginTop: 4,
+              padding: '8px 12px',
+              fontSize: 12,
+              fontStyle: 'italic',
+              fontFamily: '"Noto Serif SC", serif',
+              color: '#1A1F2A',
+              background: cot.phase === 'dispatching'
+                ? `linear-gradient(90deg, ${cot.foxGlow}26 0%, transparent 100%)`
+                : 'rgba(168,155,126,0.10)',
+              borderLeft: `2px solid ${cot.phase === 'dispatching' ? cot.foxGlow : 'rgba(168,155,126,0.55)'}`,
+              borderBottom: '1px dotted rgba(168,155,126,0.35)',
+              opacity: 0.95,
+              transition: 'background 220ms ease, border-color 220ms ease',
+            }}
+          >
+            {cot.phase === 'reasoning'
+              ? '看山 思考中…'
+              : `正在唤起 ${cot.foxLabel} · ${cot.toolLabel}`}
+          </div>
+        )}
         {streaming && (
           <div style={{ alignSelf: 'flex-start', fontSize: 12, color: '#A89B7E',
             fontFamily: '"Noto Serif SC", serif' }}>

@@ -8,6 +8,7 @@ import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 import type { DebateTurn } from '@/lib/agents/debate';
 import { fetchWithErrorToast } from '@/lib/fetch-helpers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
+import { useEditorStore } from '@/lib/store/editor';
 
 interface DebateTabProps {
   selection?: { text: string; rect?: DOMRect } | null;
@@ -59,6 +60,25 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [fallbackActive, setFallbackActive] = useState<boolean>(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // R8-P1b (2026-05-11): clear stale debate state when the editor empties.
+  const editor = useEditorStore((s) => s.editor);
+  useEffect(() => {
+    if (!editor) return;
+    const onUpdate = (): void => {
+      if (editor.state.doc.textContent.trim().length === 0) {
+        abortRef.current?.abort();
+        setMessages([]);
+        setCurrentTurn(null);
+        setError(null);
+        setFallbackActive(false);
+      }
+    };
+    editor.on('update', onUpdate);
+    return () => {
+      editor.off('update', onUpdate);
+    };
+  }, [editor]);
 
   useEffect(() => {
     abortRef.current?.abort();

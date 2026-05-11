@@ -33,7 +33,8 @@ describe('TourEngine', () => {
   });
 
   it('shows step 1/N indicator (N matches TOUR_STEPS length)', () => {
-    mountAnchor('editor');
+    // Y8-P1c (2026-05-11): first step is now `fox-tails`, not `editor`.
+    mountAnchor('fox-tails');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     expect(getByTestId('tour-card').textContent).toContain(`STEP 1/${TOUR_STEPS.length}`);
   });
@@ -69,9 +70,10 @@ describe('TourEngine', () => {
   });
 
   it('tolerates missing refs: skips invalid steps', () => {
-    // Only mount fox-tails (now idx 1). Engine auto-advances past missing
-    // editor (idx 0) to find the next available anchor.
-    mountAnchor('fox-tails');
+    // Y8-P1c (2026-05-11): fox-tails is now idx 0 (first step) and editor is
+    // idx 1. Mount editor only; engine auto-advances from missing idx 0 to
+    // the next available anchor at idx 1.
+    mountAnchor('editor');
     const { getByTestId } = render(<TourEngine onComplete={() => {}} />);
     expect(getByTestId('tour-card').getAttribute('data-step-idx')).toBe('1');
   });

@@ -3,6 +3,7 @@
 import { type CSSProperties, type MouseEvent } from 'react';
 import { Tab } from './Tab';
 import { ComplianceStamp } from './ComplianceStamp';
+import { PublishButton } from './PublishButton';
 import { TipTapEditor, type SelectionPayload } from './TipTapEditor';
 import { FormatRibbon } from './FormatRibbon';
 import { MarginSealPopover } from '@/components/compliance/MarginSealPopover';
@@ -165,6 +166,7 @@ export function WritingSurface({
       </div>
 
       <ComplianceStamp />
+      <PublishButton />
 
       <RightToolbar selection={floatingToolbarSelection ?? null} />
       <MarginSealPopover />

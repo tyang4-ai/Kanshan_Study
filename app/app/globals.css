@@ -317,3 +317,13 @@
   background: rgba(192,57,43,0.14);
   border: 1px solid rgba(192,57,43,0.45);
 }
+
+/* R8-P2a (2026-05-11): RightToolbar clipping at narrow viewports. The
+   toolbar is positioned absolute right:12 by default — on a 1024px judge
+   laptop the rounded corners brush the viewport edge. Tighten right + pad. */
+@media (max-width: 1280px) {
+  [role="toolbar"][aria-label="AI 工具栏"] {
+    right: 4px !important;
+    padding: 4px 2px !important;
+  }
+}

@@ -48,6 +48,12 @@ export function RightToolbar({ selection }: RightToolbarProps) {
     };
   };
 
+  // S7-A4 disposition (2026-05-11): the abbreviated verbs (墨润/墨续/文读/文辩
+  // for the first 4 entries, single 让X 短句 for the rest) intentionally show
+  // ACTIONS, not the 9-fox roster. wen + mo carry 2 actions each (4 buttons);
+  // the remaining 5 foxes carry 1 action each. Total = 9, but it's NOT a
+  // "show me all 9 foxes" surface — the roster lives in lore/onboarding. User
+  // confirmed leave-as-is; do not re-open in future reviews.
   const AI_TOOLS: AiItem[] = [
     aiTool('mo', '让看墨润色', 'Ctrl+Shift+M', true, () => selection && dispatchAi('voice-diff', '看墨 · 润色', { mode: 'polish', selection }), '墨润'),
     aiTool('mo', '让看墨续写', undefined, true, () => selection && dispatchAi('voice-diff', '看墨 · 续写', { mode: 'fill', selection }), '墨续'),
@@ -64,6 +70,14 @@ export function RightToolbar({ selection }: RightToolbarProps) {
     <div
       role="toolbar"
       aria-label="AI 工具栏"
+      // Y8-P1c (2026-05-11): tour Step 1 now anchors here (was on the bottom
+      // FoxRail, which got removed in Y8-P2b). Keeping the original selector
+      // name `fox-tails` so steps.ts doesn't need to know about the move.
+      data-tour-id="fox-tails"
+      // R8-P2a (2026-05-11): narrow-viewport (< 1280px) clipping fix. The
+      // toolbar's `right: 12` clipped on 1024px laptop screens. Inline media
+      // queries aren't possible; the rule lives in globals.css scoped to this
+      // role + aria-label.
       style={{
         position: 'absolute',
         right: 12,
