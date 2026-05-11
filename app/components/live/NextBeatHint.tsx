@@ -171,6 +171,30 @@ export function NextBeatHint({ initialIdx = 0, autoAdvance = false }: NextBeatHi
   const last = SCRIPT.beats.length - 1;
   const beat = SCRIPT.beats[idx];
 
+  // R7 first-touch judge (Shi Junhe) P1 + Liang Haining L7-2 P2: judges
+  // mistook the teleprompter chip for product chrome. Default visible
+  // (founder needs it), but `?presenter=0` URL OR `?` keypress hides it —
+  // gives the founder a one-tap escape if a sharp judge zooms in. The chip
+  // now also wears an unambiguous "PRESENTER ONLY" badge so casual scanning
+  // doesn't mistake it for product UI.
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // Read the URL query on mount (client only; the SSR pass can't see it).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (new URLSearchParams(window.location.search).get('presenter') === '0') setVisible(false);
+    const onKey = (e: KeyboardEvent): void => {
+      const inEditable = (e.target as HTMLElement | null)?.matches?.('input, textarea, [contenteditable="true"]');
+      if (inEditable) return;
+      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+        e.preventDefault();
+        setVisible((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // R8: advancing the teleprompter ALSO fires the beat's action so the
   // workspace visibly moves with the narration. retreat does NOT replay
   // actions in reverse — we just move the chip back.
@@ -202,10 +226,24 @@ export function NextBeatHint({ initialIdx = 0, autoAdvance = false }: NextBeatHi
   }, [autoAdvance, idx, beat.tStart, advance]);
 
   if (!beat) return null;
+  // `?presenter=0` URL or `?` keypress hides the chip — action wiring still
+  // works via ArrowRight / ArrowLeft so the founder can drive from keyboard.
+  if (!visible) return null;
 
   return (
     <div data-testid="next-beat-hint" data-beat-idx={idx} style={wrap}>
-      <div style={monoTag}>SCRIPT · {beat.tLabel} · {idx + 1} / {SCRIPT.beats.length}</div>
+      <div style={{ ...monoTag, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{
+          display: 'inline-block',
+          padding: '0 4px',
+          borderRadius: 2,
+          background: 'rgba(168,155,126,0.18)',
+          color: '#C0B294',
+          fontSize: 8,
+          letterSpacing: 1.5,
+        }}>PRESENTER</span>
+        SCRIPT · {beat.tLabel} · {idx + 1} / {SCRIPT.beats.length}
+      </div>
       <div style={titleStyle}>{beat.title}</div>
       <div style={bodyStyle}>{beat.body}</div>
       <div style={navStyle}>

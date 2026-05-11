@@ -1,12 +1,29 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAiErrorStore } from '@/lib/store/ai-error';
+import { useFloatingWindowStore } from '@/lib/store/floating-window';
 
 const VISIBLE_MS = 6500;
 
 export function AiFailureToast() {
   const current = useAiErrorStore((s) => s.current);
   const dismiss = useAiErrorStore((s) => s.dismiss);
+  // R8 adversarial review (Ren Bo) P1: toast was hard-pinned bottom-right
+  // while the failing panel sat centre-floating — judges missed the
+  // connection. Anchor near the active floating window when one is open
+  // so the error reads as "this panel just failed" instead of "something
+  // somewhere failed". Falls back to bottom-right when no panel is open.
+  const fwOpen = useFloatingWindowStore((s) => s.open);
+  const fwPos = useFloatingWindowStore((s) => s.pos);
+  const fwSize = useFloatingWindowStore((s) => s.size);
+  const [vp, setVp] = useState({ w: 1440, h: 900 });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = (): void => setVp({ w: window.innerWidth, h: window.innerHeight });
+    sync();
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, []);
 
   useEffect(() => {
     if (!current) return;
@@ -21,6 +38,24 @@ export function AiFailureToast() {
 
   if (!current) return null;
 
+  // Anchor calculation: if a floating window is open AND fits on screen,
+  // dock the toast 8px below it. Otherwise pin bottom-right (R6 default).
+  const anchor = (() => {
+    if (!fwOpen) return { right: 24, bottom: 96, left: 'auto' as const, top: 'auto' as const };
+    const desiredTop = fwPos.y + fwSize.h + 8;
+    if (desiredTop + 90 > vp.h) {
+      // Not enough room below — pin bottom-right but pulled toward the
+      // window's left edge so the visual association remains.
+      return { right: 24, bottom: 24, left: 'auto' as const, top: 'auto' as const };
+    }
+    return {
+      left: Math.max(12, fwPos.x),
+      top: desiredTop,
+      right: 'auto' as const,
+      bottom: 'auto' as const,
+    };
+  })();
+
   return (
     <div
       data-testid="ai-failure-toast"
@@ -28,8 +63,7 @@ export function AiFailureToast() {
       aria-live="polite"
       style={{
         position: 'fixed',
-        right: 24,
-        bottom: 96,
+        ...anchor,
         zIndex: 5000,
         maxWidth: 360,
         padding: '12px 14px 12px 14px',

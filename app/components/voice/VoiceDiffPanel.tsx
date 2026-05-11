@@ -125,6 +125,11 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
   const [accepted, setAccepted] = useState<'generic' | 'voice' | null>(null);
   const [voiceLocked, setVoiceLocked] = useState(false);
   const [genericLoaded, setGenericLoaded] = useState(false);
+  // R8 casual-user (Sun Yulin) P1: at ~33s end-to-end the panel sat on
+  // 「通用稿生成中」 with no indication anything was happening — casual
+  // users concluded it stalled. Tick an elapsed counter from run-start so
+  // the static ticker shows "~30 秒预计" + live elapsed.
+  const [elapsed, setElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
   const run = useCallback(async () => {
@@ -133,6 +138,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     abortRef.current = ctrl;
     setState(INITIAL_STATE);
     setGenericLoaded(false);
+    setElapsed(0);
     // Clear any prior toast — new run, fresh slate.
     useAiErrorStore.getState().dismiss();
     try {
@@ -205,6 +211,14 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
       abortRef.current?.abort();
     };
   }, [run]);
+
+  // Tick elapsed seconds while loading; stop on done. Cheap (1Hz) — only
+  // mounts when the panel is open. Resets on each new run via setElapsed(0).
+  useEffect(() => {
+    if (state.done) return;
+    const t = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [state.done]);
 
   const handleAccept = (kind: 'generic' | 'voice') => {
     setAccepted(kind);
@@ -352,8 +366,12 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
             </>
           ) : (
             <p data-testid="voice-diff-generic-ticker"
-              style={{ color: '#7A6655', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>
+              style={{ color: '#7A6655', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, lineHeight: 1.7 }}>
               · · · 通用稿生成中
+              <br />
+              <span style={{ fontSize: 10, color: 'rgba(122,102,85,0.7)' }}>
+                {`已 ${elapsed}s · 预计 ~22s · 不必关闭窗口`}
+              </span>
             </p>
           )}
         </DiffColumn>
@@ -400,8 +418,12 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
             </motion.div>
           ) : (
             <p data-testid="voice-diff-voice-ticker"
-              style={{ color: '#1F8B66', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>
+              style={{ color: '#1F8B66', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, lineHeight: 1.7 }}>
               · · · 据档案库重写中（{state.trace.length} 稿迭代）
+              <br />
+              <span style={{ fontSize: 10, color: 'rgba(31,139,102,0.7)' }}>
+                {`已 ${elapsed}s · 预计 ~33s · 看墨在重写 3 轮`}
+              </span>
             </p>
           )}
         </DiffColumn>
