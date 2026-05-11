@@ -207,6 +207,23 @@ export function TrendsTab() {
           <div style={subtitleStyle}>
             {`ZHIHU·HOT_LIST · 60 秒 刷新 · 100/天 已用 ${used}`}
           </div>
+          {/* R8 VC re-review (Lin Maohua) P0: 知乎 platform integration was
+              invisible at /live — judges couldn't tell HMAC + Bearer wiring
+              was real or just promised. Surface the auth handshake as a
+              small badge so the integration depth is on-screen at the
+              moment the Hot List is showcased. */}
+          <div
+            data-testid="trends-auth-badge"
+            style={{
+              marginTop: 3,
+              fontSize: 9,
+              fontFamily: 'JetBrains Mono, monospace',
+              letterSpacing: 1,
+              color: 'rgba(168,155,126,0.85)',
+            }}
+          >
+            ZHIHU OPENAPI · HMAC + BEARER · 已接入 黑客松脑洞补给站
+          </div>
         </div>
         <span style={pulseStyle} />
       </div>
