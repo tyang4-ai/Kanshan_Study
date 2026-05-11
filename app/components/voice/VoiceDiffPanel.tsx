@@ -448,8 +448,12 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           <span style={{ color: '#7A8B9F' }}>—</span>
         )}
         {state.voiceSources.map((s, i) => (
+          // R6 demo-flow (Tan Shulin) P1: voiceSources can contain the same
+          // articleId across multiple iter responses during streaming when
+          // the drafter rephrases off the same vault chunk. Composite key
+          // keeps React happy without changing the cited content.
           <CitationLink
-            key={s.id}
+            key={`${s.id}-${i}`}
             citation={vaultCitation({
               id: `voice-src-${s.id}`,
               index: i + 1,

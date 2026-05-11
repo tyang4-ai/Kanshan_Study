@@ -1,12 +1,20 @@
 'use client';
 
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
+import { useDemoMode } from '@/lib/demo-mode/context';
 
 // Bottom-right floating chat trigger. Click → opens kanshan-chat tab in
 // TabbedFloatingWindow. Notion-style affordance per the user's pick on
 // 2026-05-09. Uses the official 刘看山 art per CLAUDE.md decision #9.
 export function KanshanChatBubble() {
   const openTab = useFloatingWindowStore((s) => s.openTab);
+  // R6 demo-flow review (Tan Shulin) P0: on /live the script teleprompter
+  // (NextBeatHint) sits at bottom=60 right=16 with height ~107 — its bottom
+  // edge lands at y=782 on a 900px tall window, which collides with the
+  // 56×56 chat bubble at bottom=24. Lift the bubble on /live so a judge
+  // dismissing the teleprompter doesn't hit the bubble by mistake.
+  const demoMode = useDemoMode();
+  const bottomOffset = demoMode === 'live' ? 188 : 24;
 
   const handleClick = () => {
     openTab('kanshan-chat', '看山 · 编排');
@@ -20,7 +28,7 @@ export function KanshanChatBubble() {
       onClick={handleClick}
       style={{
         position: 'fixed',
-        bottom: 24,
+        bottom: bottomOffset,
         right: 24,
         zIndex: 1400, // above corkboard, below floating-window (1500)
         width: 56,

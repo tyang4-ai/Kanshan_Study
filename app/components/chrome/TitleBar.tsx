@@ -170,10 +170,27 @@ export function ProfileChip() {
     ) {
       return;
     }
-    // Clear editor before profile flips so the new account starts clean.
+    // R6 demo-flow review (Tan Shulin) P0: clearing to empty made 顾婉昔's
+    // editor open on a blank placeholder. Instead, restore the target account's
+    // persisted draft if one exists, otherwise fall through to that account's
+    // seed doc — so the 0:30 account-switch beat always lands on real prose.
     try {
       const { useEditorStore } = await import('@/lib/store/editor');
-      useEditorStore.getState().editor?.commands.setContent('');
+      const { defaultDocForAccount } = await import('@/content/seed/default-document');
+      const editor = useEditorStore.getState().editor;
+      if (editor) {
+        let next: string | null = null;
+        try {
+          const persisted = window.localStorage.getItem(`kanshan-editor-doc:${target}`);
+          if (persisted) {
+            const stripped = persisted.replace(/<[^>]+>/g, '').replace(/\s+/g, '');
+            if (stripped.length > 0) next = persisted;
+          }
+        } catch {
+          /* localStorage blocked — fall back to seed */
+        }
+        editor.commands.setContent(next ?? defaultDocForAccount(target));
+      }
     } catch {
       /* SSR / HMR boundary — store not loaded, skip */
     }
