@@ -361,7 +361,19 @@ export function PersonaTab({ selection }: PersonaTabProps) {
                 whitecollar: { bg: '#D89C3F', glow: 'rgba(216,156,63,0.35)' },
                 boundary:    { bg: '#C0392B', glow: 'rgba(192,57,43,0.35)' },
               };
-              const tint = tintByMask[m.id] ?? { bg: f.glow, glow: `${f.glowSoft}55` };
+              // R7 production review (Jiang Hanzhi) P1: custom masks (built via
+              // CustomMaskForm) have user-supplied id strings — they always hit
+              // the fallback and looked identical. Hash the mask id into a stable
+              // hue so two custom masks render in different colors.
+              const customHue = (id: string): string => {
+                let h = 0;
+                for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+                return `hsl(${h % 360}, 52%, 48%)`;
+              };
+              const tint = tintByMask[m.id] ?? {
+                bg: customHue(m.id),
+                glow: `${f.glowSoft}55`,
+              };
               const initial = m.label.charAt(0);
               const avatarStyle: CSSProperties = {
                 width: 22,
