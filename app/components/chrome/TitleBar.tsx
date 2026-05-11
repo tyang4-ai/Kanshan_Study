@@ -154,22 +154,12 @@ export function ProfileChip() {
   const onClick = async () => {
     const target = active === 'guwanxi' ? 'me' : 'guwanxi';
     const targetLabel = target === 'guwanxi' ? '顾婉昔 (演示账号)' : '我的账号';
-    // Per-account doc loading is post-MVP — for now we explicitly clear the
-    // editor on switch so content doesn't leak across accounts (persona-review
-    // 2026-05-10 吴敏 P0: previous copy "未保存的编辑内容会保留" was misleading;
-    // dialog now matches what the code does).
-    //
-    // Demo-flow judge persona-review 2026-05-11 P0: in /live mode, skip the
-    // native confirm() since the demo script intends to switch deterministically.
-    // The native confirm freezes Chrome MCP automation for 45s+ and looks
-    // jarring on a 腾讯会议 share.
-    if (
-      demoMode !== 'live' &&
-      typeof window !== 'undefined' &&
-      !window.confirm(`切换到 ${targetLabel}？\n\n当前编辑器内容会清空。`)
-    ) {
-      return;
-    }
+    // R6 casual-user (Sun Yulin) P0: native confirm() was hard-locking the
+    // page renderer for accessibility users + Chrome MCP automation, AND was
+    // factually wrong — the per-account localStorage persist (added below)
+    // saves both drafts independently, so the original "edits will be cleared"
+    // copy was misleading. Drop the confirm entirely; surface a soft toast on
+    // /  so the user knows the switch happened.
     // R6 demo-flow review (Tan Shulin) P0: clearing to empty made 顾婉昔's
     // editor open on a blank placeholder. Instead, restore the target account's
     // persisted draft if one exists, otherwise fall through to that account's
@@ -195,6 +185,18 @@ export function ProfileChip() {
       /* SSR / HMR boundary — store not loaded, skip */
     }
     switchTo(target);
+    // Soft toast on / so the user notices the switch happened. On /live the
+    // teleprompter narrates the switch so a toast is redundant noise.
+    if (demoMode !== 'live') {
+      try {
+        const { useAiErrorStore } = await import('@/lib/store/ai-error');
+        useAiErrorStore.getState().push({
+          message: `已切换到 ${targetLabel} · 双账号草稿独立保存`,
+        });
+      } catch {
+        /* lazy import failure — best-effort */
+      }
+    }
   };
   return (
     <button
