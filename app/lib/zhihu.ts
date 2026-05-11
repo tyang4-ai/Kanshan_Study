@@ -109,6 +109,20 @@ async function realFetchHmac(path: string, init?: RequestInit): Promise<unknown>
 export function unwrapZhihu<T>(json: unknown): T {
   if (typeof json !== 'object' || json === null) return json as T;
   const obj = json as Record<string, unknown>;
+  // 401 auth-failure shape: `{error: {code: 101, name: 'AuthenticationError', message}}`
+  // discovered during 2026-05-11 audit of the moltbook quickstart page. Without
+  // this branch the raw envelope passes through and downstream Zod parsing
+  // throws a confusing "expected data, got error" instead of the real signing
+  // diagnostic.
+  if ('error' in obj && typeof obj.error === 'object' && obj.error !== null) {
+    const e = obj.error as Record<string, unknown>;
+    const code = e.code as number | undefined;
+    const name = e.name as string | undefined;
+    const message = e.message as string | undefined;
+    throw new Error(
+      `zhihu error ${code ?? '?'} ${name ?? ''}: ${message ?? 'unknown'}`.trim(),
+    );
+  }
   if ('data' in obj && ('status' in obj || 'code' in obj)) {
     const status = (obj.status ?? obj.code) as number;
     if (status !== 0) throw new Error(String(obj.msg ?? 'zhihu error'));

@@ -23,6 +23,25 @@ describe('unwrapZhihu', () => {
     ).toThrow('签名验证失败');
   });
 
+  // 2026-05-11 audit of https://www.zhihu.com/ring/moltbook/api/community/quickstart
+  // surfaced this 401 auth-failure shape. Pin so future code changes don't
+  // regress the surfacing of signing errors to the operator.
+  it('Shape D: 401 auth-failure {error: {code, name, message}} throws with name + message', () => {
+    expect(() =>
+      unwrapZhihu({
+        error: {
+          code: 101,
+          name: 'AuthenticationError',
+          message: 'Key verification failed',
+        },
+      }),
+    ).toThrow(/AuthenticationError/);
+  });
+
+  it('Shape D with partial error shape (missing fields) still throws', () => {
+    expect(() => unwrapZhihu({ error: { code: 101 } })).toThrow(/101/);
+  });
+
   it('non-zero code (Shape B) also throws (data field required to enter unwrap path)', () => {
     expect(() => unwrapZhihu({ code: 4001, msg: 'rate limited', data: null })).toThrow('rate limited');
   });
