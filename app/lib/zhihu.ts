@@ -331,7 +331,12 @@ export async function publishPin(
   ringId: string = DEFAULT_RING_ID,
 ): Promise<PinPublishResponse> {
   if (MODE === 'mock') return pinPublishResponse as PinPublishResponse;
-  const raw = await realFetchHmac('/openapi/pin/publish', {
+  // 2026-05-11 live-smoke discovered the real endpoint is `/openapi/publish/pin`
+  // (verb-noun) NOT `/openapi/pin/publish` (noun-verb). Spec doc at
+  // Documents/zhihu-api/04-api-spec-endpoints-2026-05-10.md§2 confirms.
+  // The old `/openapi/pin/publish` returned 404. Response wraps as
+  // `{status:0, msg, data:{content_token}}`.
+  const raw = await realFetchHmac('/openapi/publish/pin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content, ring_id: ringId }),
