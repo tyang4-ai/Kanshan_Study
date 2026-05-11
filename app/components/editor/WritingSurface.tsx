@@ -89,6 +89,31 @@ export function WritingSurface({
 
   return (
     <div onContextMenu={onContextMenu} style={outerStyle}>
+      {/* R5 casual user (Sun Yulin) P0: locked tagline 「灵感激发 · 思路梳理 ·
+          内容精加工」 was truncated to 「灵感激发 · 思路梳」 inside the busy tab
+          strip. Promoted to its own slim band above the tabs so it always fits. */}
+      <div
+        data-testid="titlebar-tagline"
+        title="灵感激发 · 思路梳理 · 内容精加工"
+        style={{
+          flexShrink: 0,
+          height: 22,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 14px',
+          background: 'linear-gradient(180deg, #3A3633 0%, #2E2B28 100%)',
+          borderBottom: '1px solid #1A1815',
+          color: 'rgba(168,155,126,0.85)',
+          fontFamily: '"Noto Serif SC", serif',
+          fontSize: 11,
+          letterSpacing: 2,
+          gap: 12,
+        }}
+      >
+        <span style={{ color: '#C0B294', fontWeight: 600 }}>看山书房</span>
+        <span aria-hidden style={{ opacity: 0.5 }}>·</span>
+        <span>灵感激发 · 思路梳理 · 内容精加工</span>
+      </div>
       <div style={tabStripStyle}>
         {TABS.map((t) => (
           <Tab key={t.filename} filename={t.filename} active={t.active} dirty={t.dirty} />
@@ -97,30 +122,6 @@ export function WritingSurface({
             locked tagline 「灵感激发 · 思路梳理 · 内容精加工」 was previously
             only inside the orphan <TitleBar /> component (never mounted).
             Anchored here in the tab strip where chrome already lives. */}
-        <div
-          data-testid="titlebar-tagline"
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 8,
-            marginLeft: 12,
-            paddingLeft: 12,
-            borderLeft: '1px solid rgba(122,102,85,0.22)',
-            fontFamily: '"Noto Serif SC", serif',
-            color: 'rgba(58,54,51,0.78)',
-            fontSize: 12,
-            letterSpacing: 1.5,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            flexShrink: 1,
-            minWidth: 0,
-          }}
-        >
-          <span style={{ fontWeight: 600, color: '#3A3633' }}>看山书房</span>
-          <span aria-hidden style={{ opacity: 0.5 }}>·</span>
-          <span>灵感激发 · 思路梳理 · 内容精加工</span>
-        </div>
         <div style={{ flex: 1, minWidth: 16 }} />
         <div style={autosaveStyle}>
           <span

@@ -1,4 +1,5 @@
 // One-shot Kimi auth + model probe.
+export {};
 
 const KEY = process.env.KIMI_API_KEY ?? '';
 const BASE = process.env.KIMI_BASE_URL ?? 'https://api.moonshot.cn';
