@@ -78,10 +78,14 @@ export function WorkspaceShell() {
 
   return (
     <div className="flex h-screen w-screen flex-col" style={{ background: '#2A2724' }}>
-      <div
+      {/* A11y persona-review R2: wrap the primary work area in a <main>
+          landmark so screen-reader users can jump straight to it. The
+          editor + side rails are the principal content. */}
+      <main
         className="flex min-h-0 flex-1"
         style={{ background: '#FAF8F3' }}
         onMouseDownCapture={onEditorMouseDownCapture}
+        aria-label="看山书房工作台"
       >
         <LeftRail />
         <WritingSurface
@@ -92,7 +96,7 @@ export function WorkspaceShell() {
           onSelectionChange={handleSelectionChange}
           floatingToolbarSelection={effectiveSelection}
         />
-      </div>
+      </main>
 
       <LoreEnvelope onClick={() => setLoreOpen(true)} />
 
