@@ -44,6 +44,10 @@ export function MenuItem({
     <div
       role="menuitem"
       aria-disabled={disabled}
+      // R4 demo-flow persona (Mai Xinhua) P0: clicking a disabled AI item
+      // produced no feedback — judges and casual users thought the action
+      // was broken. Show a clear explanation when the item is disabled.
+      title={disabled ? '请先在编辑器里选中一段文字，再让狐狸帮忙' : undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={handleClick}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -78,6 +78,9 @@ export function TipTapEditor({
   style,
 }: TipTapEditorProps) {
   const setEditor = useEditorStore((s) => s.setEditor);
+  // R4 edge-case (Ren Bo) P2: one-shot guard so the persistence-failed
+  // toast doesn't fire on every keystroke after quota is hit.
+  const persistFailedRef = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -116,8 +119,23 @@ export function TipTapEditor({
         const m = accountRaw ? /"active":"(\w+)"/.exec(accountRaw) : null;
         const accountId = m?.[1] ?? 'me';
         window.localStorage.setItem(`kanshan-editor-doc:${accountId}`, e.getHTML());
-      } catch {
-        // private mode / quota — ignore; the editor in-memory state is fine
+      } catch (err) {
+        // R4 edge-case (Ren Bo) P2: notify the user once if persistence
+        // breaks (quota exceeded / private mode). The in-memory editor
+        // state keeps working — the user just loses the reload-survives
+        // guarantee, and we should be honest about it.
+        if (!persistFailedRef.current && err instanceof Error) {
+          persistFailedRef.current = true;
+          if (typeof window !== 'undefined') {
+            const msg = /quota|private/i.test(err.message)
+              ? '本地存储已满，本次编辑不再自动保存。请清出空间或导出文稿。'
+              : '本地存储写入失败，本次编辑不再自动保存。';
+            // Lazy import to avoid SSR + a hard dep cycle.
+            void import('@/lib/store/ai-error').then((m) => {
+              m.useAiErrorStore.getState().push({ message: msg });
+            }).catch(() => { /* surfacing is best-effort */ });
+          }
+        }
       }
     },
     editorProps: {
@@ -165,6 +183,11 @@ export function TipTapEditor({
   // Restore persisted doc on mount (per-account). Mirror of the onUpdate
   // writer above. Runs after the initial seed-content render so that an
   // empty localStorage falls back to the seed cleanly.
+  //
+  // R4 demo-flow persona (Mai Xinhua) P0: if persisted doc is empty/just-a-
+  // placeholder/whitespace, fall through to the seed instead of shadowing
+  // it. Without this guard a Ctrl+A → Delete during rehearsal permanently
+  // wipes the rehearsed copy.
   useEffect(() => {
     if (!editor || typeof window === 'undefined') return;
     try {
@@ -172,7 +195,16 @@ export function TipTapEditor({
       const accountId =
         (accountRaw && /"active":"(\w+)"/.exec(accountRaw)?.[1]) || 'me';
       const persisted = window.localStorage.getItem(`kanshan-editor-doc:${accountId}`);
-      if (persisted && persisted.trim().length > 0 && persisted !== editor.getHTML()) {
+      if (!persisted) return;
+      const trimmed = persisted.trim();
+      // Empty doc shapes: '<p></p>', '<p><br></p>', '', '<p>  </p>'.
+      const stripped = trimmed.replace(/<[^>]+>/g, '').replace(/\s+/g, '');
+      if (stripped.length === 0) {
+        // Wipe the empty key so onUpdate doesn't keep refreshing it.
+        window.localStorage.removeItem(`kanshan-editor-doc:${accountId}`);
+        return;
+      }
+      if (trimmed !== editor.getHTML().trim()) {
         editor.commands.setContent(persisted, { emitUpdate: false });
       }
     } catch {

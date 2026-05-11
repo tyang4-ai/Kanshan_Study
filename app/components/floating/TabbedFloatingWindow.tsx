@@ -86,6 +86,12 @@ export function TabbedFloatingWindow() {
               : e.key === 'Home'       ? 0
                                        : tabs.length - 1;
             focusTab(tabs[next].id);
+            // R4 edge-case (Ren Bo) P2: focus must follow selection per APG
+            // — without this, Tab key escapes the tablist sideways.
+            const target = e.currentTarget.querySelector<HTMLElement>(
+              `[data-tab-id="${tabs[next].id}"]`,
+            );
+            target?.focus();
           }}
         >
           {tabs.map((tab) => (
@@ -136,6 +142,7 @@ function TabPill({
   return (
     <div
       role="tab"
+      data-tab-id={tab.id}
       aria-selected={active}
       tabIndex={active ? 0 : -1}
       onClick={onFocus}
