@@ -35,14 +35,16 @@ describe('scrubErrorForClient — secret family matrix (substring redaction)', (
       'X2LFAKE0000FAKE0000FAKE00000FAKE rejected', [R, 'rejected'], ['X2LFAKE']],
     ['Zhihu X2L Bearer (lowercase via /i flag)',
       'x2lfake0000fake0000fake00000fake rejected', [R, 'rejected'], ['x2lfake0000']],
-    ['raw env-name "DEEPSEEK_API_KEY"',
-      'DEEPSEEK_API_KEY is not set', [R, 'is not set'], ['DEEPSEEK_API_KEY']],
-    ['raw env-name "KIMI_API_KEY"',
-      'KIMI_API_KEY missing in env', [R, 'missing in env'], ['KIMI_API_KEY']],
-    ['raw env-name "SUPABASE_SERVICE_ROLE_KEY"',
-      'SUPABASE_SERVICE_ROLE_KEY rotated', [R, 'rotated'], ['SUPABASE_SERVICE_ROLE_KEY']],
-    ['Long base64 blob (40+ chars)',
-      'opaque blob: AbCdEfGhIjKlMnOpQrStUvWxYz1234567890ABCDef', ['opaque blob:', R], ['AbCdEfGhIjKlMnOpQrStUvWxYz1234']],
+    // R8 adversarial (Ren Bo) R8-P1d: env-name MENTIONS now pass through
+    // (operator needs the diagnostic). Only env-name ASSIGNMENTS get redacted.
+    ['env-var ASSIGNMENT "DEEPSEEK_API_KEY=sk-..."',
+      'config: DEEPSEEK_API_KEY=sk-FAKE0000FAKE0000FAKE0000FAKE0000',
+      ['config:', R],
+      ['DEEPSEEK_API_KEY=', 'sk-FAKE']],
+    ['Long base64 blob after Authorization:',
+      'Authorization: AbCdEfGhIjKlMnOpQrStUvWxYz1234567890ABCDef',
+      ['Authorization:', R],
+      ['AbCdEfGhIjKlMnOpQrStUvWxYz1234']],
   ];
 
   it.each(cases)('redacts %s', (_label, input, mustContain, mustNotContain) => {
@@ -85,6 +87,32 @@ describe('scrubErrorForClient — false-positive resistance (Jiang Hanzhi P0)', 
   it('keeps a 32-char alphanumeric run (no longer auto-redacted at 32)', () => {
     // 32 chars — under the new 40+ threshold, should pass through.
     expect(scrubErrorForClient('id=AbCdEfGhIjKlMnOpQrStUvWxYz123456')).toContain('AbCdEf');
+  });
+
+  // R8 adversarial (Ren Bo) R8-P1d false-positive resistance: bare env-name
+  // MENTIONS without an assignment pass through, so operators see real
+  // missing-env diagnostics.
+  it('keeps bare env-name mention "DEEPSEEK_API_KEY is not set"', () => {
+    const msg = 'DEEPSEEK_API_KEY is not set';
+    expect(scrubErrorForClient(msg)).toBe(msg);
+  });
+
+  it('keeps bare env-name mention "KIMI_API_KEY missing in env"', () => {
+    const msg = 'KIMI_API_KEY missing in env';
+    expect(scrubErrorForClient(msg)).toBe(msg);
+  });
+
+  it('keeps bare env-name mention "SUPABASE_SERVICE_ROLE_KEY rotated"', () => {
+    const msg = 'SUPABASE_SERVICE_ROLE_KEY rotated';
+    expect(scrubErrorForClient(msg)).toBe(msg);
+  });
+
+  // R8 adversarial (Ren Bo) R8-P1c false-positive resistance: bare 40+
+  // alphanumeric runs (TipTap doc ids, hex hashes, etc.) without a
+  // secret-shape preamble pass through.
+  it('keeps a bare 40-char doc id (no secret-shape preamble)', () => {
+    const msg = 'tiptap doc id 8f3a9d4e4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e';
+    expect(scrubErrorForClient(msg)).toContain('8f3a9d4e4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e');
   });
 });
 

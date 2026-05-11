@@ -38,12 +38,19 @@ const SECRET_PATTERNS: RegExp[] = [
   /AKIA[0-9A-Z]{16}/g,
   /eyJ[a-zA-Z0-9_-]{20,}\.eyJ[a-zA-Z0-9_-]{20,}/g,
   /X2L[A-Z0-9]{20,}/gi,
-  // Env-var-name shape: SOMETHING_KEY / SOMETHING_SECRET / SOMETHING_TOKEN
-  /\b[A-Z][A-Z0-9_]+_(API_KEY|KEY|SECRET|TOKEN|PASSWORD)\b/g,
-  // Long base64-ish blob: 40+ chars (raised from 32 so it doesn't catch
-  // medium-length normal content). Tuned to still catch full JWTs / long
-  // hex hashes / opaque tokens.
-  /[A-Za-z0-9+/=]{40,}/g,
+  // R8 adversarial (Ren Bo) R8-P1d: previous env-var pattern matched bare
+  // identifier mentions like `KIMI_API_KEY is not set`, hiding the actual
+  // missing-env diagnostic. Now require an assignment shape (`=`, `:`, or
+  // quoted-with-value) — so the env name in a 'X is not set' message reads
+  // cleanly, but `DEEPSEEK_API_KEY=sk-...` still gets the whole assignment
+  // redacted via the sk- pattern.
+  /\b[A-Z][A-Z0-9_]+_(API_KEY|KEY|SECRET|TOKEN|PASSWORD)\s*[=:]\s*\S+/g,
+  // R8 adversarial (Ren Bo) R8-P1c: 40-char alphanumeric blob false-positived
+  // on TipTap doc IDs / long hex hashes. Now require a secret-shape preamble
+  // (bearer / key / token / secret / authorization / api[_-]?key, or the
+  // assignment chars `=` / `:` directly before). Lookbehind preserves the
+  // preamble in output — only the blob itself is redacted.
+  /(?<=\b(?:bearer|key|token|secret|authorization|password|api[_-]?key)\b\s*[=:]?\s*|[=:]\s)[A-Za-z0-9+/=]{40,}/gi,
 ];
 
 const REDACTED = '[redacted]';

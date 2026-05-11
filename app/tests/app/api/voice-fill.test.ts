@@ -163,14 +163,13 @@ describe('POST /api/agents/voice-fill', () => {
     );
     const body = await readSse(res);
     expect(body).toMatch(/event: error\ndata: /);
-    // R7 production review (Jiang Hanzhi) P0: scrubber now redacts the secret
-    // substring rather than the entire message, preserving diagnostic context
-    // for the user/operator. The raw secret must NOT round-trip; `[redacted]`
-    // takes its place. (R2 generic-fallback assertion replaced by substring
-    // redaction check.)
-    expect(body).not.toMatch(/DEEPSEEK_API_KEY/);
-    expect(body).not.toMatch(/sk-[a-z0-9]/);
-    expect(body).toMatch(/\[redacted\]/);
+    // R7 production review (Jiang Hanzhi) P0: scrubber redacts the secret
+    // substring rather than the entire message. R8 P1d (Ren Bo): bare env-var
+    // NAME mentions (like 'DEEPSEEK_API_KEY is not set') now pass through so
+    // operators see real missing-env diagnostics — only secret VALUES are
+    // redacted. The hard guarantee is: no sk-shaped value, no long key blob.
+    expect(body).not.toMatch(/sk-[a-zA-Z0-9_-]{16,}/);
+    expect(body).not.toMatch(/cfat_[A-Za-z0-9]{20,}/);
     // finally: releaseConcurrent decremented even on error path
     expect(releaseConcurrent).toHaveBeenCalledWith('guest-x');
   });

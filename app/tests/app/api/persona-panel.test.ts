@@ -167,12 +167,12 @@ describe('POST /api/agents/persona-panel — rounds mode', () => {
     const errData = errEv!.data as { message: string; fallback: PersonaMessage[] };
     // R4 security (Cao Renxin): SSE error bodies are scrubbed of API-key
     // references — "DEEPSEEK_API_KEY is not set" must NOT round-trip.
-    // R7 production review (Jiang Hanzhi) P0: scrubber now redacts the secret
-    // substring rather than the entire message, so the user/operator still has
-    // diagnostic context. Assert the *match* is gone and `[redacted]` is in
-    // the message, instead of pinning the whole-message fallback.
-    expect(errData.message).not.toMatch(/DEEPSEEK_API_KEY/);
-    expect(errData.message).toContain('[redacted]');
+    // R7 production review (Jiang Hanzhi) P0 + R8 P1d (Ren Bo): scrubber
+    // redacts secret VALUES, not env-var NAMES. Bare 'DEEPSEEK_API_KEY is
+    // not set' passes through so operators see real diagnostics. Hard
+    // guarantee: no sk-shaped key value, no cfat_ token, no long blob.
+    expect(errData.message).not.toMatch(/sk-[a-zA-Z0-9_-]{16,}/);
+    expect(errData.message).not.toMatch(/cfat_[A-Za-z0-9]{20,}/);
     expect(Array.isArray(errData.fallback)).toBe(true);
     expect(errData.fallback.length).toBeGreaterThan(0);
     const last = events[events.length - 1];
