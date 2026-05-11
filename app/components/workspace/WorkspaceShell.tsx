@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { LeftRail } from '@/components/rail/LeftRail';
 import { LoreEnvelope } from '@/components/rail/LoreEnvelope';
 import { WritingSurface } from '@/components/editor/WritingSurface';
@@ -26,6 +26,16 @@ export function WorkspaceShell() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect } | null>(null);
   const [loreOpen, setLoreOpen] = useState(false);
+
+  // R8 demo coherence (Lin Maohua + Shi Junhe) P0: NextBeatHint's "open-lore"
+  // action dispatches a `kanshan:open-lore` window event; listen and open the
+  // portal so the 2:50 demo beat actually pops the aurora scene on-screen
+  // instead of requiring the founder to click LoreEnvelope manually.
+  useEffect(() => {
+    const onOpenLore = (): void => setLoreOpen(true);
+    window.addEventListener('kanshan:open-lore', onOpenLore);
+    return () => window.removeEventListener('kanshan:open-lore', onOpenLore);
+  }, []);
 
   // The TipTap editor occasionally emits a null selection while a right-click
   // is in flight (e.g. browsers that move focus before contextmenu fires).

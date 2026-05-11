@@ -6,43 +6,50 @@
       "tStart": 0,
       "tLabel": "0:00",
       "title": "冷开场 · me",
-      "body": "工作台进入；左轨档案库展开；编辑器加载。"
+      "body": "工作台进入；左轨档案库展开；编辑器加载。",
+      "action": "cold-open"
     },
     {
       "tStart": 30,
       "tLabel": "0:30",
       "title": "切换 · 顾婉昔",
-      "body": "TitleBar 头像切换到 顾婉昔。档案库 + 语风指纹同步刷新。"
+      "body": "TitleBar 头像切换到 顾婉昔。档案库 + 语风指纹同步刷新。",
+      "action": "switch-account-guwanxi"
     },
     {
       "tStart": 60,
       "tLabel": "1:00",
       "title": "看墨 · 语风重写",
-      "body": "选中段落 → 看墨 voice-diff，泛用版 vs 看墨版 并排。"
+      "body": "选中段落 → 看墨 voice-diff，泛用版 vs 看墨版 并排。",
+      "action": "open-voice-diff"
     },
     {
       "tStart": 90,
       "tLabel": "1:30",
       "title": "看文 · 4 视角点评",
-      "body": "右键 → 看文。路人 / 行家 / 社畜 / 边界 同时点评，多轮对话。"
+      "body": "右键 → 看文。路人 / 行家 / 社畜 / 边界 同时点评，多轮对话。",
+      "action": "open-persona"
     },
     {
       "tStart": 120,
       "tLabel": "2:00",
       "title": "看纹 · 自定义读者",
-      "body": "新建 看纹 mask「刚毕业的肿瘤科 PhD」→ 三轮对话。"
+      "body": "新建 看纹 mask「刚毕业的肿瘤科 PhD」→ 三轮对话。",
+      "action": "open-custom-mask"
     },
     {
       "tStart": 150,
       "tLabel": "2:30",
       "title": "辩论 · 看文 vs 看纹",
-      "body": "看文 正方 vs 看纹 反方，6 轮 typewriter，看心 监听。"
+      "body": "看文 正方 vs 看纹 反方，6 轮 typewriter，看心 监听。",
+      "action": "open-debate"
     },
     {
       "tStart": 170,
       "tLabel": "2:50",
       "title": "回到 me · 北极小镇",
-      "body": "切回 me；点 LoreEnvelope；快速浏览 9 户 + 告示牌。"
+      "body": "切回 me；点 LoreEnvelope；快速浏览 9 户 + 告示牌。",
+      "action": "open-lore"
     }
   ]
 }

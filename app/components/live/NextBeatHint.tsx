@@ -2,12 +2,83 @@
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import script from '@/content/demo/script.json';
+import { useFloatingWindowStore } from '@/lib/store/floating-window';
+import { useAccountStore } from '@/lib/store/account';
 
 interface Beat {
   tStart: number;
   tLabel: string;
   title: string;
   body: string;
+  action?: BeatAction;
+}
+
+type BeatAction =
+  | 'cold-open'
+  | 'switch-account-guwanxi'
+  | 'open-voice-diff'
+  | 'open-persona'
+  | 'open-custom-mask'
+  | 'open-debate'
+  | 'open-lore';
+
+// R8 demo coherence (Lin Maohua + Shi Junhe + Tan Shulin) P0: beats 1-5
+// of the teleprompter narrated actions that didn't actually happen on
+// screen — the founder had to drive them manually. A judge watching the
+// chip read 「看墨语风重写」 while staring at an unchanged editor would
+// register "demo is fake" within 30s. Now `next →` dispatches the action
+// named in script.json so every beat advance produces visible motion.
+function runBeatAction(action: BeatAction | undefined): void {
+  if (!action || typeof window === 'undefined') return;
+  const floating = useFloatingWindowStore.getState();
+  const account = useAccountStore.getState();
+  switch (action) {
+    case 'cold-open':
+      // Initial state — no action.
+      return;
+    case 'switch-account-guwanxi':
+      if (account.active !== 'guwanxi') {
+        // ProfileChip.onClick is the canonical path (handles per-account
+        // doc restore + toast). Click it programmatically so the side
+        // effects fire in their proper order without us duplicating logic.
+        const chip = document.querySelector<HTMLButtonElement>('[data-tour-id="profile-chip"]');
+        chip?.click();
+      }
+      return;
+    case 'open-voice-diff': {
+      // Synthesize a stable selection payload anchored to the editor body
+      // so voice-diff has a target without requiring real cursor state.
+      const synth = synthesizeSelection();
+      floating.openTab('voice-diff', '看墨 · 润色', { mode: 'polish', selection: synth });
+      return;
+    }
+    case 'open-persona':
+      floating.openTab('persona', '看文 · 读者反应', { mode: 'auto' });
+      return;
+    case 'open-custom-mask':
+      // Custom-mask creation lives inside the persona panel; pass a `mode`
+      // hint the panel can read to scroll to the CustomMaskForm.
+      floating.openTab('persona', '看纹 · 自定义读者', { mode: 'pick' });
+      return;
+    case 'open-debate':
+      floating.openTab('debate', '看文 · 看纹辩论', {});
+      return;
+    case 'open-lore':
+      if (account.active !== 'me') {
+        const chip = document.querySelector<HTMLButtonElement>('[data-tour-id="profile-chip"]');
+        chip?.click();
+      }
+      window.dispatchEvent(new CustomEvent('kanshan:open-lore'));
+      return;
+  }
+}
+
+function synthesizeSelection(): { text: string; rect: DOMRect } {
+  const editor = document.querySelector('[data-testid="tiptap-editor"]');
+  const firstPara = editor?.querySelector('p');
+  const rect = firstPara?.getBoundingClientRect() ?? new DOMRect(360, 200, 600, 24);
+  const text = (firstPara?.textContent ?? '影像组学领域正在悄然转向').slice(0, 200);
+  return { text, rect };
 }
 
 interface DemoScript {
@@ -100,7 +171,16 @@ export function NextBeatHint({ initialIdx = 0, autoAdvance = false }: NextBeatHi
   const last = SCRIPT.beats.length - 1;
   const beat = SCRIPT.beats[idx];
 
-  const advance = useCallback(() => setIdx((i) => Math.min(last, i + 1)), [last]);
+  // R8: advancing the teleprompter ALSO fires the beat's action so the
+  // workspace visibly moves with the narration. retreat does NOT replay
+  // actions in reverse — we just move the chip back.
+  const advance = useCallback(() => {
+    setIdx((i) => {
+      const nextIdx = Math.min(last, i + 1);
+      if (nextIdx !== i) runBeatAction(SCRIPT.beats[nextIdx]?.action);
+      return nextIdx;
+    });
+  }, [last]);
   const retreat = useCallback(() => setIdx((i) => Math.max(0, i - 1)), []);
 
   useEffect(() => {
