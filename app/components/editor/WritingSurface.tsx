@@ -93,6 +93,34 @@ export function WritingSurface({
         {TABS.map((t) => (
           <Tab key={t.filename} filename={t.filename} active={t.active} dirty={t.dirty} />
         ))}
+        {/* Demo-flow + presentation persona-review 2026-05-11 R2 P0: the
+            locked tagline 「灵感激发 · 思路梳理 · 内容精加工」 was previously
+            only inside the orphan <TitleBar /> component (never mounted).
+            Anchored here in the tab strip where chrome already lives. */}
+        <div
+          data-testid="titlebar-tagline"
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 8,
+            marginLeft: 12,
+            paddingLeft: 12,
+            borderLeft: '1px solid rgba(122,102,85,0.22)',
+            fontFamily: '"Noto Serif SC", serif',
+            color: 'rgba(58,54,51,0.78)',
+            fontSize: 12,
+            letterSpacing: 1.5,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            flexShrink: 1,
+            minWidth: 0,
+          }}
+        >
+          <span style={{ fontWeight: 600, color: '#3A3633' }}>看山书房</span>
+          <span aria-hidden style={{ opacity: 0.5 }}>·</span>
+          <span>灵感激发 · 思路梳理 · 内容精加工</span>
+        </div>
         <div style={{ flex: 1, minWidth: 16 }} />
         <div style={autosaveStyle}>
           <span
