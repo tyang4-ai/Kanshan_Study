@@ -6,6 +6,7 @@ import { WritingSurface } from '@/components/editor/WritingSurface';
 import { ContextMenu } from '@/components/menu/ContextMenu';
 import { TabbedFloatingWindow } from '@/components/floating/TabbedFloatingWindow';
 import { LorePortal } from '@/components/lore/LorePortal';
+import type { FoxId } from '@/lib/foxes/registry';
 import { AiFailureToast } from '@/components/chrome/AiFailureToast';
 import { AuthErrorToast } from '@/components/chrome/AuthErrorToast';
 import { DailyFoxPulse } from '@/components/onboarding/DailyFoxPulse';
@@ -16,15 +17,23 @@ import {
 } from '@/components/floating/TrendsConfirmModal';
 import { useTrendsGateStore } from '@/lib/store/trends-gate';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
+import { WORKSPACE_BG_URL } from '@/lib/art/workspace-bg';
 
 const ZERO_RECT: DOMRect = {
   x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0,
   toJSON: () => ({}),
 } as DOMRect;
 
+interface WorkspaceShellProps {
+  /** Pre-resolved painted-hut image map (server-side via `getLoreAssets`). Optional; missing entries fall back to procedural SVG. */
+  loreHutImages?: Partial<Record<FoxId, string>>;
+  /** Pre-resolved lore-portal background image URL (server-side via `getLoreAssets`). */
+  loreBgImage?: string | null;
+}
+
 // Shared workspace shell. `/` (clickthrough) and `/live` (finals) both mount
 // this; the wrapping providers / overlays differ per route.
-export function WorkspaceShell() {
+export function WorkspaceShell({ loreHutImages, loreBgImage }: WorkspaceShellProps = {}) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect } | null>(null);
   const [loreOpen, setLoreOpen] = useState(false);
@@ -89,7 +98,29 @@ export function WorkspaceShell() {
   };
 
   return (
-    <div className="flex h-screen w-screen flex-col" style={{ background: '#2A2724' }}>
+    <div className="flex h-screen w-screen flex-col" style={{ background: '#2A2724', position: 'relative' }}>
+      {WORKSPACE_BG_URL && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={WORKSPACE_BG_URL}
+            alt=""
+            aria-hidden
+            data-testid="workspace-bg-image"
+            style={{
+              position: 'fixed', inset: 0, width: '100vw', height: '100vh',
+              objectFit: 'cover', zIndex: 0,
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1,
+              background: 'rgba(26, 31, 42, 0.65)',
+            }}
+          />
+        </>
+      )}
       {/* R2 a11y P0 (Yang Zhihua): skip-link so keyboard users don't have to
           tab through 15+ topbar buttons before reaching the editor. Visually
           hidden until focused. */}
@@ -112,7 +143,7 @@ export function WorkspaceShell() {
       <main
         id="main-workspace"
         className="flex min-h-0 flex-1"
-        style={{ background: '#FAF8F3' }}
+        style={{ background: '#FAF8F3', position: 'relative', zIndex: 2 }}
         onMouseDownCapture={onEditorMouseDownCapture}
         aria-label="看山书房工作台"
       >
@@ -139,7 +170,13 @@ export function WorkspaceShell() {
         />
       )}
 
-      {loreOpen && <LorePortal onClose={() => setLoreOpen(false)} />}
+      {loreOpen && (
+        <LorePortal
+          onClose={() => setLoreOpen(false)}
+          hutImages={loreHutImages}
+          bgImage={loreBgImage}
+        />
+      )}
 
       <TabbedFloatingWindow />
 

@@ -543,6 +543,7 @@ export function KanshanChatTab() {
         <button
           data-testid="kanshan-chat-send"
           type="button"
+          className="kanshan-focus-ring kanshan-btn-press"
           onClick={() => void send()}
           disabled={streaming || !draft.trim()}
           style={{

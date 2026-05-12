@@ -7,6 +7,7 @@ import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
 import { useDemoMode } from '@/lib/demo-mode/context';
 import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
 import { useAiErrorStore } from '@/lib/store/ai-error';
+import { ACCOUNT_AVATAR_URLS } from '@/lib/art/account-avatars';
 
 export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings' | 'persona' | 'debate';
 
@@ -72,6 +73,7 @@ export function TitleBar() {
         <ToolbarIcon kind="vault" onClick={onOpenVault} title="看典 · 档案库"/>
         <ToolbarIcon kind="trends" onClick={onOpenTrends} title="看势 · 热榜雷达"/>
         <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button" title="看山书房 · 设置"/>
+        <ManualLink />
         <BudgetChip />
         <ProfileChip />
         <ZhihuBadge />
@@ -82,6 +84,31 @@ export function TitleBar() {
 
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+export function ManualLink() {
+  return (
+    <a
+      href="/manual"
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid="manual-link"
+      aria-label="使用手册 (新窗口打开)"
+      title="使用手册"
+      style={{
+        color: 'rgba(168,155,126,0.85)',
+        fontSize: 11,
+        letterSpacing: 1.5,
+        textDecoration: 'none',
+        fontFamily: '"Noto Serif SC", serif',
+        padding: '2px 6px',
+        borderRadius: 2,
+        border: '1px solid rgba(168,155,126,0.3)',
+      }}
+    >
+      帮助
+    </a>
+  );
 }
 
 export function ZhihuBadge() {
@@ -296,6 +323,7 @@ export function ProfileChip() {
   const demoMode = useDemoMode();
   const label = active === 'guwanxi' ? '顾婉昔' : '我';
   const initial = active === 'guwanxi' ? '顾' : '我';
+  const avatarUrl = ACCOUNT_AVATAR_URLS[active];
   const onClick = async () => {
     const target = active === 'guwanxi' ? 'me' : 'guwanxi';
     const targetLabel = target === 'guwanxi' ? '顾婉昔 (演示账号)' : '我的账号';
@@ -368,6 +396,20 @@ export function ProfileChip() {
       }}
       title={`切换到 ${active === 'guwanxi' ? '我的账号' : '顾婉昔 (演示)'}`}
     >
+      {avatarUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt=""
+          data-testid="profile-avatar"
+          width={24}
+          height={24}
+          style={{
+            width: 24, height: 24, borderRadius: 12,
+            objectFit: 'cover', display: 'block',
+          }}
+        />
+      )}
       <span style={{
         width: 18, height: 18, borderRadius: 9,
         background: 'rgba(232,179,51,0.4)',

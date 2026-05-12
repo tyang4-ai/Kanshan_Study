@@ -579,6 +579,7 @@ function DebateRolePickers({
         type="button"
         data-testid="debate-swap-button"
         aria-label="互换正反方"
+        className="kanshan-focus-ring kanshan-btn-press"
         onClick={onSwap}
         style={{
           flexShrink: 0,

@@ -214,6 +214,30 @@
     font-style: italic;
   }
 
+  /* Phase #16 Track 9 — amber focus ring for keyboard-driven users. Applied
+     alongside inline-styled mockup buttons that can't switch to Tailwind
+     classes without breaking visual fidelity. Pure CSS so it wins over the
+     element's inline `outline: none`-implied default. */
+  .kanshan-focus-ring:focus-visible {
+    outline: 2px solid rgba(252, 211, 77, 0.5); /* amber-300 / 50 */
+    outline-offset: 2px;
+  }
+
+  /* Phase #16 Track 9 — primary-button micro-interaction. CSS-only (no Framer
+     Motion) so it costs nothing per consumer. 50ms transition matches the
+     "tap" feel the demo script's 0:30 + 1:00 beats need (must register without
+     hiding the action). Disabled buttons opt out so the disabled-opacity state
+     isn't fighting a transform. */
+  .kanshan-btn-press {
+    transition: transform 50ms ease-out, box-shadow 50ms ease-out, background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+  }
+  .kanshan-btn-press:hover:not(:disabled) {
+    transform: scale(1.04);
+  }
+  .kanshan-btn-press:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
   /* Vault entry snippet — bumps font-size on hover for projector legibility
      (persona-review 2026-05-10 林青 polish note: 14px Songti at 3-sec pace). */
   .vault-entry-snippet {

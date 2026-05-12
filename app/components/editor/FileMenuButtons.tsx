@@ -182,6 +182,7 @@ export function FileMenuButtons() {
         data-testid="file-menu-import"
         onClick={openPicker}
         style={chipStyle}
+        className="kanshan-focus-ring kanshan-btn-press"
         title="从磁盘导入 .md / .txt / .docx"
       >
         导入
@@ -192,6 +193,7 @@ export function FileMenuButtons() {
         data-testid="file-menu-export"
         onClick={openExportMenu}
         style={chipStyle}
+        className="kanshan-focus-ring kanshan-btn-press"
         title="导出当前稿件"
       >
         导出 ▾

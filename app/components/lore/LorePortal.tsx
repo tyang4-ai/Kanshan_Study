@@ -1,4 +1,12 @@
 'use client';
+// Asset-resolution choice (Phase #16 Track 3, 2026-05-11):
+// LorePortal is a Client Component (owns hooks). The asset-resolver imports
+// `node:fs`, so it cannot be called inline here. Resolution path = Option A
+// (server parent → prop-drill): `app/page.tsx` (Server Component) calls
+// `getLoreAssets()` from `./loreAssets.server.ts` and passes the map down via
+// `WorkspaceShell` → `<LorePortal hutImages bgImage />`. Routes that don't
+// pre-resolve (e.g. `/live` is `'use client'`) get `undefined`, and the
+// procedural SVG + CSS-gradient fallback path keeps rendering as before.
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Aurora } from './Aurora';
@@ -17,6 +25,10 @@ const VILLAGE = villageData as VillageEntry[];
 
 interface LorePortalProps {
   onClose: () => void;
+  /** Per-fox painted hut images, pre-resolved server-side. Missing entries fall back to the procedural SVG silhouette. */
+  hutImages?: Partial<Record<FoxId, string>>;
+  /** Painted background image URL, pre-resolved server-side. When absent, the existing CSS gradient + aurora stack renders alone. */
+  bgImage?: string | null;
 }
 
 type Phase = 'arriving' | 'here' | 'leaving';
@@ -32,7 +44,7 @@ const HOUSE_OFFSETS = [0, 6, 14, 4, 8, 4, 14, 6, 0];
 const SKY_GRADIENT =
   'linear-gradient(180deg, #0A1226 0%, #0C1730 30%, #0E1B2C 70%, #14253D 100%)';
 
-export function LorePortal({ onClose }: LorePortalProps) {
+export function LorePortal({ onClose, hutImages, bgImage }: LorePortalProps) {
   const [phase, setPhase] = useState<Phase>('arriving');
   const [hoveredFox, setHoveredFoxState] = useState<FoxId | null>(null);
   const [pinnedFox, setPinnedFox] = useState<FoxId | null>(null);
@@ -144,6 +156,30 @@ export function LorePortal({ onClose }: LorePortalProps) {
         if (e.target === e.currentTarget && pinnedFox) setPinnedFox(null);
       }}
     >
+      {/* Layer 0: painted background image (when available) — sits at the bottom
+          of the z-stack so the existing gradient / aurora / snow / village
+          layers continue to paint on top of it. */}
+      {bgImage && (
+        // Decorative full-bleed cover image; next/image overhead isn't warranted
+        // for a once-per-portal-open background that's already pre-resolved.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          data-testid="lore-portal-bg-image"
+          src={bgImage}
+          alt=""
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* Layer 1: stars (top 60% of sky) — count reduced from 80→40 for stream perf */}
       <Stars count={40} />
 
@@ -226,6 +262,7 @@ export function LorePortal({ onClose }: LorePortalProps) {
                   pinned={pinnedFox === entry.foxId}
                   onHover={setHoveredFox}
                   onClick={() => togglePin(entry.foxId)}
+                  imageSrc={hutImages?.[entry.foxId]}
                 />
               </div>
             ))}

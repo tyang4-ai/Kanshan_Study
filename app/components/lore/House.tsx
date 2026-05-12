@@ -31,6 +31,13 @@ interface HouseProps {
   pinned?: boolean;
   onHover: (id: FoxId | null) => void;
   onClick: () => void;
+  /**
+   * When set, render an SVG <image> in place of the procedural shape primitives.
+   * Decorative overlays (smoke, window glow) stay on top. Falls back to the
+   * procedural silhouette when null/undefined. Resolution happens server-side
+   * via `pickAssetUrl` in LoreAssets; this component is purely presentational.
+   */
+  imageSrc?: string;
 }
 
 const ROOF = '#0A1428';
@@ -290,10 +297,11 @@ function renderSilhouette(kind: SilhouetteKind, w: number, h: number): RenderedS
   }
 }
 
-export function House({ entry, hovered, pinned = false, onHover, onClick }: HouseProps) {
+export function House({ entry, hovered, pinned = false, onHover, onClick, imageSrc }: HouseProps) {
   const fox: FoxMeta = getFox(entry.foxId);
   const { paths, windowRect, chimney } = renderSilhouette(entry.silhouette, entry.width, entry.height);
   const gradId = `house-${entry.foxId}-glow`;
+  const usePainted = Boolean(imageSrc);
 
   const wrap: CSSProperties = {
     position: 'relative',
@@ -375,7 +383,19 @@ export function House({ entry, hovered, pinned = false, onHover, onClick }: Hous
             <stop offset="100%" stopColor={fox.glowSoft} stopOpacity={0} />
           </radialGradient>
         </defs>
-        {paths}
+        {usePainted ? (
+          <image
+            data-testid={`hut-image-${entry.foxId}`}
+            href={imageSrc}
+            x={0}
+            y={0}
+            width={entry.width}
+            height={entry.height}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        ) : (
+          <g data-testid={`hut-svg-${entry.foxId}`}>{paths}</g>
+        )}
         <Win
           shape={windowRect.shape}
           x={windowRect.x}

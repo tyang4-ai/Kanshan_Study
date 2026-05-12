@@ -223,6 +223,7 @@ export function VaultEntry({ entry, onOpen, onExportMd, onExportDocx, onDelete }
           <button
             type="button"
             data-testid={`vault-entry-open-${entry.id}`}
+            className="kanshan-focus-ring kanshan-btn-press"
             onClick={(e) => {
               e.stopPropagation();
               onOpen(entry);
@@ -244,6 +245,7 @@ export function VaultEntry({ entry, onOpen, onExportMd, onExportDocx, onDelete }
           <button
             type="button"
             data-testid={`vault-entry-export-md-${entry.id}`}
+            className="kanshan-focus-ring kanshan-btn-press"
             onClick={(e) => {
               e.stopPropagation();
               onExportMd(entry);
@@ -265,6 +267,7 @@ export function VaultEntry({ entry, onOpen, onExportMd, onExportDocx, onDelete }
           <button
             type="button"
             data-testid={`vault-entry-export-docx-${entry.id}`}
+            className="kanshan-focus-ring kanshan-btn-press"
             onClick={(e) => {
               e.stopPropagation();
               onExportDocx(entry);
@@ -286,6 +289,7 @@ export function VaultEntry({ entry, onOpen, onExportMd, onExportDocx, onDelete }
           <button
             type="button"
             data-testid={`vault-entry-delete-${entry.id}`}
+            className="kanshan-focus-ring kanshan-btn-press"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(entry);

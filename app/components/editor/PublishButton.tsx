@@ -131,6 +131,7 @@ export function PublishButton() {
         aria-label="发布到知乎 黑客松脑洞补给站"
         onClick={() => setOpen((v) => !v)}
         style={buttonStyle}
+        className="kanshan-focus-ring kanshan-btn-press"
         onMouseDown={(e) => e.preventDefault()}
       >
         发布到知乎 →
@@ -352,6 +353,7 @@ export function PublishButton() {
               data-testid="publish-to-zhihu-confirm"
               onClick={() => void submit()}
               disabled={submitting}
+              className="kanshan-focus-ring kanshan-btn-press"
               style={{
                 padding: '6px 14px',
                 fontSize: 11,

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAccountStore } from '@/lib/store/account';
 import { useVaultConsentStore } from '@/lib/store/vault-consent';
 import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
+import { ONBOARDING_BG_URL } from '@/lib/art/onboarding-bg';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
@@ -68,6 +69,29 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
   }, [step, sessionFullname, pendingRecord]);
 
   if (hidden) return null;
+
+  const bgLayer = ONBOARDING_BG_URL ? (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={ONBOARDING_BG_URL}
+        alt=""
+        aria-hidden
+        data-testid="onboarding-bg-image"
+        style={{
+          position: 'fixed', inset: 0, width: '100vw', height: '100vh',
+          objectFit: 'cover', zIndex: 0,
+        }}
+      />
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed', inset: 0, zIndex: 1,
+          background: 'rgba(26, 31, 42, 0.55)',
+        }}
+      />
+    </>
+  ) : null;
 
   const finalizeRecord = (record: OnboardingRecord) => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
@@ -406,6 +430,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
         role="dialog"
         aria-modal="true"
       >
+        {bgLayer}
         <div
           data-testid="onboarding-zhihu-login-step"
           style={{ ...card, maxWidth: 620 }}
@@ -457,6 +482,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
         role="dialog"
         aria-modal="true"
       >
+        {bgLayer}
         <div
           data-testid="onboarding-vault-consent"
           style={{ ...card, maxWidth: 620 }}
@@ -510,6 +536,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
       role="dialog"
       aria-modal="true"
     >
+      {bgLayer}
       <div style={card} onClick={(e) => e.stopPropagation()}>
         <div style={titleRow}>
           <div style={titleText}>欢迎来到 看山书房</div>
