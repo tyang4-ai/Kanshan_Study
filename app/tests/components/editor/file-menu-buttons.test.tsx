@@ -27,11 +27,18 @@ function makeFakeEditor(html: string): FakeEditor {
 describe('FileMenuButtons', () => {
   beforeEach(() => {
     useEditorTabsStore.setState({
-      tabs: [
-        { filename: '影像组学与基因组学.md', active: true, dirty: true },
-        { filename: 'research-notes.md', active: false, dirty: false },
-        { filename: 'readme.md', active: false, dirty: false },
-      ],
+      docs: {
+        'tab-1': {
+          id: 'tab-1',
+          filename: '影像组学与基因组学.md',
+          htmlContent: '<p>seed</p>',
+          lastSavedAt: Date.now(),
+          dirty: true,
+          source: 'local',
+        },
+      },
+      activeId: 'tab-1',
+      hydratedFor: 'me',
     });
     useAiErrorStore.setState({ current: null });
   });
@@ -73,7 +80,8 @@ describe('FileMenuButtons', () => {
     });
     expect(queryByTestId('file-menu-dirty-confirm')).toBeNull();
     // Tab filename updated
-    const active = useEditorTabsStore.getState().tabs.find((t) => t.active);
+    const state = useEditorTabsStore.getState();
+    const active = state.activeId ? state.docs[state.activeId] : null;
     expect(active?.filename).toBe('new.md');
   });
 

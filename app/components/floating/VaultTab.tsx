@@ -7,6 +7,7 @@ import meSeed from '@/content/seed/vault-me.json';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { importFile, sniffFormat } from '@/lib/io/importers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
+import { LocalFilesSection } from '@/components/floating/LocalFilesSection';
 
 const VAULT_FILTERS: { id: string; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -463,6 +464,11 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
           ))}
         </div>
       </div>
+
+      {/* 2026-05-11 phase #15.7: Local-files browser inserted above the year-
+          grouped vault-API catalog. Answers "where are my files" for tabs
+          living in localStorage + (Chromium) the optionally-bound FSA folder. */}
+      <LocalFilesSection />
 
       {/* Catalog body */}
       <div

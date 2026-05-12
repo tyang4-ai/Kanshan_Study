@@ -16,6 +16,8 @@ import { CitationMark } from '@/lib/citation/extension';
 import { Markdown } from 'tiptap-markdown';
 import { useEditorStore } from '@/lib/store/editor';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
+import { useEditorTabsStore } from '@/lib/store/editor-tabs';
+import { useAccountStore } from '@/lib/store/account';
 import { buildCitationOnClick } from '@/lib/citation/click-router';
 import type { Citation } from '@/lib/citation/types';
 import type { MarginSealSeed } from './margin-seal-from-seeds';
@@ -30,7 +32,11 @@ export interface SelectionPayload {
 }
 
 interface TipTapEditorProps {
-  content: string;
+  /** Optional initial seed content. When omitted, the editor mounts empty
+   *  and the editor-tabs store fills it via the active-doc sync effect on
+   *  the next tick. Kept for tests that mount a bare editor without a tab
+   *  store hydrate cycle. */
+  content?: string;
   marginSeeds?: MarginSealSeed[];
   onSelectionChange?: (sel: SelectionPayload | null) => void;
   style?: CSSProperties;
@@ -73,15 +79,29 @@ export function handleCitationSupClick(
 }
 
 export function TipTapEditor({
-  content,
+  content = '<p></p>',
   marginSeeds = [],
   onSelectionChange,
   style,
 }: TipTapEditorProps) {
   const setEditor = useEditorStore((s) => s.setEditor);
+  const account = useAccountStore((s) => s.active);
+  const hydrate = useEditorTabsStore((s) => s.hydrate);
+  const activeId = useEditorTabsStore((s) => s.activeId);
+  const activeDoc = useEditorTabsStore((s) => (s.activeId ? s.docs[s.activeId] ?? null : null));
+  const setTabContent = useEditorTabsStore((s) => s.setContent);
+  const setTabDirty = useEditorTabsStore((s) => s.setDirty);
   // R4 edge-case (Ren Bo) P2: one-shot guard so the persistence-failed
   // toast doesn't fire on every keystroke after quota is hit.
   const persistFailedRef = useRef(false);
+  // Tracks the last activeId we synced into the editor, so a true tab
+  // switch swaps content but a content-change-of-same-tab doesn't.
+  const lastSyncedIdRef = useRef<string | null>(null);
+
+  // Hydrate the tab store for the current account on mount + on account swap.
+  useEffect(() => {
+    hydrate(account);
+  }, [account, hydrate]);
 
   const editor = useEditor({
     extensions: [
@@ -115,33 +135,24 @@ export function TipTapEditor({
     content,
     immediatelyRender: false,
     onUpdate({ editor: e }) {
-      // Casual user persona-review R3 (Pan Xiaolin): edits didn't survive a
-      // page reload — the editor remounted from the seed `content` prop.
-      // Persist on every change to localStorage; the next mount reads it
-      // back in the effect below. Per-account so 顾婉昔 ↔ me don't bleed.
-      if (typeof window === 'undefined') return;
+      // Push the new HTML into the active tab in the editor-tabs store.
+      // The store handles per-account localStorage persistence + lastSavedAt
+      // stamping, so the AutosaveIndicator can show a real timestamp.
+      // R4 edge-case (Ren Bo) P2: persistence-failed toast fires at most once.
+      const id = useEditorTabsStore.getState().activeId;
+      if (!id) return;
       try {
-        // R4 code-quality (Hu Wei) P0: single regex exec per keystroke.
-        const accountRaw = window.localStorage.getItem('kanshan-account');
-        const m = accountRaw ? /"active":"(\w+)"/.exec(accountRaw) : null;
-        const accountId = m?.[1] ?? 'me';
-        window.localStorage.setItem(`kanshan-editor-doc:${accountId}`, e.getHTML());
+        setTabContent(id, e.getHTML());
+        setTabDirty(id, false);
       } catch (err) {
-        // R4 edge-case (Ren Bo) P2: notify the user once if persistence
-        // breaks (quota exceeded / private mode). The in-memory editor
-        // state keeps working — the user just loses the reload-survives
-        // guarantee, and we should be honest about it.
         if (!persistFailedRef.current && err instanceof Error) {
           persistFailedRef.current = true;
-          if (typeof window !== 'undefined') {
-            const msg = /quota|private/i.test(err.message)
-              ? '本地存储已满，本次编辑不再自动保存。请清出空间或导出文稿。'
-              : '本地存储写入失败，本次编辑不再自动保存。';
-            // Lazy import to avoid SSR + a hard dep cycle.
-            void import('@/lib/store/ai-error').then((m) => {
-              m.useAiErrorStore.getState().push({ message: msg });
-            }).catch(() => { /* surfacing is best-effort */ });
-          }
+          const msg = /quota|private/i.test(err.message)
+            ? '本地存储已满，本次编辑不再自动保存。请清出空间或导出文稿。'
+            : '本地存储写入失败，本次编辑不再自动保存。';
+          void import('@/lib/store/ai-error').then((m) => {
+            m.useAiErrorStore.getState().push({ message: msg });
+          }).catch(() => { /* surfacing is best-effort */ });
         }
       }
     },
@@ -187,37 +198,20 @@ export function TipTapEditor({
     return () => setEditor(null);
   }, [editor, setEditor]);
 
-  // Restore persisted doc on mount (per-account). Mirror of the onUpdate
-  // writer above. Runs after the initial seed-content render so that an
-  // empty localStorage falls back to the seed cleanly.
+  // Sync editor content with the active tab.
   //
-  // R4 demo-flow persona (Mai Xinhua) P0: if persisted doc is empty/just-a-
-  // placeholder/whitespace, fall through to the seed instead of shadowing
-  // it. Without this guard a Ctrl+A → Delete during rehearsal permanently
-  // wipes the rehearsed copy.
+  // Fires on (a) initial mount once the active doc lands, and (b) every
+  // subsequent tab switch. Within a single tab, onUpdate is the writer and
+  // this effect is a no-op (lastSyncedIdRef gates re-application).
   useEffect(() => {
-    if (!editor || typeof window === 'undefined') return;
-    try {
-      const accountRaw = window.localStorage.getItem('kanshan-account');
-      const accountId =
-        (accountRaw && /"active":"(\w+)"/.exec(accountRaw)?.[1]) || 'me';
-      const persisted = window.localStorage.getItem(`kanshan-editor-doc:${accountId}`);
-      if (!persisted) return;
-      const trimmed = persisted.trim();
-      // Empty doc shapes: '<p></p>', '<p><br></p>', '', '<p>  </p>'.
-      const stripped = trimmed.replace(/<[^>]+>/g, '').replace(/\s+/g, '');
-      if (stripped.length === 0) {
-        // Wipe the empty key so onUpdate doesn't keep refreshing it.
-        window.localStorage.removeItem(`kanshan-editor-doc:${accountId}`);
-        return;
-      }
-      if (trimmed !== editor.getHTML().trim()) {
-        editor.commands.setContent(persisted, { emitUpdate: false });
-      }
-    } catch {
-      // ignore
+    if (!editor || !activeDoc || !activeId) return;
+    if (lastSyncedIdRef.current === activeId) return;
+    lastSyncedIdRef.current = activeId;
+    const incoming = activeDoc.htmlContent ?? '<p></p>';
+    if (incoming.trim() !== editor.getHTML().trim()) {
+      editor.commands.setContent(incoming, { emitUpdate: false });
     }
-  }, [editor]);
+  }, [editor, activeId, activeDoc]);
 
   // Defense-in-depth: ProseMirror's `handleClickOn` runs only when the click
   // hits a node-with-content; clicks that land on a mark-only sup may slip

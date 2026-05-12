@@ -1,15 +1,18 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 
 export type TabProps = {
   filename: string;
   active: boolean;
   dirty: boolean;
   onClick?: () => void;
+  /** Fired when the user clicks the × button. Stops propagation so the tab
+   *  isn't also activated by the same click. */
+  onClose?: () => void;
 };
 
-export function Tab({ filename, active, dirty, onClick }: TabProps) {
+export function Tab({ filename, active, dirty, onClick, onClose }: TabProps) {
   const outerStyle: CSSProperties = {
     display: 'flex',
     alignItems: 'center',
@@ -39,6 +42,25 @@ export function Tab({ filename, active, dirty, onClick }: TabProps) {
     background: dirty ? '#1772F6' : 'transparent',
   };
 
+  const closeBtnStyle: CSSProperties = {
+    marginLeft: 6,
+    opacity: 0.5,
+    fontSize: 14,
+    lineHeight: 1,
+    cursor: 'pointer',
+    background: 'transparent',
+    border: 'none',
+    color: 'inherit',
+    padding: '0 2px',
+    borderRadius: 2,
+  };
+
+  const handleClose = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onClose?.();
+  };
+
   return (
     <div
       data-testid="tab"
@@ -48,7 +70,17 @@ export function Tab({ filename, active, dirty, onClick }: TabProps) {
     >
       <span data-testid="tab-dirty-dot" style={dotStyle} />
       {filename}
-      <span style={{ marginLeft: 6, opacity: 0.5, fontSize: 14, lineHeight: 1 }}>×</span>
+      <button
+        type="button"
+        data-testid="tab-close"
+        aria-label="关闭"
+        onClick={handleClose}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.5'; }}
+        style={closeBtnStyle}
+      >
+        ×
+      </button>
     </div>
   );
 }

@@ -13,6 +13,7 @@ node_modules/
 app/.next/
 app/out/
 app/.vercel/
+.vercel/
 app/next-env.d.ts
 
 # Build artifacts

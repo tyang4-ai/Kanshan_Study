@@ -73,8 +73,9 @@ const EXPORT_FORMATS: { fmt: ExportFmt; label: string; ext: string }[] = [
 
 export function FileMenuButtons() {
   const editor = useEditorStore((s) => s.editor);
-  const setActiveFilename = useEditorTabsStore((s) => s.setActiveFilename);
-  const activeTab = useEditorTabsStore((s) => s.tabs.find((t) => t.active));
+  const rename = useEditorTabsStore((s) => s.rename);
+  const activeId = useEditorTabsStore((s) => s.activeId);
+  const activeTab = useEditorTabsStore((s) => (s.activeId ? s.docs[s.activeId] ?? null : null));
   const pushErr = useAiErrorStore((s) => s.push);
   const inputRef = useRef<HTMLInputElement>(null);
   const exportBtnRef = useRef<HTMLButtonElement>(null);
@@ -110,7 +111,7 @@ export function FileMenuButtons() {
       const { html } = await importFile(file);
       editor.commands.setContent(html, { emitUpdate: true });
       const base = file.name.replace(/\.(md|markdown|txt|docx)$/i, '');
-      setActiveFilename(`${base}.md`);
+      if (activeId) rename(activeId, `${base}.md`);
       setPendingFile(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '导入失败';
