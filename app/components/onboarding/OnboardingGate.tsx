@@ -24,9 +24,15 @@ function validateKey(k: string): string | null {
 
 interface OnboardingGateProps {
   guestModeAvailable?: boolean;
+  /**
+   * When true, the deployment is shared with anonymous visitors (the live
+   * site during judging). "Guest mode" becomes cache-only — no live LLM
+   * calls on the operator's credits. Set from `KANSHAN_PUBLIC_MODE` env.
+   */
+  publicMode?: boolean;
 }
 
-export function OnboardingGate({ guestModeAvailable = true }: OnboardingGateProps = {}) {
+export function OnboardingGate({ guestModeAvailable = true, publicMode = false }: OnboardingGateProps = {}) {
   // Hydration-safe pattern: server + client first render BOTH return null,
   // then a post-mount effect sets the real visibility from localStorage.
   // Avoids hydration mismatch between SSR (no localStorage) and CSR.
@@ -71,8 +77,13 @@ export function OnboardingGate({ guestModeAvailable = true }: OnboardingGateProp
   const submitGuest = () => {
     // Default guest visitors to the guwanxi demo account so the vault is non-empty.
     document.cookie = 'kanshan-account=guwanxi; path=/; max-age=31536000; SameSite=Lax';
-    // Guest mode uses the app's Kimi credit.
+    // Guest mode uses the app's Kimi credit in self-hosted dev; in shared
+    // (public-mode) deployments, set kanshan-mode=cache so the server forces
+    // cache-only replies and never charges the operator's credits.
     document.cookie = 'kanshan-provider=kimi; path=/; max-age=31536000; SameSite=Lax';
+    if (publicMode) {
+      document.cookie = 'kanshan-mode=cache; path=/; max-age=31536000; SameSite=Lax';
+    }
     writeRecord({
       mode: 'guest',
       dismissedAt: new Date().toISOString(),
@@ -397,39 +408,57 @@ export function OnboardingGate({ guestModeAvailable = true }: OnboardingGateProp
 
           <div style={divider} aria-hidden />
 
-          {/* Right column: guest mode */}
+          {/* Right column: guest / cache-demo mode */}
           <div style={column} data-testid="onboarding-guest-column">
             <div style={colHeading}>
-              <span>受限模式</span>
-              {!guestModeAvailable && (
+              <span>{publicMode ? '演示模式' : '受限模式'}</span>
+              {!guestModeAvailable && !publicMode && (
                 <span style={recommendBadge}>本部署暂未开放</span>
               )}
+              {publicMode && <span style={recommendBadge}>缓存回放</span>}
             </div>
-            <div style={captionLabel}>GUEST · NO KEY REQUIRED</div>
-            <ul style={limitList}>
-              <li>每小时 60 次 LLM 请求</li>
-              <li>每天 200 次 LLM 请求</li>
-              <li>同时最多 3 个请求</li>
-              <li>跨设备/跨网络共享额度（按 IP 计费）</li>
-            </ul>
+            <div style={captionLabel}>
+              {publicMode ? 'DEMO · CACHED REPLAY ONLY' : 'GUEST · NO KEY REQUIRED'}
+            </div>
+            {publicMode ? (
+              <ul style={limitList}>
+                <li>预录制的演示流程可正常回放</li>
+                <li>未缓存的对话会返回 “请提供您的 API key” 提示</li>
+                <li>编辑器、档案库、工作台框架完全可用</li>
+                <li>不会使用作者本人的 LLM 额度</li>
+              </ul>
+            ) : (
+              <ul style={limitList}>
+                <li>每小时 60 次 LLM 请求</li>
+                <li>每天 200 次 LLM 请求</li>
+                <li>同时最多 3 个请求</li>
+                <li>跨设备/跨网络共享额度（按 IP 计费）</li>
+              </ul>
+            )}
             <div style={limitSubtitle}>
-              {guestModeAvailable
-                ? '适合: 仅想快速看看；想完整体验请用自己的密钥'
-                : '此预览部署未配置共享额度。AI 功能请使用左侧自带密钥；浏览界面 / lore 门户 / 工作台框架不需密钥也可正常使用。'}
+              {publicMode
+                ? '本次比赛期间的公开访问采用缓存模式。想跑真实 AI，请用左侧自带密钥（仅本机保存）。'
+                : guestModeAvailable
+                  ? '适合: 仅想快速看看；想完整体验请用自己的密钥'
+                  : '此预览部署未配置共享额度。AI 功能请使用左侧自带密钥；浏览界面 / lore 门户 / 工作台框架不需密钥也可正常使用。'}
             </div>
             <button
               type="button"
               data-testid="onboarding-guest-submit"
               style={
-                guestModeAvailable
+                publicMode || guestModeAvailable
                   ? guestButtonStyle
                   : { ...guestButtonStyle, opacity: 0.4, cursor: 'not-allowed' }
               }
-              onClick={guestModeAvailable ? submitGuest : undefined}
-              disabled={!guestModeAvailable}
-              aria-disabled={!guestModeAvailable}
+              onClick={publicMode || guestModeAvailable ? submitGuest : undefined}
+              disabled={!publicMode && !guestModeAvailable}
+              aria-disabled={!publicMode && !guestModeAvailable}
             >
-              {guestModeAvailable ? '我了解，先体验受限版本 →' : '受限模式不可用'}
+              {publicMode
+                ? '看演示 (缓存模式) →'
+                : guestModeAvailable
+                  ? '我了解，先体验受限版本 →'
+                  : '受限模式不可用'}
             </button>
           </div>
         </div>

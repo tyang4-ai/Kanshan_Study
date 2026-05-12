@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { debateStream, DEBATE_FALLBACK } from '@/lib/agents/debate';
-import { withCache } from '@/lib/cache/wrap';
+import { withCache, CacheMissError } from '@/lib/cache/wrap';
 import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
 import { debateKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
@@ -71,6 +71,7 @@ export async function POST(req: Request): Promise<Response> {
   let steps: ReplayStep[];
   try {
     const creds = proxyAuth(req);
+    const cacheMode = creds.source === 'gated' ? ('cache-only' as const) : undefined;
     const intent = debateKey({ selection: body.selection, turns: body.turns });
     steps = await withCache<ReplayStep[]>('persona-debate', intent, async () => {
       const buffered: ReplayStep[] = [];
@@ -78,9 +79,12 @@ export async function POST(req: Request): Promise<Response> {
         buffered.push({ event: 'turn', data: turn });
       }
       return buffered;
-    });
+    }, { mode: cacheMode });
   } catch (err) {
-    const inner = errorStream(scrubErrorForClient((err as Error).message));
+    const friendly = err instanceof CacheMissError
+      ? '此辩论尚未缓存。请在 onboarding 输入您的 Kimi / DeepSeek API key 以解锁实时 AI。'
+      : scrubErrorForClient((err as Error).message);
+    const inner = errorStream(friendly);
     return new Response(wrapRelease(inner, guestId), sseHeaders());
   }
 

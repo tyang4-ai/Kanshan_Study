@@ -3,11 +3,18 @@
 // onboarding (kanshan-provider cookie). App fallback uses Kimi.
 
 import type { Provider } from '@/lib/llm';
+import { isPublicModeActive } from './public-gate';
 
 export interface ProxyCreds {
   key: string;
   provider: Provider;
-  source: 'user' | 'app';
+  /**
+   * - `user` — BYO key from the request's Authorization header
+   * - `app`  — fell through to the deployment's own KIMI / DEEPSEEK key
+   * - `gated` — public mode is on and no BYO key was provided; the route MUST
+   *   serve a cached response and MUST NOT use `key` for a live call (it's '').
+   */
+  source: 'user' | 'app' | 'gated';
 }
 
 function readProviderCookie(req: Request): Provider | null {
@@ -26,6 +33,13 @@ export function proxyAuth(req: Request): ProxyCreds {
       provider: readProviderCookie(req) ?? 'kimi',
       source: 'user',
     };
+  }
+  // Public-mode gate: in shared deployments (the live site during judging)
+  // refuse to spend the project's own credits on anonymous visitors. Return a
+  // gated marker so the route serves a cached response instead of erroring.
+  if (isPublicModeActive()) {
+    const cookieProvider = readProviderCookie(req) ?? 'kimi';
+    return { key: '', provider: cookieProvider, source: 'gated' };
   }
   const kimiKey = process.env.KIMI_API_KEY;
   if (kimiKey) {

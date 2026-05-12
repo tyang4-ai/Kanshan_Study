@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { getCurrentUser } from '@/lib/account';
 import { loadBaseline } from '@/lib/voice/baseline';
 import { voiceFillStream } from '@/lib/voice/rewriter';
-import { withCache } from '@/lib/cache/wrap';
+import { withCache, CacheMissError } from '@/lib/cache/wrap';
 import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
 import { voiceFillKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
@@ -64,6 +64,9 @@ export async function POST(req: Request): Promise<Response> {
     const user = getCurrentUser(req);
     const baseline = loadBaseline(user.id);
     const creds = proxyAuth(req);
+    // Public-gate: anonymous visitors in shared deployments are forced to
+    // cache-only — never spend the project's own credits on a live LLM call.
+    const cacheMode = creds.source === 'gated' ? ('cache-only' as const) : undefined;
     const intent = voiceFillKey({ userId: user.id, mode, bullets, selection });
     steps = await withCache<ReplayStep[]>('voice-fill', intent, async () => {
       const buffered: ReplayStep[] = [];
@@ -71,14 +74,17 @@ export async function POST(req: Request): Promise<Response> {
         buffered.push({ event: ev.event, data: ev.data });
       }
       return buffered;
-    });
+    }, { mode: cacheMode });
   } catch (err) {
     if (guestId) await releaseConcurrent(guestId);
-    const msg = err instanceof Error ? err.message : String(err);
+    const isCacheMiss = err instanceof CacheMissError;
+    const friendly = isCacheMiss
+      ? '此操作尚未缓存。请在右上角设置 — 输入您的 Kimi / DeepSeek API key 以解锁实时 AI。'
+      : scrubErrorForClient(err instanceof Error ? err.message : String(err));
     const encoder = new TextEncoder();
     const errStream = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: scrubErrorForClient(msg) })}\n\n`));
+        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: friendly, cacheMiss: isCacheMiss })}\n\n`));
         controller.close();
       },
     });

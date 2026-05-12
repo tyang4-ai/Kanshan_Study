@@ -47,6 +47,10 @@ memory/
 /*.md
 !app/**/*.md
 !/README.md
+!/THIRD_PARTY_NOTICES.md
+
+# Root-level utility / smoke scripts (local-only)
+/scripts/
 
 # Rehearsal artifacts (large mp4 recordings — keep out of git)
 rehearsals/*.mp4

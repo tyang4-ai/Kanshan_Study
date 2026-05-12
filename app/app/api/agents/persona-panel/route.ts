@@ -11,7 +11,7 @@ import {
   type SelectedMask,
 } from '@/lib/agents/persona-panel';
 import { FIXED_MASKS, type MaskMeta } from '@/lib/personas';
-import { withCache } from '@/lib/cache/wrap';
+import { withCache, type CacheMode, CacheMissError } from '@/lib/cache/wrap';
 import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
 import { personaRoundKey, personaFollowupKey } from '@/lib/cache/keys';
 import { proxyAuth } from '@/lib/apikey/proxy';
@@ -125,9 +125,13 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(errStream, sseHeaders());
   }
 
+  // Public-gate: gated anonymous traffic forces cache-only.
+  const cacheMode: CacheMode | undefined =
+    creds.source === 'gated' ? 'cache-only' : undefined;
+
   if (mode === 'rounds') {
     const rounds = body.rounds ?? 1;
-    const inner = await roundsStream(body.selection, masks, rounds, creds.key, creds.provider);
+    const inner = await roundsStream(body.selection, masks, rounds, creds.key, creds.provider, cacheMode);
     return new Response(wrapRelease(inner, guestId), sseHeaders());
   }
 
@@ -138,7 +142,7 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }
-  const inner = await followupStream(body.selection, body.history, body.userMessage, masks, creds.key, creds.provider);
+  const inner = await followupStream(body.selection, body.history, body.userMessage, masks, creds.key, creds.provider, cacheMode);
   return new Response(wrapRelease(inner, guestId), sseHeaders());
 }
 
@@ -148,6 +152,7 @@ async function roundsStream(
   rounds: 1 | 2 | 3,
   apiKey: string,
   provider: Provider,
+  cacheMode?: CacheMode,
 ): Promise<ReadableStream<Uint8Array>> {
   const intent = personaRoundKey({
     paragraph: selection,
@@ -181,9 +186,12 @@ async function roundsStream(
         }
       }
       return buffered;
-    });
+    }, { mode: cacheMode });
   } catch (err) {
-    return errorStream(scrubErrorForClient((err as Error).message), { fallback: PERSONA_FALLBACK });
+    const friendly = err instanceof CacheMissError
+      ? '此读者反应尚未缓存。请在 onboarding 输入您的 Kimi / DeepSeek API key 以解锁实时 AI。'
+      : scrubErrorForClient((err as Error).message);
+    return errorStream(friendly, { fallback: PERSONA_FALLBACK });
   }
 
   return replayStream(steps, {
@@ -200,6 +208,7 @@ async function followupStream(
   masks: SelectedMask[],
   apiKey: string,
   provider: Provider,
+  cacheMode?: CacheMode,
 ): Promise<ReadableStream<Uint8Array>> {
   const intent = personaFollowupKey({
     paragraph: selection,
@@ -230,10 +239,13 @@ async function followupStream(
       const msg = await runFollowup(selection, history, userMessage, chosenMask, apiKey, provider);
       buffered.push({ event: 'message', data: msg });
       return buffered;
-    });
+    }, { mode: cacheMode });
   } catch (err) {
     const fallbackMask = masks[0] ?? FIXED_MASKS[0];
-    return errorStream(scrubErrorForClient((err as Error).message), {
+    const friendly = err instanceof CacheMissError
+      ? '此追问尚未缓存。请在 onboarding 输入您的 Kimi / DeepSeek API key 以解锁实时 AI。'
+      : scrubErrorForClient((err as Error).message);
+    return errorStream(friendly, {
       fallback: [FOLLOWUP_FALLBACK(userMessage, fallbackMask)],
     });
   }

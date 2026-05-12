@@ -5,7 +5,7 @@ import {
   KANSHAN_FALLBACK,
   type KanshanChatTurn,
 } from '@/lib/agents/kanshan-router';
-import { withCache } from '@/lib/cache/wrap';
+import { withCache, CacheMissError } from '@/lib/cache/wrap';
 import { replayStream, REPLAY_GAPS, type ReplayStep } from '@/lib/cache/replay';
 import { proxyAuth } from '@/lib/apikey/proxy';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
@@ -84,6 +84,9 @@ export async function POST(req: Request): Promise<Response> {
   let steps: ReplayStep[];
   try {
     const creds = proxyAuth(req);
+    // Public-gate: gated anonymous traffic in shared deployments forces
+    // cache-only — never spend the project's own credits.
+    const cacheMode = creds.source === 'gated' ? ('cache-only' as const) : undefined;
     const intent = intentKey(body.history, body.userMessage);
     steps = await withCache<ReplayStep[]>('kanshan-chat', intent, async () => {
       const reply = await runKanshanTurn(
@@ -98,9 +101,12 @@ export async function POST(req: Request): Promise<Response> {
         buffered.push({ event: 'tool_call', data: reply.toolCall });
       }
       return buffered;
-    });
+    }, { mode: cacheMode });
   } catch (err) {
-    const inner = errorStream(scrubErrorForClient((err as Error).message));
+    const friendly = err instanceof CacheMissError
+      ? '此对话尚未缓存。请在 onboarding 输入您的 Kimi / DeepSeek API key 以解锁实时 AI。'
+      : scrubErrorForClient((err as Error).message);
+    const inner = errorStream(friendly);
     return new Response(wrapRelease(inner, guestId), sseHeaders());
   }
 
