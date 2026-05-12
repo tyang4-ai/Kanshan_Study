@@ -120,6 +120,12 @@ export function KanshanChatTab() {
     sendingRef.current = true;
     setStreaming(true);
     setDraft('');
+    // R9-S3 (Shi Junhe, 2026-05-11): show the CoT 'reasoning' banner the
+    // moment the user hits send — not after the 5s LLM call returns. We
+    // don't yet know which fox; render a neutral "看山 思考中…" line, then
+    // upgrade to 'dispatching' (with the fox's name + glow) once the
+    // tool_call event arrives.
+    setCot({ toolLabel: '', foxLabel: '', foxGlow: 'rgba(168,155,126,0.5)', phase: 'reasoning' });
     const userTurn: ChatTurn = { role: 'user', content: text, ts: Date.now() };
     const historyForRequest = turns.map((t) => ({
       role: t.role,
@@ -185,21 +191,27 @@ export function KanshanChatTab() {
         };
         setTurns((prev) => [...prev, reply]);
         if (toolCall) {
-          // S7-B1: 2-phase 600ms CoT animation before dispatch.
-          //   t=0    show "看山 思考中…"
-          //   t=300  switch to "正在唤起 {fox}" with the fox's glow tint
-          //   t=600  fire dispatchTool, clear CoT
+          // S7-B1 (revised after R9-S3, Shi Junhe 2026-05-11): CoT animation
+          // previously fired AFTER the LLM call returned, so judges sat through
+          // 5s of "看山想想…" silence before seeing the fox-routing moment.
+          // Now we set the 'reasoning' phase eagerly when the send button
+          // fires (see send()), and only transition to 'dispatching' here once
+          // we know which fox. The whole moment lands AS the LLM call ends.
           const fox = TOOL_FOX[toolCall.tool];
           const target = TOOL_TAB[toolCall.tool];
           const toolLabel = target?.title ?? TOOL_LABEL[toolCall.tool];
-          setCot({ toolLabel, foxLabel: fox.label, foxGlow: fox.glow, phase: 'reasoning' });
-          setTimeout(() => {
-            setCot({ toolLabel, foxLabel: fox.label, foxGlow: fox.glow, phase: 'dispatching' });
-          }, 300);
+          setCot({ toolLabel, foxLabel: fox.label, foxGlow: fox.glow, phase: 'dispatching' });
           setTimeout(() => {
             dispatchTool(toolCall!, replyText!);
-            setCot(null);
-          }, 600);
+            // L9-1 (Lin Maohua R9, 2026-05-11): "唤起 看水" pill needs to linger
+            // 2s past dispatch so judges on Tencent Meeting screen-share have
+            // time to register the orchestration moment. Without the linger
+            // the panel-open animation steals attention from the CoT label.
+          }, 400);
+          setTimeout(() => setCot(null), 2400);
+        } else {
+          // No tool call — clear any reasoning state set on send.
+          setCot(null);
         }
       }
     } catch {
@@ -207,6 +219,7 @@ export function KanshanChatTab() {
         ...prev,
         { role: 'kanshan', content: '网络中断 — 请稍后重试。', ts: Date.now() },
       ]);
+      setCot(null);
     } finally {
       setStreaming(false);
       sendingRef.current = false;
@@ -269,13 +282,24 @@ export function KanshanChatTab() {
   return (
     <div style={containerStyle} data-testid="kanshan-chat-tab">
       <div style={headerStyle}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 14,
-          background: '#A89B7E', color: '#fff',
-          fontFamily: '"Noto Serif SC", serif', fontSize: 14, fontWeight: 600,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 0 8px rgba(168,155,126,0.6)',
-        }}>山</div>
+        {/* R9-S1 (Shi Junhe R9, 2026-05-11): the bubble carries the 刘看山
+            portrait but opening the chat dropped to the old '山' glyph —
+            brand inconsistency, "fox disappears once you open the chat".
+            Mirror the bubble's CSS-sprite crop of the 四视图 sheet. */}
+        <div
+          aria-hidden
+          style={{
+            width: 28, height: 28, borderRadius: 14,
+            background: '#FAF8F3',
+            backgroundImage: 'url(/foxes/shan-fourview.png)',
+            backgroundSize: '400% 100%',
+            backgroundPosition: 'left center',
+            backgroundRepeat: 'no-repeat',
+            border: '1px solid rgba(168,155,126,0.6)',
+            boxShadow: '0 0 8px rgba(168,155,126,0.5)',
+            flexShrink: 0,
+          }}
+        />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: 1.5,
             fontFamily: '"Noto Serif SC", serif', color: '#E8EEF5' }}>
@@ -354,16 +378,13 @@ export function KanshanChatTab() {
             }}
           >
             {cot.phase === 'reasoning'
-              ? '看山 思考中…'
+              ? '看山 思考中… 准备唤起合适的狐狸'
               : `正在唤起 ${cot.foxLabel} · ${cot.toolLabel}`}
           </div>
         )}
-        {streaming && (
-          <div style={{ alignSelf: 'flex-start', fontSize: 12, color: '#A89B7E',
-            fontFamily: '"Noto Serif SC", serif' }}>
-            看山想想…
-          </div>
-        )}
+        {/* The {streaming && "看山想想…"} indicator was removed 2026-05-11
+            (R9-S3 + L9-1). The CoT banner above now renders during the
+            entire streaming window, so this would double-show. */}
       </div>
 
       <ComplianceLine>{KANSHAN_COMPLIANCE}</ComplianceLine>
