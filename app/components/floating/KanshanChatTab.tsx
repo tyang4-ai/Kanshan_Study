@@ -11,8 +11,11 @@ import { FOX_BY_ID } from '@/lib/foxes/registry';
 // Asserts only what the architecture actually does:
 //   - cache layer (lib/cache/store) stores the conversation hash + reply,
 //     scoped to demo replay; not shared with third-party training pipelines.
-//   - history is NOT persisted to localStorage; lives in component state only.
-const KANSHAN_COMPLIANCE = '对话仅用于本次差遣 · 不入第三方训练集 · 历史不本地保存';
+//   - history is held in sessionStorage (browser-tab-scoped, in-memory; clears
+//     on tab close; NOT persisted to disk). Survives panel-close/reopen during
+//     the same session — required for finals Q&A replay (L9-2, Lin Maohua R9).
+const KANSHAN_COMPLIANCE = '对话仅用于本次差遣 · 不入第三方训练集 · 关闭浏览器即清空';
+const SESSION_KEY = 'kanshan-chat-session-v1';
 
 const FALLBACK_REPLY = '看山一时未通 — 请稍后重试。';
 
@@ -63,8 +66,41 @@ interface CotState {
   phase: 'reasoning' | 'dispatching';
 }
 
+function loadTurns(): ChatTurn[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    // Defensive: drop malformed entries rather than throwing — a corrupt session
+    // log shouldn't blow up the panel.
+    return parsed.filter((t): t is ChatTurn =>
+      typeof t === 'object' && t !== null && 'role' in t && 'content' in t && 'ts' in t,
+    );
+  } catch {
+    return [];
+  }
+}
+
+function persistTurns(turns: ChatTurn[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (turns.length === 0) {
+      // Empty session = remove the key entirely, not write `'[]'`. Avoids
+      // a stale empty record sticking around after the user hits 清空.
+      window.sessionStorage.removeItem(SESSION_KEY);
+    } else {
+      window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(turns));
+    }
+  } catch {
+    // Quota exceeded or sessionStorage disabled — fail silent; turns still live
+    // in component state for this mount.
+  }
+}
+
 export function KanshanChatTab() {
-  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const [turns, setTurns] = useState<ChatTurn[]>(() => loadTurns());
   const [draft, setDraft] = useState('');
   const [composing, setComposing] = useState(false);
   const [streaming, setStreaming] = useState(false);
@@ -83,6 +119,14 @@ export function KanshanChatTab() {
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [turns.length, streaming, cot]);
+
+  // L9-2 (Lin Maohua R9, 2026-05-11): persist turns to sessionStorage so the
+  // panel close/reopen during demo doesn't wipe the orchestration trail.
+  // sessionStorage is browser-tab-scoped + in-memory — clears on tab close,
+  // not on panel close, so the compliance line still reads truthfully.
+  useEffect(() => {
+    persistTurns(turns);
+  }, [turns]);
 
   const dispatchTool = (toolCall: KanshanToolCall, replyText: string) => {
     const target = TOOL_TAB[toolCall.tool];
@@ -310,6 +354,38 @@ export function KanshanChatTab() {
             ORCHESTRATOR · 听话差遣
           </div>
         </div>
+        {turns.length > 0 && (
+          <button
+            type="button"
+            data-testid="kanshan-chat-clear"
+            onClick={() => {
+              setTurns([]);
+              if (typeof window !== 'undefined') {
+                try {
+                  window.sessionStorage.removeItem(SESSION_KEY);
+                } catch {
+                  /* no-op */
+                }
+              }
+            }}
+            aria-label="清空本次差遣对话"
+            title="清空对话"
+            style={{
+              flexShrink: 0,
+              background: 'transparent',
+              border: '1px solid rgba(168,155,126,0.4)',
+              color: '#A89B7E',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 10,
+              letterSpacing: 1,
+              padding: '4px 10px',
+              borderRadius: 2,
+              cursor: 'pointer',
+            }}
+          >
+            清空
+          </button>
+        )}
       </div>
 
       <div ref={scrollRef} style={bodyStyle} data-testid="kanshan-chat-body">
