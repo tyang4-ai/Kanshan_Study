@@ -62,3 +62,19 @@ export const rateLimit = pgTable('rate_limit', {
   concurrent: integer('concurrent').default(0).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// R3 fix (李笛 / 徐诗 P1 2026-05-12): cross-device visit-state mirror. The
+// client persists to localStorage (`kanshan-last-visit`) and pushes a
+// debounced snapshot to this table every ~30s. On mount, the client compares
+// `updated_at` and pulls server state if newer — so a 答主 who switched from
+// laptop to phone (or judge clicked through demo on a different machine) sees
+// the same 看典 returning-visitor bubble. Falls back to localStorage-only if
+// /api/visit-state can't reach Supabase (auth not set in MVP).
+export const visitState = pgTable('visit_state', {
+  accountId: text('account_id').primaryKey(),   // 'me' | 'guwanxi' | future OAuth uid
+  lastVisits: jsonb('last_visits').$type<Array<{filename: string; topicSnippet: string; at: number}>>().default([]).notNull(),
+  sessionCount: integer('session_count').default(0).notNull(),
+  crossFoxEventCount: integer('cross_fox_event_count').default(0).notNull(),
+  trendOutboundClicks: integer('trend_outbound_clicks').default(0).notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

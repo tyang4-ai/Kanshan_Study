@@ -56,9 +56,18 @@ export function AiFailureToast() {
     };
   })();
 
+  // R3 (史中 P0 2026-05-12): severity-driven accents. Default = error (red dot,
+  // amber border); notice = amber dot, soft border — so graceful-degradation
+  // notices don't read as failures.
+  const isNotice = current.severity === 'notice';
+  const dotBg = isNotice ? '#D9A23C' : '#C03028';
+  const dotGlow = isNotice ? 'rgba(217,162,60,0.6)' : 'rgba(192,48,40,0.6)';
+  const borderColor = isNotice ? 'rgba(217,162,60,0.55)' : 'rgba(168,155,126,0.45)';
+
   return (
     <div
       data-testid="ai-failure-toast"
+      data-severity={current.severity ?? 'error'}
       role="status"
       aria-live="polite"
       style={{
@@ -74,7 +83,7 @@ export function AiFailureToast() {
         fontSize: 12.5,
         lineHeight: 1.55,
         letterSpacing: 0.4,
-        boxShadow: '0 14px 36px rgba(0,0,0,0.42), 0 0 0 0.5px rgba(168,155,126,0.45)',
+        boxShadow: `0 14px 36px rgba(0,0,0,0.42), 0 0 0 0.5px ${borderColor}`,
         display: 'flex',
         alignItems: 'flex-start',
         gap: 10,
@@ -88,8 +97,8 @@ export function AiFailureToast() {
           width: 8,
           height: 8,
           borderRadius: 4,
-          background: '#C03028',
-          boxShadow: '0 0 6px rgba(192,48,40,0.6)',
+          background: dotBg,
+          boxShadow: `0 0 6px ${dotGlow}`,
         }}
       />
       <span style={{ flex: 1 }}>{current.message}</span>

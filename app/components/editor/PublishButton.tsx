@@ -390,8 +390,18 @@ export function PublishButton() {
             发布走 HMAC + Bearer 双签 · 不上传第三方训练集 · 演示模式下不会真投递
           </div>
           {xinHasSpoken && (
-            <div
+            <button
+              type="button"
               data-testid="publish-to-zhihu-golden-tail"
+              title="看心的故事 — 点击进入小镇"
+              onClick={() => {
+                // R3 (史中 P1 2026-05-12): golden-tail Easter egg now jumps
+                // straight to 看心's lore portal entry instead of just sitting
+                // as static italic text.
+                window.dispatchEvent(
+                  new CustomEvent('kanshan:open-lore', { detail: { foxId: 'xin' } }),
+                );
+              }}
               style={{
                 marginTop: 6,
                 fontSize: 9.5,
@@ -399,10 +409,15 @@ export function PublishButton() {
                 color: 'rgba(122,111,90,0.55)',
                 fontFamily: '"Noto Serif SC", serif',
                 letterSpacing: 0.4,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'help',
+                textAlign: 'left',
               }}
             >
               看心独见，不语
-            </div>
+            </button>
           )}
         </div>
       )}

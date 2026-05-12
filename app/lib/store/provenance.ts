@@ -37,6 +37,16 @@ export const useProvenanceStore = create<ProvenanceState>((set) => ({
       at: Date.now(),
     };
     set((s) => ({ entries: [...s.entries, created] }));
+    // R3 (李笛 P1 2026-05-12): bump the cross-fox event counter on every entry
+    // that links to another fox's prior entry. Async import keeps last-visit
+    // store off the server bundle hot path; best-effort if HMR breaks the link.
+    if (created.relatedTo && typeof window !== 'undefined') {
+      import('./last-visit')
+        .then(({ useLastVisitStore }) => {
+          useLastVisitStore.getState().incrementCrossFoxEvent();
+        })
+        .catch(() => { /* no-op */ });
+    }
     return created;
   },
   remove: (id) => set((s) => ({ entries: s.entries.filter((x) => x.id !== id) })),
@@ -68,6 +78,39 @@ export function findXinFlagsInRange(sourceText: string): ProvenanceEntry[] {
       e.excerpt &&
       sourceText.includes(e.excerpt),
   );
+}
+
+/**
+ * R3 cross-fox edge #2 (李笛 P0 2026-05-12): find the most-recent 看心 flag
+ * whose excerpt is a substring of (or contained in) the given excerpt.
+ * Used by 看水 citation-insert to record a `relatedTo` link, so MarginSealPopover
+ * can later render "看水 已补出处" beneath a 看心 flag chit.
+ */
+export function findOverlappingXinFlag(excerpt: string): string | undefined {
+  if (!excerpt) return undefined;
+  const entries = useProvenanceStore.getState().entries;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (e.fox !== 'xin' || e.kind !== 'flagged' || !e.excerpt) continue;
+    if (excerpt.includes(e.excerpt) || e.excerpt.includes(excerpt)) return e.id;
+  }
+  return undefined;
+}
+
+/**
+ * R3 cross-fox edge #3 (李笛 P0 2026-05-12): aggregate provenance counts by
+ * fox for the ReturningVisitorBubble. The bubble picks its glow color based
+ * on the most-active fox: 看心 flagged > 看水 sourced > 看典 default.
+ */
+export function getProvenanceSummary(): { xinFlags: number; shuiSourced: number; moAvoided: number } {
+  const entries = useProvenanceStore.getState().entries;
+  let xinFlags = 0, shuiSourced = 0, moAvoided = 0;
+  for (const e of entries) {
+    if (e.fox === 'xin' && e.kind === 'flagged') xinFlags++;
+    else if (e.fox === 'shui' && e.kind === 'sourced') shuiSourced++;
+    else if (e.fox === 'mo' && e.relatedAction === 'avoided') moAvoided++;
+  }
+  return { xinFlags, shuiSourced, moAvoided };
 }
 
 /** Lookup a single provenance entry by id. Returns null if missing. */

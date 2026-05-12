@@ -217,17 +217,18 @@ export function WritingSurface({
         </div>
         <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 8px' }} />
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12 }}>
-          {/* Talk-to cluster — the 4 agents the user converses with directly.
-              看山 chat lives in the bottom-right floating bubble (KanshanChatBubble). */}
-          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>对话</span>
-          <ToolbarIcon kind="persona" onClick={openers.onOpenPersona} title="看文 · 读者反应" />
-          <ToolbarIcon kind="debate" onClick={openers.onOpenDebate} title="看文 · 看纹辩论" />
-          <ToolbarIcon kind="stats" onClick={openers.onOpenStats} title="看镜 · 数据看板" />
+          {/* R3 fix (user 2026-05-12): top-bar = daily 4 foxes only
+              (shi/dian/mo/shui). The advanced 5 (wen persona+debate / wen2
+              custom-mask / jing stats / xin compliance / 看山 chat) live in
+              the right toolbar as selection-driven dispatchers. Removes the
+              persona / debate / stats redundancy that judges flagged in R2/R3
+              (same fox in two places doing the same thing). */}
+          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>日常</span>
+          <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} title="看势 · 热榜雷达 — 选题灵感" />
+          <ToolbarIcon kind="vault" onClick={openers.onOpenVault} title="看典 · 档案库 — 旧稿再用" />
+          <ToolbarIcon kind="voice-diff" onClick={openers.onOpenVoiceDiff} title="看墨 · 润色 — 按你的语风重写" />
+          <ToolbarIcon kind="research" onClick={openers.onOpenResearch} title="看水 · 考据卷 — 出处可溯" />
           <span style={{ width: 1, height: 14, background: 'rgba(0,0,0,0.2)' }} aria-hidden />
-          {/* Tool cluster — surfaces 看山 dispatches; also user-launchable. */}
-          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>工具</span>
-          <ToolbarIcon kind="vault" onClick={openers.onOpenVault} title="看典 · 档案库" />
-          <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} title="看势 · 热榜雷达" />
           <ToolbarIcon kind="settings" onClick={openers.onOpenSettings} title="看山书房 · 设置" />
           <BudgetChip />
           <ProfileChip avatarUrls={avatarUrls} />

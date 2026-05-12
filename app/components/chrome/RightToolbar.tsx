@@ -58,11 +58,21 @@ export function RightToolbar({ selection }: RightToolbarProps) {
   // the remaining 5 foxes carry 1 action each. Total = 9, but it's NOT a
   // "show me all 9 foxes" surface — the roster lives in lore/onboarding. User
   // confirmed leave-as-is; do not re-open in future reviews.
+  // R3 fix (user 2026-05-12): right toolbar = 5 advanced foxes' features.
+  // wen (persona + debate, 2 entries) / wen2 (custom-mask, NEW) / jing (stats)
+  // / xin (compliance) / 看山 (chat bubble — bottom-right, not in this rail).
+  // The 4 daily foxes (mo / shui / dian / shi) still have right-bar entries
+  // because their selection-driven dispatchers (Ctrl+Shift+M / R / F shortcuts)
+  // live here — top bar opens the panel cold; right bar acts on selection.
   const AI_TOOLS: AiItem[] = [
     aiTool('mo', '让看墨润色', 'Ctrl+Shift+M', true, () => selection && dispatchAi('voice-diff', '看墨 · 润色', { mode: 'polish', selection }), '墨润'),
     aiTool('mo', '让看墨续写', undefined, true, () => selection && dispatchAi('voice-diff', '看墨 · 续写', { mode: 'fill', selection }), '墨续'),
     aiTool('wen', '召集读者团', 'Ctrl+Shift+R', true, () => selection && dispatchAi('persona', '看文 · 读者团', { mode: 'auto', selection }), '文读'),
     aiTool('wen', '请看辩开场', undefined, true, () => selection && dispatchAi('debate', '看辩席 · 正反对论', { selection }), '文辩'),
+    // R3 NEW: 看纹 custom-mask. Routes to the debate runner with a custom-mask
+    // shape (see api/agents/persona-panel/route.ts:22-27). For now opens the
+    // debate tab pre-pointed at the custom-mask flow.
+    aiTool('wen2', '让看纹剪一张脸', undefined, true, () => selection && dispatchAi('debate', '看纹 · 自定读者', { selection, mode: 'custom-mask' }), '纹'),
     aiTool('shui', '让看水查证', 'Ctrl+Shift+F', true, () => selection && dispatchAi('research', '看水 · 查证', { selection })),
     aiTool('dian', '让看典找旧文', undefined, false, () => dispatchAi('vault', '看典 · 档案库', {})),
     aiTool('shi', '问看势热榜', undefined, false, () => dispatchAi('trends', '看势 · 热榜', {})),

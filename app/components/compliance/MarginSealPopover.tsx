@@ -24,6 +24,7 @@ const CROSS_FOX_LABEL: Record<string, string> = {
 function describeCrossFox(e: ProvenanceEntry): string {
   const name = CROSS_FOX_LABEL[e.fox] ?? e.fox;
   if (e.relatedAction === 'avoided') return `${name} 已在重写时绕开此段`;
+  if (e.relatedAction === 'sourced-after-flag') return `${name} 已为此段补出处`;
   return `${name} 已对此段做出回应`;
 }
 

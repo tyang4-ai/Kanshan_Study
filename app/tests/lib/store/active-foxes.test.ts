@@ -27,9 +27,11 @@ describe('useActiveFoxesStore', () => {
     expect(useActiveFoxesStore.getState().activeIds).toEqual(['mo']);
   });
 
-  it('set([]) defaults back to [mo]', () => {
+  it('set([]) defaults back to daily 4', () => {
+    // R3 fix (张荣乐 / 吴伟 P0 2026-05-12): default expanded from ['mo'] to
+    // the daily 4 (shi/dian/mo/shui) to match the new top-bar quartet.
     useActiveFoxesStore.getState().set([]);
-    expect(useActiveFoxesStore.getState().activeIds).toEqual(['mo']);
+    expect(useActiveFoxesStore.getState().activeIds).toEqual(['mo', 'shi', 'dian', 'shui']);
   });
 
   it('set([wen, xin]) replaces', () => {

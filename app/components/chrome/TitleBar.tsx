@@ -18,18 +18,28 @@ export interface AccountAvatarUrls {
   readonly guwanxi: string | null;
 }
 
-export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings' | 'persona' | 'debate';
+// R3 fix (user 2026-05-12): top-bar redundancy reduction. Top bar = 4 daily
+// foxes (shi/dian/mo/shui) + settings; right toolbar = 5 advanced fox features
+// (wen persona+debate / wen2 custom-mask / jing stats / xin compliance / 看山
+// chat-bubble). `voice-diff` and `research` join the top-bar opener set; the
+// advanced trio (persona / debate / stats) get demoted off the top bar but stay
+// in the right toolbar as selection-driven actions.
+export type ToolbarKind =
+  | 'vault' | 'stats' | 'trends' | 'settings' | 'persona' | 'debate'
+  | 'voice-diff' | 'research';
 
 // Helper: opens each panel with the locked title.
 export function useToolbarOpeners() {
   const openTab = useFloatingWindowStore((s) => s.openTab);
   return {
-    onOpenVault:    () => openTab('vault', '看典 · 档案库'),
-    onOpenTrends:   () => openTab('trends', '看势 · 热榜雷达'),
-    onOpenStats:    () => openTab('stats', '看镜 · 数据看板'),
-    onOpenSettings: () => openTab('settings', '看山书房 · 设置'),
-    onOpenPersona:  () => openTab('persona', '看文 · 读者反应'),
-    onOpenDebate:   () => openTab('debate', '看文 · 看纹辩论'),
+    onOpenVault:     () => openTab('vault', '看典 · 档案库'),
+    onOpenTrends:    () => openTab('trends', '看势 · 热榜雷达'),
+    onOpenStats:     () => openTab('stats', '看镜 · 数据看板'),
+    onOpenSettings:  () => openTab('settings', '看山书房 · 设置'),
+    onOpenPersona:   () => openTab('persona', '看文 · 读者反应'),
+    onOpenDebate:    () => openTab('debate', '看文 · 看纹辩论'),
+    onOpenVoiceDiff: () => openTab('voice-diff', '看墨 · 润色'),
+    onOpenResearch:  () => openTab('research', '看水 · 考据卷'),
   };
 }
 
@@ -266,6 +276,9 @@ export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKin
     settings: <><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M9 1v3 M9 14v3 M1 9h3 M14 9h3 M3.4 3.4l2 2 M12.6 12.6l2 2 M3.4 14.6l2-2 M12.6 5.4l2-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></>,
     persona:  <><circle cx="6" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="12" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M2 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5 M8 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/></>,
     debate:   <><path d="M3 4h7l-2 4H3z M8 8h7l-2 4H8z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></>,
+    // R3 daily-4 promotion: 看墨 (writing brush) + 看水 (research droplet).
+    'voice-diff': <><path d="M5 4l2 10 M10 4l2 10 M3 12h11" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"/></>,
+    research:     <><circle cx="8" cy="8" r="4" stroke="currentColor" strokeWidth="1.4" fill="none"/><path d="M11.2 11.2L14.5 14.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></>,
   };
   return (
     <button

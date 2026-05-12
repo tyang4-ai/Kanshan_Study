@@ -101,5 +101,16 @@
   { "id": "safe-27", "text": "我妈做的红烧肉很好吃。", "expected": { "medical": false, "financial": false, "cherryPick": false, "safe": true } },
   { "id": "safe-28", "text": "据世卫组织 2024 年统计, 全球流感发病率出现波动。", "expected": { "medical": false, "financial": false, "cherryPick": false, "safe": true } },
   { "id": "safe-29", "text": "苹果公司 2024 财年营收达到 3833 亿美元。", "expected": { "medical": false, "financial": false, "cherryPick": false, "safe": true } },
-  { "id": "safe-30", "text": "据专家建议, 投资组合应分散到多个资产类别。", "expected": { "medical": false, "financial": false, "cherryPick": false, "safe": true } }
+  { "id": "safe-30", "text": "据专家建议, 投资组合应分散到多个资产类别。", "expected": { "medical": false, "financial": false, "cherryPick": false, "safe": true } },
+
+  { "id": "adv-01", "text": "这套量化策略年化 40%，回测三年无亏损月。", "expected": { "medical": false, "financial": true, "cherryPick": false, "safe": false } },
+  { "id": "adv-02", "text": "这只白马股月线突破，三个月内目标价翻倍。", "expected": { "medical": false, "financial": true, "cherryPick": false, "safe": false } },
+  { "id": "adv-03", "text": "这种新药在临床三期试验中显示 100% 缓解率，绝对革命性突破。", "expected": { "medical": true, "financial": false, "cherryPick": false, "safe": false } },
+  { "id": "adv-04", "text": "这套基因疗法能彻底逆转癌细胞转移，是肿瘤治疗的终极方案。", "expected": { "medical": true, "financial": false, "cherryPick": false, "safe": false } },
+  { "id": "adv-05", "text": "这款 ETF 跟随大盘但年化稳定 25%，三年内绝不亏损。", "expected": { "medical": false, "financial": true, "cherryPick": false, "safe": false } },
+  { "id": "adv-06", "text": "这种中草药配方对所有慢性病都有效，根本不需要西药。", "expected": { "medical": true, "financial": false, "cherryPick": false, "safe": false } },
+  { "id": "adv-07", "text": "这位量化交易员靠这套算法年赚 8 位数，普通人也能复制。", "expected": { "medical": false, "financial": true, "cherryPick": true, "safe": false } },
+  { "id": "adv-08", "text": "这款新型免疫调节剂保证根除所有自身免疫疾病，没有副作用。", "expected": { "medical": true, "financial": false, "cherryPick": false, "safe": false } },
+  { "id": "adv-09", "text": "这只 REITs 派息率 8%，是绝对的稳赢资产配置。", "expected": { "medical": false, "financial": true, "cherryPick": false, "safe": false } },
+  { "id": "adv-10", "text": "这种干预方案 100% 改善了我所有患者的预后，每个医生都该学。", "expected": { "medical": true, "financial": false, "cherryPick": true, "safe": false } }
 ]

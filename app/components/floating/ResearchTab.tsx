@@ -1,6 +1,6 @@
 'use client';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { SourceRow } from '@/components/research/SourceRow';
 import {
@@ -10,9 +10,11 @@ import {
 } from '@/components/floating/TrendsConfirmModal';
 import { useEditorStore } from '@/lib/store/editor';
 import { useCorkboardStore } from '@/lib/store/corkboard';
-import { useProvenanceStore } from '@/lib/store/provenance';
+import { useProvenanceStore, findOverlappingXinFlag } from '@/lib/store/provenance';
 import researchDataJson from '@/content/seed/research-radiogenomics.json';
 import { renderResearchBody } from '@/lib/research/sanitize';
+import { searchZhihu } from '@/lib/zhihu';
+import type { SearchResult } from '@/lib/zhihu/types';
 
 type ResearchScope = 'quick' | 'deep' | 'thorough';
 
@@ -42,6 +44,20 @@ interface ResearchReport {
 }
 
 const researchData = researchDataJson as ResearchReport;
+
+function truncateTitle(s: string, maxChars: number): string {
+  if (!s) return '';
+  return s.length <= maxChars ? s : s.slice(0, maxChars - 1) + '…';
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 interface ResearchTabProps {
   selection?: { text: string; rect?: DOMRect } | null;
@@ -87,25 +103,110 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
   const [scope, setScope] = useState<ResearchScope>(researchData.scope);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [xinGateOpen, setXinGateOpen] = useState(false);
+  // R3 fix (吴伟 P1 2026-05-12): wire trend-derived research to the live Zhihu
+  // search endpoint instead of always rendering the radiogenomics fixture.
+  // When `selection.text` is present, call `searchZhihu(query)`. Falls back to
+  // the fixture on reject (Bearer missing, mock-mode, or network error).
+  const [liveHits, setLiveHits] = useState<SearchResult[] | null>(null);
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'live' | 'fallback'>('idle');
+  const didFetchRef = useRef<string | null>(null);
   const queryText = selection?.text || researchData.query;
   const isFromTrend = origin === 'trend';
+
+  useEffect(() => {
+    if (!selection?.text) return;
+    if (didFetchRef.current === selection.text) return;
+    didFetchRef.current = selection.text;
+    setSearchStatus('loading');
+    searchZhihu(selection.text)
+      .then((results) => {
+        if (results.length === 0) {
+          setSearchStatus('fallback');
+          setLiveHits(null);
+          return;
+        }
+        setLiveHits(results.slice(0, 8));
+        setSearchStatus('live');
+      })
+      .catch(() => {
+        setSearchStatus('fallback');
+        setLiveHits(null);
+      });
+  }, [selection?.text]);
+
+  // When live hits are available, derive outline + sections + sources from
+  // them; otherwise keep the fixture so the demo never shows an empty panel.
+  const liveOutline = liveHits ? liveHits.slice(0, 5).map((h) => truncateTitle(h.title, 18)) : null;
+  const liveSections = liveHits
+    ? liveHits.slice(0, 4).map((h, i) => ({
+        heading: truncateTitle(h.title, 32),
+        body: `<p>${escapeHtml(h.abstract ?? '').slice(0, 220)}<sup data-cite-id="live-${i}">[${i + 1}]</sup></p>`,
+      }))
+    : null;
+  const liveSources = liveHits
+    ? liveHits.map((h, i) => ({
+        kind: 'zhihu' as const,
+        id: `live-${i}`,
+        label: h.author?.displayName ? `@${h.author.displayName}` : `知乎 · ${h.type}`,
+        text: h.title,
+        host: 'zhihu.com',
+        url: h.url,
+        articleId: h.id,
+      }))
+    : null;
+
+  const renderedSections = liveSections ?? researchData.sections;
+  const renderedSources = liveSources ?? researchData.sources;
+  const renderedOutline = liveOutline ?? researchData.outline;
+  const renderedTitle = liveHits ? `「${queryText}」 — 知乎 实时搜索 ${liveHits.length} 条` : researchData.title;
+  const sourceCount = renderedSources.length;
 
   const handleBodyClick = (e: MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     const sup = target.closest('sup[data-cite-id]');
     if (!sup) return;
     const id = sup.getAttribute('data-cite-id');
-    const source = researchData.sources.find((s) => s.id === id);
-    if (source) {
-      // Real navigation lands in plan #14; for now just log.
-      console.log('[research-cite]', source);
+    const source = renderedSources.find((s) => s.id === id);
+    if (source?.url) {
+      window.open(source.url, '_blank', 'noopener,noreferrer');
+      return;
     }
+    if (source) console.log('[research-cite]', source);
   };
 
   const performInsert = () => {
     const editor = useEditorStore.getState().editor;
     if (!editor) return;
-    const html = researchData.sections.map((s) => `<h3>${s.heading}</h3>${s.body}`).join('\n');
+    // R3 fix (吴伟 P1): when we have live search results, insert a concise
+    // summary derived from them, NOT the radiogenomics fixture sections. For
+    // trend-origin inserts this guarantees the inserted payload is actually
+    // about the trend the user clicked.
+    if (liveHits && liveHits.length > 0) {
+      const intro = `<p><strong>${escapeHtml(queryText)}</strong> — 看水 实时考据 ${liveHits.length} 条来源:</p>`;
+      const bullets = liveHits.slice(0, 4).map((h, i) => {
+        const snippet = (h.abstract ?? h.title).slice(0, 140);
+        return `<p>· ${escapeHtml(snippet)}<sup data-cite-id="live-${i}">[${i + 1}]</sup></p>`;
+      }).join('\n');
+      editor.chain().focus().insertContent(intro + bullets).run();
+      // R3 cross-fox edge #2 (李笛 P0): record 看水 sourced provenance, linking
+      // back to any prior 看心 flag on the same excerpt so MarginSealPopover
+      // can render "看水 已补出处" beneath the 看心 chit. Closes the loop.
+      const add = useProvenanceStore.getState().add;
+      for (const h of liveHits.slice(0, 4)) {
+        const excerpt = (h.abstract ?? h.title).slice(0, 80);
+        const relatedTo = findOverlappingXinFlag(excerpt);
+        add({
+          kind: 'sourced',
+          fox: 'shui',
+          excerpt,
+          relatedTo,
+          relatedAction: relatedTo ? 'sourced-after-flag' : undefined,
+        });
+      }
+      return;
+    }
+    // Manual-origin / fallback path: existing fixture insert.
+    const html = renderedSections.map((s) => `<h3>${s.heading}</h3>${s.body}`).join('\n');
     editor.chain().focus().insertContent(html).run();
   };
 
@@ -250,14 +351,20 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
       }}>
         <div style={{ fontSize: 17, fontWeight: 600, color: '#1A1F2A',
           fontFamily: '"Noto Serif SC", serif', lineHeight: 1.4 }}>
-          {researchData.title}
+          {renderedTitle}
         </div>
         <div
           data-testid="research-query"
           style={{ fontSize: 10, color: '#7A8B9F', marginTop: 6,
             fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.4 }}
         >
-          看水 · 灵感激发 → 深度考据 · 「{queryText}」 · {researchData.sources.length} sources · {(researchData.tokenCount / 1000).toFixed(1)}k tok
+          看水 · 灵感激发 → 深度考据 · 「{queryText}」 · {sourceCount} sources · {searchStatus === 'loading'
+            ? <span data-testid="research-live-loading" style={{ color: '#1772F6' }}>实时检索中…</span>
+            : searchStatus === 'live'
+              ? <span data-testid="research-live-badge" style={{ color: '#1F8B66' }}>LIVE</span>
+              : searchStatus === 'fallback'
+                ? <span data-testid="research-fixture-badge" style={{ color: '#A87B2A' }}>fixture · 兜底</span>
+                : `${(researchData.tokenCount / 1000).toFixed(1)}k tok`}
         </div>
       </div>
 
@@ -268,7 +375,7 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
         borderBottom: '1px solid rgba(23,114,246,0.10)',
         display: 'flex', gap: 6, flexWrap: 'wrap',
       }}>
-        {researchData.outline.map((c, i) => (
+        {renderedOutline.map((c, i) => (
           <span
             key={i}
             data-testid="research-outline-chip"
@@ -293,7 +400,7 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
           fontFamily: '"Noto Serif SC", serif',
         }}
       >
-        {researchData.sections.map((section, i) => (
+        {renderedSections.map((section, i) => (
           <div key={i}>
             <H>{section.heading}</H>
             <div>{renderResearchBody(section.body)}</div>
@@ -313,12 +420,13 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
           fontFamily: 'JetBrains Mono, monospace', marginBottom: 6 }}>
           SOURCES · 三种 出处 · 全部可点
         </div>
-        {researchData.sources.map((s) => (
+        {renderedSources.map((s) => (
           <SourceRow
             key={s.id}
             source={s}
             onClick={() => {
-              console.log('[research-source]', s);
+              if (s.url) window.open(s.url, '_blank', 'noopener,noreferrer');
+              else console.log('[research-source]', s);
             }}
             onPin={() => {
               useCorkboardStore.getState().addPin({
@@ -459,7 +567,7 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
                   fontFamily: '"Noto Serif SC", serif',
                 }}
               >
-                已经看心审议 · 插入正文
+                我已确认无医学/投资/法律绝对化判断 · 插入正文
               </button>
             </div>
           </div>

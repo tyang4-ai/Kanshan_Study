@@ -1,5 +1,6 @@
 'use client';
 import { useState, type CSSProperties } from 'react';
+import { useLastVisitStore } from '@/lib/store/last-visit';
 
 export interface TrendItemProps {
   rank: number;
@@ -118,7 +119,13 @@ export function TrendItem({ rank, title, heat, ageLabel, tags, hot, vibes, url, 
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            // R3 (吴伟 P2 2026-05-12): trend → 知乎 outbound埋点. Counts how
+            // many times 答主 used 看势 as a one-tap on-ramp back to 知乎
+            // source posts. Surfaces in StatsTab as "从看势导流 N 次".
+            useLastVisitStore.getState().incrementTrendOutbound();
+          }}
           aria-label="打开知乎原帖"
           title="打开知乎原帖"
           style={{

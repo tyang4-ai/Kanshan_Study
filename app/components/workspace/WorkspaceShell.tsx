@@ -20,6 +20,7 @@ import { useTrendsGateStore } from '@/lib/store/trends-gate';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useTweak } from '@/lib/store/tweak';
 import { TweakPanel } from '@/components/dev/TweakPanel';
+import { useLastVisitStore, hydrateFromServer, schedulePushToServer } from '@/lib/store/last-visit';
 
 const ZERO_RECT: DOMRect = {
   x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0,
@@ -43,6 +44,9 @@ export function WorkspaceShell({ loreHutImages, loreBgImage, workspaceBgUrl = nu
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect } | null>(null);
   const [loreOpen, setLoreOpen] = useState(false);
+  // R3 (史中 P1 2026-05-12): when an event detail carries `foxId`, pre-pin
+  // that fox in the portal (used by PublishPin 金尾 Easter egg → 'xin').
+  const [loreInitialFox, setLoreInitialFox] = useState<FoxId | null>(null);
   const workspaceBgDarken = useTweak('workspace.bg.darken', 0.65);
 
   // R8 demo coherence (Lin Maohua + Shi Junhe) P0: NextBeatHint's "open-lore"
@@ -50,9 +54,22 @@ export function WorkspaceShell({ loreHutImages, loreBgImage, workspaceBgUrl = nu
   // portal so the 2:50 demo beat actually pops the aurora scene on-screen
   // instead of requiring the founder to click LoreEnvelope manually.
   useEffect(() => {
-    const onOpenLore = (): void => setLoreOpen(true);
+    const onOpenLore = (event: Event): void => {
+      const detail = (event as CustomEvent<{ foxId?: FoxId }>).detail;
+      setLoreInitialFox(detail?.foxId ?? null);
+      setLoreOpen(true);
+    };
     window.addEventListener('kanshan:open-lore', onOpenLore);
     return () => window.removeEventListener('kanshan:open-lore', onOpenLore);
+  }, []);
+
+  // R3 (李笛 / 徐诗 P1 2026-05-12): cross-device visit-state sync. On mount,
+  // pull server snapshot if newer. Subscribe to store updates and push back
+  // every 30s (debounced). 401/503 are silent fallbacks to localStorage-only.
+  useEffect(() => {
+    void hydrateFromServer();
+    const unsub = useLastVisitStore.subscribe(() => schedulePushToServer(30_000));
+    return () => unsub();
   }, []);
 
   // The TipTap editor occasionally emits a null selection while a right-click
@@ -180,9 +197,13 @@ export function WorkspaceShell({ loreHutImages, loreBgImage, workspaceBgUrl = nu
 
       {loreOpen && (
         <LorePortal
-          onClose={() => setLoreOpen(false)}
+          onClose={() => {
+            setLoreOpen(false);
+            setLoreInitialFox(null);
+          }}
           hutImages={loreHutImages}
           bgImage={loreBgImage}
+          initialFoxId={loreInitialFox}
         />
       )}
 

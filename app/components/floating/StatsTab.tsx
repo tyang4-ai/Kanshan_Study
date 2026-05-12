@@ -6,6 +6,7 @@ import { EngagementTab } from '@/components/stats/EngagementTab';
 import { AudienceTab } from '@/components/stats/AudienceTab';
 import { IncomeTab } from '@/components/stats/IncomeTab';
 import { FOX_BY_ID } from '@/lib/foxes/registry';
+import { useLastVisitStore } from '@/lib/store/last-visit';
 
 type SubTabId = 'overview' | 'engagement' | 'audience' | 'income';
 
@@ -19,6 +20,14 @@ const SUB_TABS: { id: SubTabId; label: string }[] = [
 export function StatsTab() {
   const [tab, setTab] = useState<SubTabId>('overview');
   const jing = FOX_BY_ID.jing;
+  // R3 (李笛 P1 2026-05-12): CPS-style埋点 surface. 看镜 reads from the local
+  // `kanshan-last-visit` store, which is now a 4-counter shape (sessionCount /
+  // crossFoxEventCount / trendOutboundClicks / lastVisits.length). 数据仅来自
+  // 本地交互, 不读已发布作品 — 与底部 ComplianceLine 一致.
+  const sessionCount = useLastVisitStore((s) => s.sessionCount);
+  const crossFoxEventCount = useLastVisitStore((s) => s.crossFoxEventCount);
+  const trendOutboundClicks = useLastVisitStore((s) => s.trendOutboundClicks);
+  const trackedDocsCount = useLastVisitStore((s) => s.lastVisits.length);
 
   return (
     <div
@@ -79,6 +88,33 @@ export function StatsTab() {
         >
           更新于 16:42 · MOCK
         </div>
+      </div>
+
+      {/* R3 (李笛 P1): cross-fox / 回访 / 导流 埋点 row — visible across all
+          sub-tabs because it measures product-engagement, not 答主 content. */}
+      <div
+        data-testid="stats-engagement-row"
+        style={{
+          flexShrink: 0,
+          padding: '8px 18px',
+          background: '#F0F3F8',
+          borderBottom: '1px solid rgba(23,114,246,0.14)',
+          display: 'flex',
+          gap: 18,
+          flexWrap: 'wrap',
+          fontSize: 10.5,
+          color: '#3A4452',
+          fontFamily: 'JetBrains Mono, monospace',
+          letterSpacing: 0.4,
+        }}
+      >
+        <span data-testid="stats-session-count">本会话 #{sessionCount}</span>
+        <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+        <span data-testid="stats-tracked-docs">在写 {trackedDocsCount} 条线</span>
+        <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+        <span data-testid="stats-cross-fox">狐狸间联动 {crossFoxEventCount} 次</span>
+        <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+        <span data-testid="stats-trend-outbound">从看势导流到知乎 {trendOutboundClicks} 次</span>
       </div>
 
       {/* Body */}

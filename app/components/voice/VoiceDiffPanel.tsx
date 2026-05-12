@@ -178,25 +178,18 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
               done: true,
             }));
 
-            // R2 judge fix (史中 P1 2026-05-12): user-visible signal when 3
-            // iters didn't reach the 0.85 accept threshold. The server-side
-            // rewriter already returns its best draft; here we just label it
-            // so a clickthrough judge can see the fallback was hit.
+            // R3 (史中 P0 2026-05-12): merge fallback + xin-avoided into a
+            // single composite NOTICE toast (severity: 'notice') so the two
+            // signals don't collide in the single-slot store and don't render
+            // as a red error. R2 added each push separately — R3 collapses
+            // them and tags the severity.
             const ACCEPT = 0.85;
             const total = final.voiceScore?.total;
-            if (typeof total === 'number' && total < ACCEPT) {
-              useAiErrorStore.getState().push({
-                message: `看墨 3 轮未及 0.85 — 采用最佳稿 (得分 ${total.toFixed(2)})`,
-              });
-            }
-
-            // R2 judge fix (李笛 P0 2026-05-12): cross-fox awareness. After
-            // 看墨 finishes, look up any 看心 flagged spans that fell inside
-            // the source `selection`. For each, record a follow-up 'ai-touched'
-            // entry by 看墨 with `relatedTo` pointing at the 看心 flag —
-            // MarginSealPopover surfaces this as "看墨已在重写时绕开此段".
+            const fellBack = typeof total === 'number' && total < ACCEPT;
             const xinFlags = findXinFlagsInRange(selection);
             if (xinFlags.length > 0) {
+              // Cross-fox arrow: record 看墨 'ai-touched' entries that link
+              // back to each 看心 flag with relatedAction='avoided'.
               const add = useProvenanceStore.getState().add;
               for (const flag of xinFlags) {
                 add({
@@ -207,8 +200,18 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
                   relatedAction: 'avoided',
                 });
               }
+            }
+            if (fellBack || xinFlags.length > 0) {
+              const parts: string[] = [];
+              if (fellBack && typeof total === 'number') {
+                parts.push(`看墨 3 轮未及 0.85 — 采用最佳稿 (得分 ${total.toFixed(2)})`);
+              }
+              if (xinFlags.length > 0) {
+                parts.push(`已绕开 看心 标记的 ${xinFlags.length} 处需出处片段`);
+              }
               useAiErrorStore.getState().push({
-                message: `看墨已绕开 看心 标记的 ${xinFlags.length} 处需出处片段`,
+                message: parts.join(' · '),
+                severity: 'notice',
               });
             }
           } else if (ev.event === 'error') {

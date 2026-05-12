@@ -30,6 +30,10 @@ interface LorePortalProps {
   hutImages?: Partial<Record<FoxId, string>>;
   /** Painted background image URL, pre-resolved server-side. When absent, the existing CSS gradient + aurora stack renders alone. */
   bgImage?: string | null;
+  /** R3 (史中 P1 2026-05-12): pre-pin a specific fox on open — used by the
+   *  PublishPin 金尾 Easter egg to jump directly into 看心's village entry
+   *  when clicked. */
+  initialFoxId?: FoxId | null;
 }
 
 type Phase = 'arriving' | 'here' | 'leaving';
@@ -69,7 +73,7 @@ const BG_POSITIONS: Record<FoxId, BgPos> = {
   xin:  { cx: 83, by: 18, h: 24 },
 };
 
-export function LorePortal({ onClose, hutImages, bgImage }: LorePortalProps) {
+export function LorePortal({ onClose, hutImages, bgImage, initialFoxId = null }: LorePortalProps) {
   const [phase, setPhase] = useState<Phase>('arriving');
   const [hoveredFox, setHoveredFoxState] = useState<FoxId | null>(null);
   const hutScale = useTweak('lore.hut.scale', 1.0);
@@ -85,7 +89,10 @@ export function LorePortal({ onClose, hutImages, bgImage }: LorePortalProps) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDebugHuts(params.get('tweak') === '1');
   }, []);
-  const [pinnedFox, setPinnedFox] = useState<FoxId | null>(null);
+  // R3 (史中 P1 2026-05-12): when LorePortal opens with an `initialFoxId`
+  // (e.g. PublishPin 金尾 Easter egg → 'xin'), pre-pin that fox so the entry
+  // card renders immediately.
+  const [pinnedFox, setPinnedFox] = useState<FoxId | null>(initialFoxId ?? null);
   const [hintDismissed, setHintDismissed] = useState(false);
   const [met, setMet] = useState<MetMark | null>(null);
   const [techOpen, setTechOpen] = useState(false);
