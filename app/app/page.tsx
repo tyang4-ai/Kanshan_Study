@@ -4,6 +4,9 @@ import { TourTrigger } from '@/components/tour/TourTrigger';
 import { GuestIndicator } from '@/components/chrome/GuestIndicator';
 import { KanshanChatBubble } from '@/components/chrome/KanshanChatBubble';
 import { getLoreAssets } from '@/components/lore/loreAssets.server';
+import { getWorkspaceBgUrl } from '@/lib/art/workspace-bg';
+import { getOnboardingBgUrl } from '@/lib/art/onboarding-bg';
+import { getAccountAvatarUrls } from '@/lib/art/account-avatars';
 
 export default function Page() {
   const publicMode = process.env.KANSHAN_PUBLIC_MODE === 'byo-or-cache';
@@ -12,11 +15,23 @@ export default function Page() {
   const guestModeAvailable =
     publicMode || Boolean(process.env.KIMI_API_KEY || process.env.DEEPSEEK_API_KEY);
   const loreAssets = getLoreAssets();
+  const workspaceBgUrl = getWorkspaceBgUrl();
+  const onboardingBgUrl = getOnboardingBgUrl();
+  const avatarUrls = getAccountAvatarUrls();
   return (
     <>
-      <WorkspaceShell loreHutImages={loreAssets.huts} loreBgImage={loreAssets.bg} />
+      <WorkspaceShell
+        loreHutImages={loreAssets.huts}
+        loreBgImage={loreAssets.bg}
+        workspaceBgUrl={workspaceBgUrl}
+        avatarUrls={avatarUrls}
+      />
       <KanshanChatBubble />
-      <OnboardingGate guestModeAvailable={guestModeAvailable} publicMode={publicMode} />
+      <OnboardingGate
+        guestModeAvailable={guestModeAvailable}
+        publicMode={publicMode}
+        bgUrl={onboardingBgUrl}
+      />
       {/* 2026-05-11 phase #15.5: moved off bottom-left to free the editor footer
           for PublishButton + the file I/O buttons; sits top-right above the
           tagline strip clear of every other chrome control. */}

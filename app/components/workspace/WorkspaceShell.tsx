@@ -10,6 +10,7 @@ import type { FoxId } from '@/lib/foxes/registry';
 import { AiFailureToast } from '@/components/chrome/AiFailureToast';
 import { AuthErrorToast } from '@/components/chrome/AuthErrorToast';
 import { DailyFoxPulse } from '@/components/onboarding/DailyFoxPulse';
+import { ReturningVisitorBubble } from '@/components/onboarding/ReturningVisitorBubble';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
 import {
   TrendsConfirmModal,
@@ -17,7 +18,8 @@ import {
 } from '@/components/floating/TrendsConfirmModal';
 import { useTrendsGateStore } from '@/lib/store/trends-gate';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
-import { WORKSPACE_BG_URL } from '@/lib/art/workspace-bg';
+import { useTweak } from '@/lib/store/tweak';
+import { TweakPanel } from '@/components/dev/TweakPanel';
 
 const ZERO_RECT: DOMRect = {
   x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0,
@@ -29,14 +31,19 @@ interface WorkspaceShellProps {
   loreHutImages?: Partial<Record<FoxId, string>>;
   /** Pre-resolved lore-portal background image URL (server-side via `getLoreAssets`). */
   loreBgImage?: string | null;
+  /** Pre-resolved workspace background image URL (server-side via `getWorkspaceBgUrl`). */
+  workspaceBgUrl?: string | null;
+  /** Pre-resolved account avatar URLs (server-side via `getAccountAvatarUrls`). */
+  avatarUrls?: { readonly me: string | null; readonly guwanxi: string | null };
 }
 
 // Shared workspace shell. `/` (clickthrough) and `/live` (finals) both mount
 // this; the wrapping providers / overlays differ per route.
-export function WorkspaceShell({ loreHutImages, loreBgImage }: WorkspaceShellProps = {}) {
+export function WorkspaceShell({ loreHutImages, loreBgImage, workspaceBgUrl = null, avatarUrls }: WorkspaceShellProps = {}) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect } | null>(null);
   const [loreOpen, setLoreOpen] = useState(false);
+  const workspaceBgDarken = useTweak('workspace.bg.darken', 0.65);
 
   // R8 demo coherence (Lin Maohua + Shi Junhe) P0: NextBeatHint's "open-lore"
   // action dispatches a `kanshan:open-lore` window event; listen and open the
@@ -99,11 +106,11 @@ export function WorkspaceShell({ loreHutImages, loreBgImage }: WorkspaceShellPro
 
   return (
     <div className="flex h-screen w-screen flex-col" style={{ background: '#2A2724', position: 'relative' }}>
-      {WORKSPACE_BG_URL && (
+      {workspaceBgUrl && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={WORKSPACE_BG_URL}
+            src={workspaceBgUrl}
             alt=""
             aria-hidden
             data-testid="workspace-bg-image"
@@ -116,7 +123,7 @@ export function WorkspaceShell({ loreHutImages, loreBgImage }: WorkspaceShellPro
             aria-hidden
             style={{
               position: 'fixed', inset: 0, zIndex: 1,
-              background: 'rgba(26, 31, 42, 0.65)',
+              background: `rgba(26, 31, 42, ${workspaceBgDarken})`,
             }}
           />
         </>
@@ -155,6 +162,7 @@ export function WorkspaceShell({ loreHutImages, loreBgImage }: WorkspaceShellPro
           }}
           onSelectionChange={handleSelectionChange}
           floatingToolbarSelection={effectiveSelection}
+          avatarUrls={avatarUrls}
         />
       </main>
 
@@ -185,6 +193,10 @@ export function WorkspaceShell({ loreHutImages, loreBgImage }: WorkspaceShellPro
       <AuthErrorToast />
 
       <DailyFoxPulse />
+
+      <ReturningVisitorBubble />
+
+      <TweakPanel />
 
       <TrendsConfirmModal
         open={pendingTrend !== null}

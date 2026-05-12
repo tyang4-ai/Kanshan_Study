@@ -6,9 +6,22 @@ import { pickAssetUrl } from '@/lib/art/asset-resolver';
 export const size = { width: 32, height: 32 };
 export const contentType = 'image/png';
 
-// Dynamic favicon: prefer /public/art/favicon.svg if shipped (served as SVG),
-// otherwise render a 32x32 PNG with the 看 char on a warm amber backdrop.
+// Dynamic favicon: prefer /public/art/favicon.png (Gemini-generated, Phase #16.5),
+// then /public/art/favicon.svg, then render a typographic fallback.
 export default async function Icon(): Promise<Response | ImageResponse> {
+  const pngUrl = pickAssetUrl('/art/favicon.png');
+  if (pngUrl) {
+    const diskPath = join(process.cwd(), 'public', 'art', 'favicon.png');
+    const buffer = readFileSync(diskPath);
+    return new Response(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        'Content-Length': String(buffer.length),
+        'Cache-Control': 'public, max-age=3600, immutable',
+      },
+    });
+  }
   const svgUrl = pickAssetUrl('/art/favicon.svg');
   if (svgUrl) {
     const diskPath = join(process.cwd(), 'public', 'art', 'favicon.svg');

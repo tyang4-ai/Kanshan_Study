@@ -1,6 +1,11 @@
+import 'server-only';
 import { pickAssetUrl } from './asset-resolver';
 
-// Resolved once at server-module-load. Imported by WorkspaceShell (client)
-// so Next.js inlines this as a constant during build; no runtime fs access
-// happens on the client.
-export const WORKSPACE_BG_URL: string | null = pickAssetUrl('/art/bg/workspace.jpg');
+// Server-only resolver: call from a Server Component and pass the URL down
+// to WorkspaceShell (client) as a prop. Do NOT import this module from a
+// 'use client' file — Next.js will bundle node:fs into the client chunk and
+// fail to build.
+export function getWorkspaceBgUrl(): string | null {
+  // Prefer PNG (Gemini output format from Phase #16.5), fall back to JPG.
+  return pickAssetUrl('/art/bg/workspace.png') ?? pickAssetUrl('/art/bg/workspace.jpg');
+}

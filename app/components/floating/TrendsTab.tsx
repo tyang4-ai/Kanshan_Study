@@ -91,8 +91,14 @@ export function TrendsTab() {
   const list = tab === 'relevant' ? relevant : all;
 
   const runOpenResearch = (t: TrendSeed) => {
+    // R2 judge fix (周源 / 吴伟 P1 2026-05-12): tag trend-origin research so
+    // ResearchTab can enforce the 看心审议 gate at insert-time, not just at
+    // session-ack-time. 答主 must consciously confirm each trend-derived
+    // insert per the 清朗 第二阶段 红线.
     useFloatingWindowStore.getState().openTab('research', '看水 · 考据卷', {
       selection: { text: t.title, rect: ZERO_RECT },
+      origin: 'trend',
+      sourceUrl: t.url,
     });
   };
 
@@ -454,6 +460,7 @@ export function TrendsTab() {
             tags={t.tags}
             hot={t.hot}
             vibes={t.vibes}
+            url={t.url}
             onClick={() => onTrendClick(t)}
             onPin={() => pinTrend(t)}
           />

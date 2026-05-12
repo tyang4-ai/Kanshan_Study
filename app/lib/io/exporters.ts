@@ -4,12 +4,29 @@ import type { Editor } from '@tiptap/react';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 
 export function exportMarkdown(editor: Editor): Blob {
-  const storage = (editor.storage as { markdown?: { getMarkdown(): string } }).markdown;
-  const md =
-    typeof storage?.getMarkdown === 'function'
-      ? storage.getMarkdown()
-      : htmlToFallbackMarkdown(editor.getHTML());
+  const md = editorToMarkdown(editor);
   return new Blob([md], { type: 'text/markdown;charset=utf-8' });
+}
+
+function editorToMarkdown(editor: Editor): string {
+  const storage = (editor.storage as { markdown?: { getMarkdown(): string } }).markdown;
+  return typeof storage?.getMarkdown === 'function'
+    ? storage.getMarkdown()
+    : htmlToFallbackMarkdown(editor.getHTML());
+}
+
+/**
+ * R2 judge fix (徐诗 P1 2026-05-12): "去 lock-in demo" — 答主 should be able
+ * to drop the markdown into 公众号 / 小红书 / 飞书 in one tap. Returns a
+ * Promise that resolves on success and rejects if the clipboard API rejects
+ * or is unavailable.
+ */
+export async function copyMarkdownToClipboard(editor: Editor): Promise<void> {
+  const md = editorToMarkdown(editor);
+  if (typeof navigator === 'undefined' || !navigator.clipboard) {
+    throw new Error('当前环境不支持剪贴板写入');
+  }
+  await navigator.clipboard.writeText(md);
 }
 
 export function exportText(editor: Editor): Blob {

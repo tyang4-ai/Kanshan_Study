@@ -282,9 +282,12 @@
   background-size: contain;
   background-repeat: no-repeat;
 }
-.inline-mark-ai-touched { --mark-glyph: url(/glyphs/check.svg); }
-.inline-mark-claim      { --mark-glyph: url(/glyphs/flag.svg); }
-.inline-mark-hedge      { --mark-glyph: url(/glyphs/fox.svg); }
+/* Phase #16.5 (2026-05-12): point at the painted icon set instead of the
+   geometric SVG glyphs. The new icons live alongside the rest of the
+   Gemini-generated art under /art/icons/. */
+.inline-mark-ai-touched { --mark-glyph: url(/art/icons/ai-touched.png); }
+.inline-mark-claim      { --mark-glyph: url(/art/icons/flag.png); }
+.inline-mark-hedge      { --mark-glyph: url(/art/icons/fox.png); }
 
 /* Margin chits — absolute positioned to the LEFT of the prose column */
 .margin-seal {

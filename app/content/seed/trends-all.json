@@ -9,7 +9,8 @@
     "tags": ["科技"],
     "hot": true,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200101"
   },
   {
     "id": "all-2",
@@ -21,7 +22,8 @@
     "tags": ["教育"],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200102"
   },
   {
     "id": "all-3",
@@ -33,7 +35,8 @@
     "tags": [],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200103"
   },
   {
     "id": "all-4",
@@ -45,7 +48,8 @@
     "tags": ["知乎"],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200104"
   },
   {
     "id": "all-5",
@@ -57,7 +61,8 @@
     "tags": [],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200105"
   },
   {
     "id": "all-6",
@@ -69,7 +74,8 @@
     "tags": ["答主圈"],
     "hot": true,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200001"
   },
   {
     "id": "all-7",
@@ -81,7 +87,8 @@
     "tags": ["学术"],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200002"
   },
   {
     "id": "all-8",
@@ -93,6 +100,7 @@
     "tags": [],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200003"
   }
 ]

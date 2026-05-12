@@ -7,6 +7,10 @@ interface Payload {
   uid: number;
   fullname: string;
   exp?: number;
+  // R2 fix 2026-05-12 (颜鑫 P2): signSession auto-stamps `iat` (unix seconds)
+  // so the verifier can enforce a maximum session age. Round-trip tests use
+  // toMatchObject so the auto-added field doesn't break exact-equality.
+  iat?: number;
 }
 
 describe('cookie-sign', () => {
@@ -14,7 +18,8 @@ describe('cookie-sign', () => {
     const payload: Payload = { uid: 7, fullname: '我' };
     const token = signSession(payload, SECRET);
     const recovered = verifySession<Payload>(token, SECRET);
-    expect(recovered).toEqual(payload);
+    expect(recovered).toMatchObject(payload);
+    expect(recovered?.iat).toBeTypeOf('number');
   });
 
   it('returns null when payload is tampered (one char modified)', () => {
@@ -58,6 +63,20 @@ describe('cookie-sign', () => {
       exp: Date.now() + 60_000,
     };
     const token = signSession(payload, SECRET);
-    expect(verifySession<Payload>(token, SECRET)).toEqual(payload);
+    expect(verifySession<Payload>(token, SECRET)).toMatchObject(payload);
+  });
+
+  it('stamps `iat` automatically and respects maxAgeSeconds', () => {
+    const payload: Payload = { uid: 7, fullname: '我' };
+    const token = signSession(payload, SECRET);
+    // Loose maxAge — token was minted milliseconds ago, well within 1h.
+    expect(verifySession<Payload>(token, SECRET, { maxAgeSeconds: 3600 })).toMatchObject(payload);
+    // Zero-second window — anything older than 0s fails. Sleep one tick.
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        expect(verifySession<Payload>(token, SECRET, { maxAgeSeconds: 0 })).toBeNull();
+        resolve();
+      }, 1100);
+    });
   });
 });

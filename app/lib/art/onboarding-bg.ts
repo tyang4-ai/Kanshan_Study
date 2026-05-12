@@ -1,4 +1,9 @@
+import 'server-only';
 import { pickAssetUrl } from './asset-resolver';
 
-// Resolved once at server-module-load. Imported by OnboardingGate (client).
-export const ONBOARDING_BG_URL: string | null = pickAssetUrl('/art/bg/onboarding.jpg');
+// Server-only resolver: call from a Server Component and pass the URL down
+// to OnboardingGate (client) as a prop.
+export function getOnboardingBgUrl(): string | null {
+  // Prefer PNG (Gemini output format from Phase #16.5), fall back to JPG.
+  return pickAssetUrl('/art/bg/onboarding.png') ?? pickAssetUrl('/art/bg/onboarding.jpg');
+}

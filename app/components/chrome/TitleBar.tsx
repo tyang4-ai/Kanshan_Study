@@ -2,12 +2,21 @@
 // Phase #13.99 — talk-to / tool reframe (revision tag for HMR invalidation)
 import { useEffect, useRef, useState } from 'react';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
+import { useTweak } from '@/lib/store/tweak';
 import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
 import { useDemoMode } from '@/lib/demo-mode/context';
 import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
 import { useAiErrorStore } from '@/lib/store/ai-error';
-import { ACCOUNT_AVATAR_URLS } from '@/lib/art/account-avatars';
+
+// Mirror of `AccountAvatarUrls` from `@/lib/art/account-avatars`. We don't
+// import the type here because that module is `server-only`; pulling even a
+// type-only import would risk bundling node:fs into the client chunk under
+// some TS configs. Keep this shape in sync with that module.
+export interface AccountAvatarUrls {
+  readonly me: string | null;
+  readonly guwanxi: string | null;
+}
 
 export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings' | 'persona' | 'debate';
 
@@ -24,7 +33,13 @@ export function useToolbarOpeners() {
   };
 }
 
-export function TitleBar() {
+interface TitleBarProps {
+  avatarUrls?: AccountAvatarUrls;
+}
+
+const EMPTY_AVATAR_URLS: AccountAvatarUrls = { me: null, guwanxi: null };
+
+export function TitleBar({ avatarUrls = EMPTY_AVATAR_URLS }: TitleBarProps = {}) {
   const openTab = useFloatingWindowStore((s) => s.openTab);
 
   // Hydrate the zhihu OAuth session once on mount; the badge below decides
@@ -75,7 +90,7 @@ export function TitleBar() {
         <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button" title="看山书房 · 设置"/>
         <ManualLink />
         <BudgetChip />
-        <ProfileChip />
+        <ProfileChip avatarUrls={avatarUrls} />
         <ZhihuBadge />
       </div>
     </div>
@@ -299,31 +314,39 @@ export function BudgetChip() {
     <div
       role="status"
       aria-live="polite"
-      aria-label={`知乎 API 每日剩余额度: 看势 ${shi} 分之 100, 搜索 ${sou} 分之 1000, 直答 ${da} 分之 100`}
+      aria-label={`今日剩余额度: 选题灵感 ${shi} 次, 考据检索 ${sou} 次, 直答问答 ${da} 次`}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '2px 6px', fontSize: 10, letterSpacing: 0.6,
         color: 'rgba(192,178,148,0.92)',
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: '"Noto Sans SC", sans-serif',
       }}
-      title="知乎 API 每日额度 — 看势(热榜) / 搜索 / 直答"
+      title="今日剩余额度 — 选题灵感 (看势热榜) / 考据检索 / 直答问答"
     >
-      <span>看势 {shi}/100</span>
+      {/* R2 judge fix (张荣乐 P2 2026-05-12): 答主-facing phrasing instead of
+          API-shape "看势 100/100". The quota names match the workflow stages,
+          not the underlying endpoint names. */}
+      <span>选题灵感剩 {shi} 次</span>
       <span style={{ opacity: 0.4 }}>·</span>
-      <span>搜索 {sou}/1000</span>
+      <span>考据检索剩 {sou} 次</span>
       <span style={{ opacity: 0.4 }}>·</span>
-      <span>直答 {da}/100</span>
+      <span>直答剩 {da} 次</span>
     </div>
   );
 }
 
-export function ProfileChip() {
+interface ProfileChipProps {
+  avatarUrls?: AccountAvatarUrls;
+}
+
+export function ProfileChip({ avatarUrls = EMPTY_AVATAR_URLS }: ProfileChipProps = {}) {
   const active = useAccountStore((s) => s.active);
   const switchTo = useAccountStore((s) => s.switchTo);
   const demoMode = useDemoMode();
+  const avatarSize = useTweak('titlebar.avatar.size', 24);
   const label = active === 'guwanxi' ? '顾婉昔' : '我';
   const initial = active === 'guwanxi' ? '顾' : '我';
-  const avatarUrl = ACCOUNT_AVATAR_URLS[active];
+  const avatarUrl = avatarUrls[active];
   const onClick = async () => {
     const target = active === 'guwanxi' ? 'me' : 'guwanxi';
     const targetLabel = target === 'guwanxi' ? '顾婉昔 (演示账号)' : '我的账号';
@@ -402,10 +425,10 @@ export function ProfileChip() {
           src={avatarUrl}
           alt=""
           data-testid="profile-avatar"
-          width={24}
-          height={24}
+          width={avatarSize}
+          height={avatarSize}
           style={{
-            width: 24, height: 24, borderRadius: 12,
+            width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2,
             objectFit: 'cover', display: 'block',
           }}
         />

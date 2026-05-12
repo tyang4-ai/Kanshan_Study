@@ -9,11 +9,13 @@ export interface TrendItemProps {
   tags: string[];
   hot: boolean;
   vibes: string;
+  // R2 judge fix (吴伟 P0 2026-05-12): clickable 原帖 link to the 知乎 source.
+  url?: string;
   onClick?: () => void;
   onPin?: () => void;
 }
 
-export function TrendItem({ rank, title, heat, ageLabel, tags, hot, vibes, onClick, onPin }: TrendItemProps) {
+export function TrendItem({ rank, title, heat, ageLabel, tags, hot, vibes, url, onClick, onPin }: TrendItemProps) {
   const [hover, setHover] = useState(false);
 
   const rowStyle: CSSProperties = {
@@ -110,6 +112,33 @@ export function TrendItem({ rank, title, heat, ageLabel, tags, hot, vibes, onCli
         </div>
         {vibes && <div style={vibesStyle}>{vibes}</div>}
       </div>
+      {url && hover && (
+        <a
+          data-testid="trend-source-link"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="打开知乎原帖"
+          title="打开知乎原帖"
+          style={{
+            alignSelf: 'center',
+            flexShrink: 0,
+            padding: '3px 8px',
+            background: 'transparent',
+            border: '1px solid rgba(23,114,246,0.5)',
+            color: '#1772F6',
+            fontFamily: '"Noto Serif SC", serif',
+            fontSize: 10,
+            letterSpacing: 0.5,
+            borderRadius: 2,
+            cursor: 'pointer',
+            textDecoration: 'none',
+          }}
+        >
+          → 原帖
+        </a>
+      )}
       {onPin && hover && (
         <button
           type="button"

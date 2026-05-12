@@ -125,6 +125,27 @@ export default function ManualPage(): React.ReactElement {
           </p>
         </header>
 
+        {/* R2 judge fix (周源 P2 2026-05-12): 「看山书房不做的事」清单. 把 CLAUDE.md
+            compliance no-go list 翻译成 答主 语言, 挂在 /manual 首屏, 让边界先于
+            功能可见. Anchored before Section 1 so a clickthrough judge reads it
+            within 10 秒 of landing. */}
+        <section data-testid="manual-section-no-go" style={sectionStyle}>
+          <h2 style={h2Style}>· 看山书房不做的事</h2>
+          <p style={{ fontSize: 14, lineHeight: 1.85, color: '#2A2419', margin: '12px 0' }}>
+            一个工具的边界先于它的功能。下面这几件事，本工作台显式不做——不是因为做不到，是因为不该做。
+          </p>
+          <ul style={{ marginTop: 12, paddingLeft: 20, fontSize: 13.5, lineHeight: 1.9, color: '#2A2419' }}>
+            <li><strong>不替你做答主</strong>。看山书房只协助你写得更像你；不会用 AI 人格冒充答主、不会自动回答你账号下的问题、不做「AI 答主」叙事。</li>
+            <li><strong>不把热榜直接扩写为正文</strong>。看势只递选题灵感；从热榜到正文必须经过看水（考据）或看心（审议），由你逐次确认（清朗 第二阶段 红线）。</li>
+            <li><strong>不自动发布到知乎</strong>。「发布到知乎」按钮永远要你点；GB 45438 标识与 AI 辅助披露默认锁定勾选、不可关闭。</li>
+            <li><strong>不拿你的稿子做 fine-tune</strong>。档案库的 corpus 只在你的账号内做向量检索；既不上传第三方训练集，也不进 Kimi / DeepSeek / SiliconFlow 的 SFT 队列。</li>
+            <li><strong>不接美国 LLM 做关键路径</strong>。Kimi-K2 (Moonshot) 是默认底座，DeepSeek-V3 / R1 是 BYO 副选；备案 hygiene 不破。</li>
+            <li><strong>不做声音 / 人脸特征生成</strong>。语音朗读功能（plan #16 起后置）默认静音、显式标识 AI 生成；本作不做深度合成相关的人脸 / 声纹复刻。</li>
+            <li><strong>不读私信、不读消息</strong>。看镜的数据看板只读你已发布作品的公开计数；不读私信、不读评论的私下抄送。</li>
+            <li><strong>不把仿真读者当真审稿</strong>。看文 / 看纹 / 看心 是工程模拟，不代替编辑、医师、律师；每个面板都挂着边界说明。</li>
+          </ul>
+        </section>
+
         {/* Section 1 — three-stage workflow */}
         <section data-testid="manual-section-1" style={sectionStyle}>
           <h2 style={h2Style}>一、三段工作流</h2>

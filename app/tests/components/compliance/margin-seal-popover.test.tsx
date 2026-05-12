@@ -12,6 +12,7 @@ vi.mock('@/lib/store/floating-window', () => ({
 
 vi.mock('@/lib/store/provenance', () => ({
   findProvenanceForChit: () => ({ excerpt: '示例片段', fox: '看心', kind: 'reviewed' }),
+  findCrossFoxFollowups: () => [],
 }));
 
 import { MarginSealPopover } from '@/components/compliance/MarginSealPopover';

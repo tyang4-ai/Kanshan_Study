@@ -19,6 +19,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // Next.js' `server-only` package throws on import in non-server
+      // environments. Vitest runs in Node (effectively server-side), but
+      // jest-dom + jsdom environment confuses the heuristic. Stub it to a
+      // no-op so tests can still import modules that use `import 'server-only'`.
+      'server-only': path.resolve(__dirname, './tests/stubs/server-only.ts'),
     },
   },
 });

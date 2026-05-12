@@ -6,8 +6,26 @@ import {
   type MarginSealOpenDetail,
 } from '@/components/compliance/MarginSealChit';
 import type { MarginSealKind } from '@/components/editor/MarginSeal';
-import { findProvenanceForChit, type ProvenanceEntry } from '@/lib/store/provenance';
+import {
+  findProvenanceForChit,
+  findCrossFoxFollowups,
+  type ProvenanceEntry,
+} from '@/lib/store/provenance';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
+
+// R2 judge fix (李笛 P0 2026-05-12): cross-fox awareness surface. Maps fox
+// IDs to display names + verbs for the "X 在重写时绕开此段" footnote.
+const CROSS_FOX_LABEL: Record<string, string> = {
+  mo: '看墨',
+  shui: '看水',
+  dian: '看典',
+  xin: '看心',
+};
+function describeCrossFox(e: ProvenanceEntry): string {
+  const name = CROSS_FOX_LABEL[e.fox] ?? e.fox;
+  if (e.relatedAction === 'avoided') return `${name} 已在重写时绕开此段`;
+  return `${name} 已对此段做出回应`;
+}
 
 interface PopoverState {
   detail: MarginSealOpenDetail;
@@ -184,6 +202,29 @@ export function MarginSealPopover() {
           {`${entry.fox} · 检出未注明出处`}
         </div>
       )}
+
+      {entry && (() => {
+        const followups = findCrossFoxFollowups(entry.id);
+        if (followups.length === 0) return null;
+        return (
+          <div
+            data-testid="margin-seal-popover-crossfox"
+            style={{
+              marginTop: 4,
+              padding: '6px 8px',
+              background: 'rgba(31,139,102,0.08)',
+              borderLeft: '2px solid #1F8B66',
+              fontSize: 11.5,
+              color: '#1F5B47',
+              fontFamily: '"Noto Serif SC", serif',
+            }}
+          >
+            {followups.map((f) => (
+              <div key={f.id}>{describeCrossFox(f)}</div>
+            ))}
+          </div>
+        );
+      })()}
 
       {!entry && (
         <div data-testid="margin-seal-popover-empty" style={{ marginTop: 2 }}>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAccountStore } from '@/lib/store/account';
 import { useVaultConsentStore } from '@/lib/store/vault-consent';
 import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
-import { ONBOARDING_BG_URL } from '@/lib/art/onboarding-bg';
+import { useTweak } from '@/lib/store/tweak';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
@@ -35,13 +35,19 @@ interface OnboardingGateProps {
    * calls on the operator's credits. Set from `KANSHAN_PUBLIC_MODE` env.
    */
   publicMode?: boolean;
+  /**
+   * Pre-resolved onboarding background image URL (server-side via
+   * `getOnboardingBgUrl`). Null when the asset is absent.
+   */
+  bgUrl?: string | null;
 }
 
-export function OnboardingGate({ guestModeAvailable = true, publicMode = false }: OnboardingGateProps = {}) {
+export function OnboardingGate({ guestModeAvailable = true, publicMode = false, bgUrl = null }: OnboardingGateProps = {}) {
   // Hydration-safe pattern: server + client first render BOTH return null,
   // then a post-mount effect sets the real visibility from localStorage.
   // Avoids hydration mismatch between SSR (no localStorage) and CSR.
   const [hidden, setHidden] = useState<boolean>(true);
+  const onboardingBgDarken = useTweak('onboarding.bg.darken', 0.55);
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderChoice>('kimi');
@@ -70,11 +76,11 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
 
   if (hidden) return null;
 
-  const bgLayer = ONBOARDING_BG_URL ? (
+  const bgLayer = bgUrl ? (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={ONBOARDING_BG_URL}
+        src={bgUrl}
         alt=""
         aria-hidden
         data-testid="onboarding-bg-image"
@@ -87,7 +93,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
         aria-hidden
         style={{
           position: 'fixed', inset: 0, zIndex: 1,
-          background: 'rgba(26, 31, 42, 0.55)',
+          background: `rgba(26, 31, 42, ${onboardingBgDarken})`,
         }}
       />
     </>

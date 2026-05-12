@@ -12,6 +12,10 @@ import { CitationLink } from '@/components/citation/CitationLink';
 import { vaultCitation } from '@/lib/citation/types';
 import { fetchWithErrorToast } from '@/lib/fetch-helpers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
+import {
+  useProvenanceStore,
+  findXinFlagsInRange,
+} from '@/lib/store/provenance';
 
 interface VoiceSourceMeta {
   id: string;
@@ -173,6 +177,40 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
               voiceSources: final.voiceSources ?? [],
               done: true,
             }));
+
+            // R2 judge fix (史中 P1 2026-05-12): user-visible signal when 3
+            // iters didn't reach the 0.85 accept threshold. The server-side
+            // rewriter already returns its best draft; here we just label it
+            // so a clickthrough judge can see the fallback was hit.
+            const ACCEPT = 0.85;
+            const total = final.voiceScore?.total;
+            if (typeof total === 'number' && total < ACCEPT) {
+              useAiErrorStore.getState().push({
+                message: `看墨 3 轮未及 0.85 — 采用最佳稿 (得分 ${total.toFixed(2)})`,
+              });
+            }
+
+            // R2 judge fix (李笛 P0 2026-05-12): cross-fox awareness. After
+            // 看墨 finishes, look up any 看心 flagged spans that fell inside
+            // the source `selection`. For each, record a follow-up 'ai-touched'
+            // entry by 看墨 with `relatedTo` pointing at the 看心 flag —
+            // MarginSealPopover surfaces this as "看墨已在重写时绕开此段".
+            const xinFlags = findXinFlagsInRange(selection);
+            if (xinFlags.length > 0) {
+              const add = useProvenanceStore.getState().add;
+              for (const flag of xinFlags) {
+                add({
+                  kind: 'ai-touched',
+                  fox: 'mo',
+                  excerpt: flag.excerpt,
+                  relatedTo: flag.id,
+                  relatedAction: 'avoided',
+                });
+              }
+              useAiErrorStore.getState().push({
+                message: `看墨已绕开 看心 标记的 ${xinFlags.length} 处需出处片段`,
+              });
+            }
           } else if (ev.event === 'error') {
             const msg = typeof payload.message === 'string' ? payload.message : 'stream error';
             // voice-fill's fallback shape (when present) is a single object

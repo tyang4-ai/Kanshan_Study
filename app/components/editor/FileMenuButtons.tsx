@@ -14,6 +14,7 @@ import {
   exportHtml,
   exportDocx,
   exportPdf,
+  copyMarkdownToClipboard,
 } from '@/lib/io/exporters';
 import { triggerDownload, safeFilename } from '@/lib/io/download';
 import { DEFAULT_DOC_HTML } from '@/content/seed/default-document.html';
@@ -81,6 +82,7 @@ export function FileMenuButtons() {
   const exportBtnRef = useRef<HTMLButtonElement>(null);
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!exportMenu) return;
@@ -197,6 +199,29 @@ export function FileMenuButtons() {
         title="导出当前稿件"
       >
         导出 ▾
+      </button>
+      {/* R2 judge fix (徐诗 P1 2026-05-12): one-tap copy as markdown so 答主
+          can paste into 公众号 / 小红书 / 飞书 without leaving the workbench.
+          Sits next to 导出 to keep the file-action cluster cohesive. */}
+      <button
+        type="button"
+        data-testid="file-menu-copy-md"
+        onClick={async () => {
+          if (!editor) return;
+          try {
+            await copyMarkdownToClipboard(editor);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1600);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : '复制失败';
+            pushErr({ message: msg });
+          }
+        }}
+        style={chipStyle}
+        className="kanshan-focus-ring kanshan-btn-press"
+        title="复制为 Markdown · 可粘贴到公众号 / 小红书 / 飞书"
+      >
+        {copied ? '已复制 ✓' : '复制 .md'}
       </button>
 
       {canPortal() && exportMenu &&

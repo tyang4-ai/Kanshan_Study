@@ -25,15 +25,20 @@ export interface ToolIconProps {
 
 // Resolved once at module load (server-side). pickAssetUrl is cached per-path
 // so this is also safe to call inline if a developer imports the function
-// directly. Using a static map keeps the per-render cost flat.
+// directly. Using a static map keeps the per-render cost flat. Prefers PNG
+// (Gemini-generated, Phase #16.5) and falls back to SVG.
+function resolveIcon(name: ToolIconName): string | null {
+  return pickAssetUrl(`/art/icons/${name}.png`) ?? pickAssetUrl(`/art/icons/${name}.svg`);
+}
+
 const ICON_URLS: Record<ToolIconName, string | null> = {
-  vault:        pickAssetUrl('/art/icons/vault.svg'),
-  trends:       pickAssetUrl('/art/icons/trends.svg'),
-  stats:        pickAssetUrl('/art/icons/stats.svg'),
-  settings:     pickAssetUrl('/art/icons/settings.svg'),
-  'ai-touched': pickAssetUrl('/art/icons/ai-touched.svg'),
-  flag:         pickAssetUrl('/art/icons/flag.svg'),
-  fox:          pickAssetUrl('/art/icons/fox.svg'),
+  vault:        resolveIcon('vault'),
+  trends:       resolveIcon('trends'),
+  stats:        resolveIcon('stats'),
+  settings:     resolveIcon('settings'),
+  'ai-touched': resolveIcon('ai-touched'),
+  flag:         resolveIcon('flag'),
+  fox:          resolveIcon('fox'),
 };
 
 interface FallbackProps {

@@ -9,7 +9,8 @@
     "tags": ["答主圈", "看墨相关"],
     "hot": true,
     "vibes": "看势：与你的写作工具论调直接相关，可作为下一篇切入点",
-    "vibesFox": "shi"
+    "vibesFox": "shi",
+    "url": "https://www.zhihu.com/question/671200001"
   },
   {
     "id": "rel-2",
@@ -21,7 +22,8 @@
     "tags": ["你的领域"],
     "hot": true,
     "vibes": "看势：踩你正在写的\"外部验证\"主题，是个鲜热引子",
-    "vibesFox": "shi"
+    "vibesFox": "shi",
+    "url": "https://www.zhihu.com/question/671200002"
   },
   {
     "id": "rel-3",
@@ -33,7 +35,8 @@
     "tags": ["看心相关"],
     "hot": false,
     "vibes": "看势：你 9 月那篇合规文章可以更新一版",
-    "vibesFox": "shi"
+    "vibesFox": "shi",
+    "url": "https://www.zhihu.com/question/671200003"
   },
   {
     "id": "rel-4",
@@ -45,7 +48,8 @@
     "tags": ["你的领域"],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200004"
   },
   {
     "id": "rel-5",
@@ -57,7 +61,8 @@
     "tags": ["答主圈"],
     "hot": false,
     "vibes": "看镜：与你 4 月收益曲线相关，可作背景注脚",
-    "vibesFox": "jing"
+    "vibesFox": "jing",
+    "url": "https://www.zhihu.com/question/671200005"
   },
   {
     "id": "rel-6",
@@ -69,6 +74,7 @@
     "tags": ["你的领域"],
     "hot": false,
     "vibes": "",
-    "vibesFox": null
+    "vibesFox": null,
+    "url": "https://www.zhihu.com/question/671200006"
   }
 ]

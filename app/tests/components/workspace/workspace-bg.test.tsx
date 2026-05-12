@@ -1,11 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 
-const bgRef = vi.hoisted(() => ({ url: null as string | null }));
-
-vi.mock('@/lib/art/workspace-bg', () => ({
-  get WORKSPACE_BG_URL() { return bgRef.url; },
-}));
+// The server-only `@/lib/art/workspace-bg` is not imported by WorkspaceShell
+// anymore — the resolved URL is passed as a `workspaceBgUrl` prop from the
+// page-level Server Component. Tests just pass it directly.
 
 // Stub heavy children so the shell renders without their internals.
 vi.mock('@/components/rail/LeftRail', () => ({ LeftRail: () => <div data-testid="left-rail" /> }));
@@ -24,20 +22,23 @@ vi.mock('@/components/floating/TrendsConfirmModal', () => ({
 vi.mock('@/components/workspace/useGlobalShortcuts', () => ({ useGlobalShortcuts: () => {} }));
 
 describe('WorkspaceShell · background image', () => {
-  beforeEach(() => { bgRef.url = null; });
   afterEach(() => cleanup());
 
-  it('does NOT render workspace-bg-image when asset is null', async () => {
-    bgRef.url = null;
+  it('does NOT render workspace-bg-image when workspaceBgUrl is null', async () => {
+    const { WorkspaceShell } = await import('@/components/workspace/WorkspaceShell');
+    const { queryByTestId } = render(<WorkspaceShell workspaceBgUrl={null} />);
+    expect(queryByTestId('workspace-bg-image')).toBeNull();
+  });
+
+  it('does NOT render workspace-bg-image when workspaceBgUrl is undefined', async () => {
     const { WorkspaceShell } = await import('@/components/workspace/WorkspaceShell');
     const { queryByTestId } = render(<WorkspaceShell />);
     expect(queryByTestId('workspace-bg-image')).toBeNull();
   });
 
   it('renders workspace-bg-image with the resolved URL when present', async () => {
-    bgRef.url = '/art/bg/workspace.jpg';
     const { WorkspaceShell } = await import('@/components/workspace/WorkspaceShell');
-    const { getByTestId } = render(<WorkspaceShell />);
+    const { getByTestId } = render(<WorkspaceShell workspaceBgUrl="/art/bg/workspace.jpg" />);
     const img = getByTestId('workspace-bg-image') as HTMLImageElement;
     expect(img.getAttribute('src')).toBe('/art/bg/workspace.jpg');
     expect(img.getAttribute('aria-hidden')).toBe('true');

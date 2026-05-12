@@ -20,6 +20,7 @@ export function getLoreAssets(): LoreAssets {
   }
   return {
     huts,
-    bg: pickAssetUrl('/art/bg/lore.jpg'),
+    // Prefer PNG (Gemini output format), fall back to JPG.
+    bg: pickAssetUrl('/art/bg/lore.png') ?? pickAssetUrl('/art/bg/lore.jpg'),
   };
 }

@@ -17,6 +17,9 @@ export interface TrendSeed {
   hot: boolean;
   vibes: string;
   vibesFox: 'shi' | 'jing' | null;
+  // R2 judge fix (吴伟 P0 2026-05-12): trend row needs a one-tap link back to
+  // the source 知乎 question so 答主 can verify before any 选题 follow-up.
+  url?: string;
 }
 
 export function hotListToTrendSeed(
@@ -36,6 +39,7 @@ export function hotListToTrendSeed(
       hot: item.hot ?? seed?.hot ?? false,
       vibes: item.vibes ?? seed?.vibes ?? '',
       vibesFox: (item.vibesFox ?? seed?.vibesFox ?? null) as 'shi' | 'jing' | null,
+      url: item.url ?? seed?.url,
     };
   });
 }

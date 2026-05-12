@@ -15,7 +15,7 @@ import { useAccountStore } from '@/lib/store/account';
 import { exportMarkdown } from '@/lib/io/exporters';
 import { triggerDownload, safeFilename } from '@/lib/io/download';
 import { MarginSealPopover } from '@/components/compliance/MarginSealPopover';
-import { ToolbarIcon, BudgetChip, ProfileChip, useToolbarOpeners } from '@/components/chrome/TitleBar';
+import { ToolbarIcon, BudgetChip, ProfileChip, useToolbarOpeners, type AccountAvatarUrls } from '@/components/chrome/TitleBar';
 import { RightToolbar } from '@/components/chrome/RightToolbar';
 import marginSeedsJson from '@/content/seed/margin-seals-demo.json';
 import type { MarginSealSeed } from './margin-seal-from-seeds';
@@ -29,6 +29,8 @@ export type WritingSurfaceProps = {
   onSelectionChange?: (sel: SelectionPayload | null) => void;
   /** Selection passed back into the floating toolbar so AI dispatches carry it. */
   floatingToolbarSelection?: SelectionPayload | null;
+  /** Pre-resolved avatar URLs (server-side via `getAccountAvatarUrls`). */
+  avatarUrls?: AccountAvatarUrls;
 };
 
 
@@ -87,6 +89,7 @@ export function WritingSurface({
   onContextMenu,
   onSelectionChange,
   floatingToolbarSelection,
+  avatarUrls,
 }: WritingSurfaceProps) {
   const openers = useToolbarOpeners();
   const docs = useEditorTabsStore((s) => s.docs);
@@ -227,7 +230,7 @@ export function WritingSurface({
           <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} title="看势 · 热榜雷达" />
           <ToolbarIcon kind="settings" onClick={openers.onOpenSettings} title="看山书房 · 设置" />
           <BudgetChip />
-          <ProfileChip />
+          <ProfileChip avatarUrls={avatarUrls} />
         </div>
       </div>
 

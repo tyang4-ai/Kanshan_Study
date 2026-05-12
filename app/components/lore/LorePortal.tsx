@@ -20,6 +20,7 @@ import { TechDetailsPanel } from './TechDetailsPanel';
 import { getFox } from '@/lib/foxes/registry';
 import type { FoxId } from '@/lib/foxes/registry';
 import villageData from '@/content/lore/village.json';
+import { useTweak } from '@/lib/store/tweak';
 
 const VILLAGE = villageData as VillageEntry[];
 
@@ -38,15 +39,52 @@ interface MetMark {
 }
 
 // One small px nudge between each pair to break the grid and read organic.
-// Index 0..8 = left margin applied to that house.
+// Index 0..8 = left margin applied to that house. Used by the legacy flex-row
+// layout when no bg image is shipped.
 const HOUSE_OFFSETS = [0, 6, 14, 4, 8, 4, 14, 6, 0];
 
 const SKY_GRADIENT =
   'linear-gradient(180deg, #0A1226 0%, #0C1730 30%, #0E1B2C 70%, #14253D 100%)';
 
+// Phase #16.7 (2026-05-12) — invisible click hotspots positioned over the
+// buildings drawn into the panoramic bg. The bg IS the visual; the painted
+// hut PNGs only fade in on hover/pin as a subtle "you can click here"
+// affordance. Coords are CENTER (`cx`) + base (`by`, measured from bottom)
+// of each building drawn in the 2360×1640 bg (Untitled_Artwork.png), and
+// `h` is building height — all percentages.
+interface BgPos {
+  cx: number;     // % left of building center
+  by: number;     // % from bottom — base of building
+  h: number;      // % height of building
+}
+const BG_POSITIONS: Record<FoxId, BgPos> = {
+  jing: { cx:  9, by: 38, h: 22 },
+  dian: { cx: 24, by: 37, h: 21 },
+  mo:   { cx: 39, by: 39, h: 12 },
+  wen:  { cx: 47, by: 36, h:  9 },
+  wen2: { cx: 52, by: 36, h:  9 },
+  shui: { cx: 70, by: 38, h: 16 },
+  shan: { cx: 86, by: 49, h: 22 },
+  shi:  { cx: 13, by: 14, h: 16 },
+  xin:  { cx: 83, by: 18, h: 24 },
+};
+
 export function LorePortal({ onClose, hutImages, bgImage }: LorePortalProps) {
   const [phase, setPhase] = useState<Phase>('arriving');
   const [hoveredFox, setHoveredFoxState] = useState<FoxId | null>(null);
+  const hutScale = useTweak('lore.hut.scale', 1.0);
+  const hutSpread = useTweak('lore.hut.spread', 1.0);
+  const loreBgDarken = useTweak('lore.bg.darken', 0);
+  // When ?tweak=1 is on, draw dashed outlines + labels on each hotspot so
+  // you can see where they sit relative to the painted buildings and tune
+  // the percentages in BG_POSITIONS.
+  const [debugHuts, setDebugHuts] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDebugHuts(params.get('tweak') === '1');
+  }, []);
   const [pinnedFox, setPinnedFox] = useState<FoxId | null>(null);
   const [hintDismissed, setHintDismissed] = useState(false);
   const [met, setMet] = useState<MetMark | null>(null);
@@ -158,118 +196,267 @@ export function LorePortal({ onClose, hutImages, bgImage }: LorePortalProps) {
     >
       {/* Layer 0: painted background image (when available) — sits at the bottom
           of the z-stack so the existing gradient / aurora / snow / village
-          layers continue to paint on top of it. */}
-      {bgImage && (
-        // Decorative full-bleed cover image; next/image overhead isn't warranted
-        // for a once-per-portal-open background that's already pre-resolved.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          data-testid="lore-portal-bg-image"
-          src={bgImage}
-          alt=""
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            zIndex: 0,
-            pointerEvents: 'none',
-          }}
-        />
-      )}
+          layers continue to paint on top of it.
 
-      {/* Layer 1: stars (top 60% of sky) — count reduced from 80→40 for stream perf */}
+          Phase #16.7: bg + the village hut overlays live INSIDE one aspect-
+          locked box so the hut % coords stay aligned with the painted
+          buildings as the viewport resizes. The box is sized to fully cover
+          the portal (`max(100%, ...)`) and centered, mimicking object-fit:cover
+          but exposing the natural aspect to the children so the hut
+          percentages map onto the bg image's intrinsic coordinate space. */}
+
+      {/* Layer 1: stars (top 60% of sky) — kept regardless of bg, adds motion. */}
       <Stars count={40} />
 
-      {/* Layer 2: aurora ribbons — 3 ribbons; reduced opacity ranges. */}
-      <Aurora hue={195} top="18%" width={140} height={180} dur="22s" delay="0s"   opacity={0.55} filterId="aurora-cyan"   />
-      <Aurora hue={270} top="24%" width={120} height={160} dur="28s" delay="-3s"  opacity={0.42} filterId="aurora-violet" />
-      <Aurora hue={155} top="14%" width={160} height={200} dur="18s" delay="-7s"  opacity={0.38} filterId="aurora-jade"   />
+      {/* Layer 2-4: procedural aurora / ridge / snow-ground — SUPPRESSED when
+          a painted bg is shipped (the bg already has its own painted aurora,
+          rocks, and snow ground). Without bg, these are the scene. */}
+      {!bgImage && (
+        <>
+          <Aurora hue={195} top="18%" width={140} height={180} dur="22s" delay="0s"   opacity={0.55} filterId="aurora-cyan"   />
+          <Aurora hue={270} top="24%" width={120} height={160} dur="28s" delay="-3s"  opacity={0.42} filterId="aurora-violet" />
+          <Aurora hue={155} top="14%" width={160} height={200} dur="18s" delay="-7s"  opacity={0.38} filterId="aurora-jade"   />
+          <Ridge />
+          <div
+            data-testid="snow-ground"
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: '18%',
+              background: 'linear-gradient(180deg, #C9D6E8 0%, #ABB9D0 50%, #8FA3BD 100%)',
+              boxShadow: 'inset 0 8px 24px rgba(255,255,255,0.06)',
+            }}
+          >
+            <svg width="0" height="0" aria-hidden style={{ position: 'absolute' }}>
+              <defs>
+                <filter id="paper-grain">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} seed={3} />
+                  <feColorMatrix values="0 0 0 0 0.95  0 0 0 0 0.97  0 0 0 0 1.00  0 0 0 0.06 0" />
+                </filter>
+              </defs>
+            </svg>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                filter: 'url(#paper-grain)',
+                opacity: 0.5,
+                pointerEvents: 'none',
+                mixBlendMode: 'multiply',
+              }}
+              aria-hidden
+            />
+          </div>
+        </>
+      )}
 
-      {/* Layer 3: mountain ridge — two passes */}
-      <Ridge />
-
-      {/* Layer 4: snow ground plane (with paper-grain feTurbulence overlay) */}
-      <div
-        data-testid="snow-ground"
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: '18%',
-          background: 'linear-gradient(180deg, #C9D6E8 0%, #ABB9D0 50%, #8FA3BD 100%)',
-          boxShadow: 'inset 0 8px 24px rgba(255,255,255,0.06)',
-        }}
-      >
-        <svg
-          width="0"
-          height="0"
-          aria-hidden
-          style={{ position: 'absolute' }}
-        >
-          <defs>
-            <filter id="paper-grain">
-              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} seed={3} />
-              <feColorMatrix values="0 0 0 0 0.95  0 0 0 0 0.97  0 0 0 0 1.00  0 0 0 0.06 0" />
-            </filter>
-          </defs>
-        </svg>
+      {/* Layer 5: village.
+          - With painted bg: each hut is absolute-positioned over the
+            corresponding building drawn into the panorama (Phase #16.7).
+            The bg image + hut container share a single aspect-locked box
+            so `cover`-style cropping affects both equally — hut % coords
+            stay glued to the painted buildings as the viewport resizes.
+          - Without bg: legacy flex-row layout. */}
+      {bgImage ? (
         <div
+          aria-hidden={false}
           style={{
             position: 'absolute',
             inset: 0,
-            filter: 'url(#paper-grain)',
-            opacity: 0.5,
-            pointerEvents: 'none',
-            mixBlendMode: 'multiply',
+            overflow: 'hidden',
+            zIndex: 0,
+            pointerEvents: 'auto',
           }}
-          aria-hidden
-        />
-      </div>
-
-      {/* Layer 5: village row */}
-      <div
-        data-testid="village-row"
-        style={{
-          position: 'absolute',
-          bottom: '12%',
-          left: '50%',
-          transform: `translateX(-50%) ${visible ? 'translateY(0)' : 'translateY(40px)'}`,
-          transition: 'transform 600ms cubic-bezier(.16,1,.3,1)',
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 'clamp(12px, 2vw, 28px)',
-          maxWidth: '94vw',
-        }}
-      >
-        {VILLAGE.length === 0 ? null : (
-          <>
-            {VILLAGE.map((entry, i) => (
+        >
+          <div
+            // aspect-locked box, sized to fully cover the parent. The CSS
+            // `max(100%, calc(...))` math mirrors object-fit:cover: pick the
+            // larger of "viewport-width-driven" and "viewport-height-driven"
+            // so the box always exceeds the viewport in both directions,
+            // then center it.
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: 'max(100%, calc(100vh * 2360 / 1640))',
+              height: 'max(100%, calc(100vw * 1640 / 2360))',
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              data-testid="lore-portal-bg-image"
+              src={bgImage}
+              alt=""
+              aria-hidden
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+                pointerEvents: 'none',
+              }}
+            />
+            {loreBgDarken > 0 && (
               <div
+                aria-hidden
+                data-testid="lore-portal-bg-darken"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: `rgba(0,0,0,${loreBgDarken})`,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+            {/* Hut overlays — percentages are now relative to the aspect-
+                locked box, NOT the viewport, so they track the bg as it
+                scales/crops. */}
+            <div
+              data-testid="village-row"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                opacity: visible ? 1 : 0,
+                transition: 'opacity 600ms cubic-bezier(.16,1,.3,1)',
+                pointerEvents: 'none',
+              }}
+            >
+          {VILLAGE.map((entry) => {
+            const pos = BG_POSITIONS[entry.foxId];
+            if (!pos) return null;
+            const fox = getFox(entry.foxId);
+            const isActive = activeFox === entry.foxId;
+            return (
+              <button
                 key={entry.foxId}
+                type="button"
                 ref={(el) => {
                   if (el) houseRefs.current.set(entry.foxId, el);
                   else houseRefs.current.delete(entry.foxId);
                 }}
-                style={{ marginLeft: i === 0 ? 0 : HOUSE_OFFSETS[i] }}
+                onPointerEnter={() => setHoveredFox(entry.foxId)}
+                onPointerLeave={() => setHoveredFox(null)}
+                onFocus={() => setHoveredFox(entry.foxId)}
+                onBlur={() => setHoveredFox(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePin(entry.foxId);
+                }}
+                aria-label={`${fox.name} · ${fox.species}`}
+                style={{
+                  position: 'absolute',
+                  left: `${pos.cx}%`,
+                  bottom: `${pos.by}%`,
+                  width: `${Math.round(pos.h * 0.9)}%`,
+                  height: `${pos.h}%`,
+                  padding: 0,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  pointerEvents: 'auto',
+                  transform: `translateX(-50%) scale(${hutScale})`,
+                  transformOrigin: 'bottom center',
+                  transition: 'box-shadow 240ms ease, background 240ms ease',
+                  borderRadius: 12,
+                  // Default: invisible click hotspot. Bg art is the visual.
+                  // Hover / pin: subtle ring glow on the building (we keep the
+                  // painted PNG out of the way — it duplicates the bg art).
+                  boxShadow: isActive
+                    ? `0 0 0 2px ${fox.glow}, 0 0 24px 4px ${fox.glow}88`
+                    : 'none',
+                  outline: debugHuts ? `2px dashed ${fox.glow}` : 'none',
+                  outlineOffset: debugHuts ? -2 : 0,
+                  zIndex: isActive ? 12 : 10,
+                }}
+                data-fox-id={entry.foxId}
               >
-                <House
-                  entry={entry}
-                  hovered={activeFox === entry.foxId}
-                  pinned={pinnedFox === entry.foxId}
-                  onHover={setHoveredFox}
-                  onClick={() => togglePin(entry.foxId)}
-                  imageSrc={hutImages?.[entry.foxId]}
-                />
+                {debugHuts && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      top: -22,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: fox.glow,
+                      color: '#1A1815',
+                      fontSize: 10,
+                      padding: '1px 6px',
+                      borderRadius: 2,
+                      fontFamily: '"JetBrains Mono", monospace',
+                      letterSpacing: 0.5,
+                      pointerEvents: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {entry.foxId}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: '3%',
+                  transform: 'translateX(-50%)',
+                  pointerEvents: 'auto',
+                }}
+              >
+                <Signpost onOpen={() => setTechOpen(true)} />
               </div>
-            ))}
-            <Signpost onOpen={() => setTechOpen(true)} />
-          </>
-        )}
-      </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          data-testid="village-row"
+          style={{
+            position: 'absolute',
+            bottom: '12%',
+            left: '50%',
+            transform: `translateX(-50%) ${visible ? 'translateY(0)' : 'translateY(40px)'}`,
+            transition: 'transform 600ms cubic-bezier(.16,1,.3,1)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: `calc(clamp(12px, 2vw, 28px) * ${hutSpread})`,
+            maxWidth: '94vw',
+          }}
+        >
+          {VILLAGE.length === 0 ? null : (
+            <>
+              {VILLAGE.map((entry, i) => (
+                <div
+                  key={entry.foxId}
+                  ref={(el) => {
+                    if (el) houseRefs.current.set(entry.foxId, el);
+                    else houseRefs.current.delete(entry.foxId);
+                  }}
+                  style={{
+                    marginLeft: i === 0 ? 0 : `calc(${HOUSE_OFFSETS[i] ?? 0}px * ${hutSpread})`,
+                    transform: `scale(${hutScale})`,
+                    transformOrigin: 'bottom center',
+                  }}
+                >
+                  <House
+                    entry={entry}
+                    hovered={activeFox === entry.foxId}
+                    pinned={pinnedFox === entry.foxId}
+                    onHover={setHoveredFox}
+                    onClick={() => togglePin(entry.foxId)}
+                    imageSrc={hutImages?.[entry.foxId]}
+                  />
+                </div>
+              ))}
+              <Signpost onOpen={() => setTechOpen(true)} />
+            </>
+          )}
+        </div>
+      )}
 
       {/* Layer 6: snowfall particles (count reduced inside Snow component) */}
       <Snow />

@@ -23,13 +23,32 @@ function hmac(secret: string, payloadB64: string): Buffer {
 }
 
 export function signSession<T extends object>(payload: T, secret: string): string {
-  const json = JSON.stringify(payload);
+  // R2 judge fix (颜鑫 P2 2026-05-12): always stamp `iat` (issued-at, unix
+  // seconds) into the signed payload so the verifier can enforce a maximum
+  // session age independent of `exp`. Pre-fix tokens missing `iat` still
+  // verify (we don't reject on absence) — keeps existing cookies live.
+  const stamped = 'iat' in payload
+    ? payload
+    : ({ iat: Math.floor(Date.now() / 1000), ...payload } as T & { iat: number });
+  const json = JSON.stringify(stamped);
   const payloadB64 = base64urlEncode(Buffer.from(json, 'utf8'));
   const sigB64 = base64urlEncode(hmac(secret, payloadB64));
   return `${payloadB64}.${sigB64}`;
 }
 
-export function verifySession<T extends object>(token: string, secret: string): T | null {
+/** Optional replay-window guard. Caller passes the maximum allowed session
+ *  age in seconds; if the token's `iat` is older, verifySession returns null.
+ *  Backward-compatible: tokens minted before iat was added (no `iat`) skip
+ *  this check rather than getting rejected. */
+export interface VerifyOptions {
+  maxAgeSeconds?: number;
+}
+
+export function verifySession<T extends object>(
+  token: string,
+  secret: string,
+  options: VerifyOptions = {},
+): T | null {
   if (typeof token !== 'string') return null;
   const dotIdx = token.indexOf('.');
   if (dotIdx < 0 || dotIdx === token.length - 1) return null;
@@ -54,8 +73,15 @@ export function verifySession<T extends object>(token: string, secret: string): 
   }
   if (!parsed || typeof parsed !== 'object') return null;
 
-  const candidate = parsed as { exp?: unknown };
+  const candidate = parsed as { exp?: unknown; iat?: unknown };
   if (typeof candidate.exp === 'number' && candidate.exp < Date.now()) return null;
+  if (
+    typeof options.maxAgeSeconds === 'number' &&
+    typeof candidate.iat === 'number'
+  ) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (nowSec - candidate.iat > options.maxAgeSeconds) return null;
+  }
 
   return parsed as T;
 }

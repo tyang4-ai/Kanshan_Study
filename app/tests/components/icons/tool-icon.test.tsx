@@ -87,7 +87,7 @@ describe('ToolIcon', () => {
       const img = getByTestId('tool-icon-vault') as HTMLImageElement;
       expect(img.tagName).toBe('IMG');
       expect(img.getAttribute('data-source')).toBe('asset');
-      expect(img.getAttribute('src')).toBe('/art/icons/vault.svg');
+      expect(img.getAttribute('src')).toBe('/art/icons/vault.png');
       expect(img.getAttribute('width')).toBe('32');
       expect(img.getAttribute('height')).toBe('32');
     });
@@ -100,7 +100,7 @@ describe('ToolIcon', () => {
         const el = getByTestId(`tool-icon-${name}`);
         expect(el.tagName).toBe('IMG');
         expect(el.getAttribute('data-source')).toBe('asset');
-        expect(el.getAttribute('src')).toBe(`/art/icons/${name}.svg`);
+        expect(el.getAttribute('src')).toBe(`/art/icons/${name}.png`);
         unmount();
       }
     });
