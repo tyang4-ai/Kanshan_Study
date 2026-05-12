@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, fireEvent, screen, act } from '@testing-library/react';
 import { TabbedFloatingWindow } from '@/components/floating/TabbedFloatingWindow';
 import { useFloatingWindowStore, type Tab } from '@/lib/store/floating-window';
+import { useAccountStore } from '@/lib/store/account';
+import { useVaultConsentStore } from '@/lib/store/vault-consent';
 
 const baseTab = (id: string, kind: Tab['kind'], title: string): Tab => ({
   id,
@@ -26,6 +28,8 @@ describe('TabbedFloatingWindow', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1280, configurable: true });
     Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
     resetStore();
+    useAccountStore.setState({ active: 'guwanxi' });
+    useVaultConsentStore.setState({ consented: true, hydratedFor: 'guwanxi' });
   });
 
   it('renders nothing when open=false', () => {

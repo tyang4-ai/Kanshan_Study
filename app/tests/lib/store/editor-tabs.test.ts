@@ -64,6 +64,30 @@ describe('editor-tabs store', () => {
       expect(persisted).not.toBeNull();
       expect(persisted).toContain('x.md');
     });
+
+    it('accepts source = "vault" and stores vaultArticleId from opts', () => {
+      useEditorTabsStore.getState().hydrate(ACC);
+      const id = useEditorTabsStore
+        .getState()
+        .addTab('archived.md', '<p>body</p>', 'vault', { vaultArticleId: 'art-42' });
+      const doc = useEditorTabsStore.getState().docs[id];
+      expect(doc.source).toBe('vault');
+      expect(doc.vaultArticleId).toBe('art-42');
+      // Persists through LS round-trip.
+      const persisted = JSON.parse(
+        window.localStorage.getItem(`kanshan-tabs:${ACC}`) ?? '{}',
+      );
+      expect(persisted.docs[id].source).toBe('vault');
+      expect(persisted.docs[id].vaultArticleId).toBe('art-42');
+    });
+
+    it('omits vaultArticleId when opts is missing (no key on the doc)', () => {
+      useEditorTabsStore.getState().hydrate(ACC);
+      const id = useEditorTabsStore.getState().addTab('plain.md', '<p>hi</p>', 'vault');
+      const doc = useEditorTabsStore.getState().docs[id];
+      expect(doc.source).toBe('vault');
+      expect(doc.vaultArticleId).toBeUndefined();
+    });
   });
 
   describe('closeTab', () => {

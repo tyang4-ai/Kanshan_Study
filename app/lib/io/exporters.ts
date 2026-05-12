@@ -121,6 +121,57 @@ export async function exportDocx(editor: Editor): Promise<Blob> {
   return blob;
 }
 
+/**
+ * Plain-text → markdown blob. Used by the 看典 (vault) export-action chips
+ * where there's no live TipTap editor — only the raw archived markdown body.
+ */
+export function exportMarkdownFromText(markdown: string): Blob {
+  return new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+}
+
+/**
+ * Plain-text/markdown → .docx blob. Splits on blank lines for paragraphs and
+ * treats leading `#`/`##`/`###` as headings. Used by vault action chips.
+ */
+export async function exportDocxFromText(markdown: string): Promise<Blob> {
+  const blocks = markdown.replace(/\r\n/g, '\n').split(/\n{2,}/);
+  const paragraphs: Paragraph[] = [];
+  for (const raw of blocks) {
+    const block = raw.trim();
+    if (!block) continue;
+    const h = /^(#{1,6})\s+(.+)$/.exec(block);
+    if (h) {
+      const lvl = h[1].length;
+      const map: Record<number, (typeof HeadingLevel)[keyof typeof HeadingLevel]> = {
+        1: HeadingLevel.HEADING_1,
+        2: HeadingLevel.HEADING_2,
+        3: HeadingLevel.HEADING_3,
+        4: HeadingLevel.HEADING_4,
+        5: HeadingLevel.HEADING_5,
+        6: HeadingLevel.HEADING_6,
+      };
+      paragraphs.push(
+        new Paragraph({
+          heading: map[lvl] ?? HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: h[2] })],
+        }),
+      );
+      continue;
+    }
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: block })] }));
+  }
+  if (paragraphs.length === 0) paragraphs.push(new Paragraph(''));
+  const doc = new Document({
+    sections: [{ properties: {}, children: paragraphs }],
+    styles: {
+      default: {
+        document: { run: { font: 'Noto Serif SC', size: 24 } },
+      },
+    },
+  });
+  return Packer.toBlob(doc);
+}
+
 export async function exportPdf(containerEl: HTMLElement): Promise<Blob> {
   const { default: html2canvas } = await import('html2canvas');
   const { jsPDF } = await import('jspdf');

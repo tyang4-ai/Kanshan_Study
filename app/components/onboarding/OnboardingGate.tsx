@@ -1,11 +1,14 @@
 'use client';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { useEffect, useState } from 'react';
+import { useAccountStore } from '@/lib/store/account';
+import { useVaultConsentStore } from '@/lib/store/vault-consent';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
 type OnboardingMode = 'byo-key' | 'guest';
 type ProviderChoice = 'kimi' | 'deepseek';
+type Step = 'run-mode' | 'vault-consent';
 
 interface OnboardingRecord {
   mode: OnboardingMode;
@@ -40,6 +43,11 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderChoice>('kimi');
+  const [step, setStep] = useState<Step>('run-mode');
+  const [pendingRecord, setPendingRecord] = useState<OnboardingRecord | null>(null);
+  const activeAccount = useAccountStore((s) => s.active);
+  const acceptVaultConsent = useVaultConsentStore((s) => s.accept);
+  const hydrateVaultConsent = useVaultConsentStore((s) => s.hydrate);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -48,13 +56,27 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
 
   if (hidden) return null;
 
-  const writeRecord = (record: OnboardingRecord) => {
+  const finalizeRecord = (record: OnboardingRecord) => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
     setHidden(true);
     // Notify TourTrigger (mounted earlier with 'done' state since localStorage
     // was empty at that time) to re-check and auto-start the tour now that
     // onboarding has been completed within this session.
     window.dispatchEvent(new CustomEvent('kanshan-onboarding-done'));
+  };
+
+  const advanceAfterRunMode = (record: OnboardingRecord) => {
+    // Guest flow defaults to guwanxi (auto-accepted by the consent store);
+    // skip the consent screen for that account. `me` (and any other non-
+    // guwanxi account) must see the consent screen before closing.
+    const effectiveAccount = record.mode === 'guest' ? 'guwanxi' : activeAccount;
+    if (effectiveAccount === 'guwanxi') {
+      hydrateVaultConsent('guwanxi');
+      finalizeRecord(record);
+      return;
+    }
+    setPendingRecord(record);
+    setStep('vault-consent');
   };
 
   const submitByoKey = () => {
@@ -66,7 +88,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
     setError(null);
     // Cookie tells server which LLM adapter to route this user's BYO key to.
     document.cookie = `kanshan-provider=${provider}; path=/; max-age=31536000; SameSite=Lax`;
-    writeRecord({
+    advanceAfterRunMode({
       mode: 'byo-key',
       provider,
       apiKey: apiKey.trim(),
@@ -84,10 +106,24 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
     if (publicMode) {
       document.cookie = 'kanshan-mode=cache; path=/; max-age=31536000; SameSite=Lax';
     }
-    writeRecord({
+    advanceAfterRunMode({
       mode: 'guest',
       dismissedAt: new Date().toISOString(),
     });
+  };
+
+  const acceptVault = () => {
+    hydrateVaultConsent(activeAccount);
+    acceptVaultConsent();
+    if (pendingRecord) finalizeRecord(pendingRecord);
+  };
+
+  const declineVault = () => {
+    // Leave consented = false; still close onboarding so the rest of the
+    // workspace stays usable. /api/vault/ingest will 403 until the user
+    // accepts via the VaultTab inline banner.
+    hydrateVaultConsent(activeAccount);
+    if (pendingRecord) finalizeRecord(pendingRecord);
   };
 
   const handleKeyInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -296,6 +332,82 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
     background: 'transparent',
     color: '#2A2419',
   };
+
+  const consentBodyStyle: CSSProperties = {
+    fontSize: 13,
+    color: '#3A3225',
+    lineHeight: 1.85,
+    fontFamily: '"Noto Serif SC", serif',
+    margin: '8px 4px 18px',
+  };
+
+  const consentBulletList: CSSProperties = {
+    fontSize: 13,
+    color: '#3A3225',
+    lineHeight: 1.9,
+    margin: '0 0 18px 22px',
+    padding: 0,
+    fontFamily: '"Noto Serif SC", serif',
+  };
+
+  const consentButtonRow: CSSProperties = {
+    display: 'flex',
+    gap: 12,
+    marginTop: 8,
+  };
+
+  if (step === 'vault-consent') {
+    return (
+      <div
+        data-testid="onboarding-gate"
+        style={root}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+          }
+        }}
+        onKeyDown={handleBackdropKeyDown}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          data-testid="onboarding-vault-consent"
+          style={{ ...card, maxWidth: 620 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={titleRow}>
+            <div style={titleText}>看典 · 档案库使用说明</div>
+            <div style={subtitleText}>第二步 · 数据使用同意</div>
+          </div>
+          <div style={consentBodyStyle}>当你导入文档到看典：</div>
+          <ul style={consentBulletList}>
+            <li>文件内容存入 Supabase 新加坡区数据库</li>
+            <li>文本经 SiliconFlow BGE-M3 切块嵌入，用于语风指纹检索</li>
+            <li>你的内容不会进入第三方训练集</li>
+            <li>任何时刻可在「看典」面板「导出全部」或「删除全部」</li>
+          </ul>
+          <div style={consentButtonRow}>
+            <button
+              type="button"
+              data-testid="onboarding-vault-accept"
+              style={buttonStyle}
+              onClick={acceptVault}
+            >
+              同意并继续
+            </button>
+            <button
+              type="button"
+              data-testid="onboarding-vault-decline"
+              style={guestButtonStyle}
+              onClick={declineVault}
+            >
+              暂不开通看典
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

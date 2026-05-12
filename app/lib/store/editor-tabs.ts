@@ -14,8 +14,12 @@ export interface DocEntry {
   lastSavedAt: number;
   /** true between an edit and the next save flush */
   dirty: boolean;
-  /** 'local' = lives in localStorage only · 'disk' = mirrored to a FSA folder */
-  source: 'local' | 'disk';
+  /** 'local' = lives in localStorage only · 'disk' = mirrored to a FSA folder ·
+   *  'vault' = opened from a 看典 archived article (round-trips to vault on save) */
+  source: 'local' | 'disk' | 'vault';
+  /** When source === 'vault', the originating articles.id from the vault DB.
+   *  Used to detect "already open" so re-展卷 switches instead of duplicating. */
+  vaultArticleId?: string;
 }
 
 interface EditorTabsState {
@@ -28,7 +32,12 @@ interface EditorTabsState {
   hydrate: (accountId: string) => void;
 
   /** Create a new doc and switch to it. Returns its id. */
-  addTab: (filename: string, html?: string, source?: 'local' | 'disk') => string;
+  addTab: (
+    filename: string,
+    html?: string,
+    source?: 'local' | 'disk' | 'vault',
+    opts?: { vaultArticleId?: string },
+  ) => string;
 
   /** Close a tab. If it was active, switch to the next-most-recent tab. */
   closeTab: (id: string) => void;
@@ -155,7 +164,7 @@ export const useEditorTabsStore = create<EditorTabsState>((set, get) => ({
     }
   },
 
-  addTab(filename, html, source = 'local') {
+  addTab(filename, html, source = 'local', opts) {
     const id = makeId();
     const doc: DocEntry = {
       id,
@@ -164,6 +173,7 @@ export const useEditorTabsStore = create<EditorTabsState>((set, get) => ({
       lastSavedAt: Date.now(),
       dirty: false,
       source,
+      ...(opts?.vaultArticleId !== undefined ? { vaultArticleId: opts.vaultArticleId } : {}),
     };
     set((state) => {
       const docs = { ...state.docs, [id]: doc };

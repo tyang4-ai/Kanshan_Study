@@ -24,6 +24,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '文件过大 (>1MB)，请拆分后再传' }, { status: 413 });
   }
 
+  // Vault data-handling consent gate. The showcase `guwanxi` account is
+  // exempted (auto-accepted in the consent store). Every other account must
+  // send `x-kanshan-vault-consent: 1`.
+  const accountHeader = req.headers.get('x-kanshan-account');
+  const consentHeader = req.headers.get('x-kanshan-vault-consent');
+  if (accountHeader !== 'guwanxi' && consentHeader !== '1') {
+    return NextResponse.json(
+      { error: '档案库未开通 — 请在设置中同意条款' },
+      { status: 403 },
+    );
+  }
+
   let body: IngestBody;
   try {
     body = (await req.json()) as IngestBody;

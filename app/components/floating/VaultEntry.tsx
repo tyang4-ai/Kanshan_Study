@@ -1,5 +1,19 @@
 'use client';
-import { useState, type DragEvent } from 'react';
+import { useCallback, useState, type DragEvent } from 'react';
+import { useAccountStore } from '@/lib/store/account';
+
+interface ChunkPreview {
+  id: string;
+  text: string;
+  charCount: number;
+  position: number;
+}
+
+interface ChunksResponse {
+  articleId: string;
+  chunks: ChunkPreview[];
+  inMemoryFallback?: boolean;
+}
 
 export interface VaultEntryData {
   id: string;
@@ -17,12 +31,49 @@ export interface VaultEntryData {
 interface VaultEntryProps {
   entry: VaultEntryData;
   onOpen: (entry: VaultEntryData) => void;
+  onExportMd: (entry: VaultEntryData) => void;
+  onExportDocx: (entry: VaultEntryData) => void;
+  onDelete: (entry: VaultEntryData) => void;
 }
 
 const VAULT_DRAG_MIME = 'application/kanshan-vault';
 
-export function VaultEntry({ entry, onOpen }: VaultEntryProps) {
+export function VaultEntry({ entry, onOpen, onExportMd, onExportDocx, onDelete }: VaultEntryProps) {
   const [hover, setHover] = useState(false);
+  const [chunksOpen, setChunksOpen] = useState(false);
+  const [chunksLoading, setChunksLoading] = useState(false);
+  const [chunksError, setChunksError] = useState<string | null>(null);
+  const [chunks, setChunks] = useState<ChunkPreview[] | null>(null);
+  const accountId = useAccountStore((s) => s.active);
+
+  const fetchChunks = useCallback(async () => {
+    setChunksLoading(true);
+    setChunksError(null);
+    try {
+      const res = await fetch(`/api/vault/articles/${encodeURIComponent(entry.id)}/chunks`, {
+        headers: { 'x-kanshan-account': accountId },
+      });
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
+      const data = (await res.json()) as ChunksResponse;
+      setChunks(data.chunks);
+    } catch {
+      setChunksError('无法读取分块');
+    } finally {
+      setChunksLoading(false);
+    }
+  }, [accountId, entry.id]);
+
+  const toggleChunks = useCallback(() => {
+    setChunksOpen((prev) => {
+      const next = !prev;
+      if (next && chunks === null && !chunksLoading) {
+        void fetchChunks();
+      }
+      return next;
+    });
+  }, [chunks, chunksLoading, fetchChunks]);
 
   const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
     const payload = {
@@ -155,6 +206,216 @@ export function VaultEntry({ entry, onOpen }: VaultEntryProps) {
             </span>
           ))}
         </div>
+        {/* Per-entry action chips (phase #15.9 Track 2). Hover-revealed so the
+            row stays tidy at rest; click handlers stop propagation so the
+            parent row's click-to-open doesn't double-fire. */}
+        <div
+          data-testid={`vault-entry-actions-${entry.id}`}
+          style={{
+            display: 'flex',
+            gap: 6,
+            marginTop: 6,
+            opacity: hover ? 1 : 0,
+            transition: 'opacity 0.15s',
+            pointerEvents: hover ? 'auto' : 'none',
+          }}
+        >
+          <button
+            type="button"
+            data-testid={`vault-entry-open-${entry.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(entry);
+            }}
+            style={{
+              padding: '2px 8px',
+              fontSize: 10.5,
+              fontFamily: '"Noto Serif SC", serif',
+              letterSpacing: 1,
+              background: '#1772F6',
+              color: '#F4EAD0',
+              border: '1px solid #1772F6',
+              borderRadius: 2,
+              cursor: 'pointer',
+            }}
+          >
+            打开
+          </button>
+          <button
+            type="button"
+            data-testid={`vault-entry-export-md-${entry.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onExportMd(entry);
+            }}
+            style={{
+              padding: '2px 8px',
+              fontSize: 10.5,
+              fontFamily: '"Noto Serif SC", serif',
+              letterSpacing: 1,
+              background: 'transparent',
+              color: '#1772F6',
+              border: '1px solid #1772F6',
+              borderRadius: 2,
+              cursor: 'pointer',
+            }}
+          >
+            导出 .md
+          </button>
+          <button
+            type="button"
+            data-testid={`vault-entry-export-docx-${entry.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onExportDocx(entry);
+            }}
+            style={{
+              padding: '2px 8px',
+              fontSize: 10.5,
+              fontFamily: '"Noto Serif SC", serif',
+              letterSpacing: 1,
+              background: 'transparent',
+              color: '#1772F6',
+              border: '1px solid #1772F6',
+              borderRadius: 2,
+              cursor: 'pointer',
+            }}
+          >
+            导出 .docx
+          </button>
+          <button
+            type="button"
+            data-testid={`vault-entry-delete-${entry.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(entry);
+            }}
+            style={{
+              padding: '2px 8px',
+              fontSize: 10.5,
+              fontFamily: '"Noto Serif SC", serif',
+              letterSpacing: 1,
+              background: 'transparent',
+              color: '#B85543',
+              border: '1px solid #B8554355',
+              borderRadius: 2,
+              cursor: 'pointer',
+            }}
+          >
+            删除
+          </button>
+        </div>
+        {/* phase #15.9 Track 4 — chunk introspection toggle. Sits on its own
+            row below the action chips so it doesn't fight the hover-revealed
+            row above. Visible at rest because users explicitly want
+            transparency, not just on hover. */}
+        <div
+          style={{
+            display: 'flex',
+            marginTop: 6,
+          }}
+        >
+          <button
+            type="button"
+            data-testid={`vault-entry-chunks-toggle-${entry.id}`}
+            aria-expanded={chunksOpen}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleChunks();
+            }}
+            style={{
+              padding: '2px 8px',
+              fontSize: 10.5,
+              fontFamily: '"Noto Serif SC", serif',
+              letterSpacing: 1,
+              background: chunksOpen ? 'rgba(23,114,246,0.08)' : 'transparent',
+              color: '#1772F6',
+              border: '1px dashed #1772F655',
+              borderRadius: 2,
+              cursor: 'pointer',
+            }}
+          >
+            {chunksOpen ? '收起分块' : '查看分块'}
+          </button>
+        </div>
+        {chunksOpen && (
+          <div
+            data-testid={`vault-entry-chunks-panel-${entry.id}`}
+            style={{
+              marginTop: 6,
+              marginLeft: 6,
+              padding: '8px 10px',
+              borderLeft: '2px solid #1772F655',
+              background: 'rgba(244,234,208,0.4)',
+              fontFamily: '"Noto Serif SC", serif',
+              fontSize: 11,
+              color: '#3A3633',
+              lineHeight: 1.6,
+            }}
+          >
+            {chunksLoading && <div>读取分块中...</div>}
+            {!chunksLoading && chunksError && (
+              <div style={{ color: '#B85543' }}>{chunksError}</div>
+            )}
+            {!chunksLoading && !chunksError && chunks && (
+              <>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontFamily: 'JetBrains Mono, monospace',
+                    color: '#1772F6',
+                    letterSpacing: 0.5,
+                    marginBottom: 4,
+                  }}
+                >
+                  共 {chunks.length} 块
+                </div>
+                {chunks.length === 0 ? (
+                  <div style={{ color: '#8A8680', fontSize: 10.5 }}>
+                    暂无分块数据 (内存模式 fallback)
+                  </div>
+                ) : (
+                  chunks.map((c) => (
+                    <div
+                      key={c.id}
+                      data-testid={`vault-entry-chunk-row-${c.id}`}
+                      style={{
+                        display: 'flex',
+                        gap: 6,
+                        marginBottom: 3,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 9.5,
+                          color: '#1772F6',
+                          flexShrink: 0,
+                        }}
+                      >
+                        [{c.position}]
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        {c.text.slice(0, 80)}
+                        {c.text.length > 80 ? '...' : ''}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 9.5,
+                          color: '#8A8680',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {c.charCount} 字
+                      </span>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
       {/* hover-only "展卷" button */}
       <button

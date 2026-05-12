@@ -66,6 +66,8 @@ describe('OnboardingGate', () => {
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    // Vault-consent step interposes for the default `me` account.
+    fireEvent.click(getByTestId('onboarding-vault-accept'));
     const raw = window.localStorage.getItem(STORAGE_KEY);
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw as string);
@@ -181,6 +183,8 @@ describe('OnboardingGate', () => {
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    // Vault-consent step interposes for the default `me` account.
+    fireEvent.click(getByTestId('onboarding-vault-accept'));
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = JSON.parse(raw as string);
     expect(parsed.provider).toBe('deepseek');
@@ -194,8 +198,9 @@ describe('OnboardingGate', () => {
     // Simulate composition Enter (keyCode 229)
     fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
-    // Now submit normally
+    // Now submit normally — vault-consent step interposes for `me`.
     fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 });
+    fireEvent.click(getByTestId('onboarding-vault-accept'));
     expect(window.localStorage.getItem(STORAGE_KEY)).not.toBeNull();
   });
 });

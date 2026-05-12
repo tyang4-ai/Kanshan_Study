@@ -5,7 +5,11 @@ function makeReq(body: unknown, headers: Record<string, string> = {}): Request {
   const json = typeof body === 'string' ? body : JSON.stringify(body);
   return new Request('http://localhost/api/vault/ingest', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-kanshan-vault-consent': '1',
+      ...headers,
+    },
     body: json,
   });
 }

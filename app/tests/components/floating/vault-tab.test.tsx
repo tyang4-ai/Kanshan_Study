@@ -145,19 +145,22 @@ describe('VaultTab', () => {
     });
   });
 
-  it('展卷 click → calls handler with the entry object (console.log spy)', () => {
-    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  it('展卷 click → opens entry in editor as a vault-source tab', async () => {
+    const { useEditorTabsStore } = await import('@/lib/store/editor-tabs');
+    useEditorTabsStore.setState({ docs: {}, activeId: null, hydratedFor: null });
+    useEditorTabsStore.getState().hydrate('guwanxi');
+    const beforeIds = new Set(Object.keys(useEditorTabsStore.getState().docs));
     render(<VaultTab />);
     const seed = guwanxiSeed as SeedEntry[];
     const first = seed[0];
     const button = screen.getByLabelText(`展卷 ${first.title}`);
     fireEvent.click(button);
-    expect(spy).toHaveBeenCalledWith(
-      'TODO plan #15: open in editor',
-      expect.objectContaining({ id: first.id, title: first.title })
-    );
+    const afterDocs = Object.values(useEditorTabsStore.getState().docs);
+    const newTab = afterDocs.find((d) => !beforeIds.has(d.id));
+    expect(newTab).toBeDefined();
+    expect(newTab?.source).toBe('vault');
+    expect(newTab?.vaultArticleId).toBe(first.id);
     expect(screen.getByTestId('vault-open-message')).toBeInTheDocument();
-    spy.mockRestore();
   });
 
   it('empty corpus (me account) → renders empty state', async () => {
