@@ -17,6 +17,8 @@ import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { fetchWithErrorToast } from '@/lib/fetch-helpers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
 import { useEditorStore } from '@/lib/store/editor';
+import { useAccountStore } from '@/lib/store/account';
+import { usePersonaMasksStore } from '@/lib/store/persona-masks';
 
 interface PersonaTabProps {
   mode?: 'auto' | 'pick' | 'recent';
@@ -80,7 +82,14 @@ export function PersonaTab({ selection }: PersonaTabProps) {
   const [selectedFixedIds, setSelectedFixedIds] = useState<Set<string>>(
     () => new Set(FIXED_MASKS.map((m) => m.id))
   );
-  const [customMasks, setCustomMasks] = useState<CustomMask[]>([]);
+  const account = useAccountStore((s) => s.active);
+  const customMasks = usePersonaMasksStore((s) => s.customMasks);
+  const hydrateMasks = usePersonaMasksStore((s) => s.hydrate);
+  const addCustomMask = usePersonaMasksStore((s) => s.addCustom);
+  const removeCustomMask = usePersonaMasksStore((s) => s.removeCustom);
+  useEffect(() => {
+    hydrateMasks(account);
+  }, [account, hydrateMasks]);
   const [selectedCustomIds, setSelectedCustomIds] = useState<Set<string>>(() => new Set());
   const [rounds, setRounds] = useState<1 | 2 | 3>(1);
 
@@ -235,7 +244,7 @@ export function PersonaTab({ selection }: PersonaTabProps) {
   };
 
   const handleAddCustom = (m: CustomMask) => {
-    setCustomMasks((prev) => [...prev, m]);
+    addCustomMask(m);
     setSelectedCustomIds((prev) => {
       const next = new Set(prev);
       next.add(m.id);
@@ -245,7 +254,7 @@ export function PersonaTab({ selection }: PersonaTabProps) {
   };
 
   const handleDeleteCustom = (id: string) => {
-    setCustomMasks((prev) => prev.filter((m) => m.id !== id));
+    removeCustomMask(id);
     setSelectedCustomIds((prev) => {
       const next = new Set(prev);
       next.delete(id);

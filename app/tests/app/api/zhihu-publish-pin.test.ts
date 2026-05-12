@@ -111,4 +111,48 @@ describe('POST /api/zhihu/publish-pin', () => {
     // Error context preserved (no API-key shape in the message → passes through).
     expect(json.error).toContain('Zhihu');
   });
+
+  // Phase #15.8 Track 5: GB 45438 「AI 辅助生成」 trailer.
+  describe('GB 45438 AI-assisted trailer', () => {
+    it('appends trailer when aiAssisted:true (signed content reaches publishPin)', async () => {
+      const res = await routeMod.POST(req({ content: '影像组学正在悄然转向', aiAssisted: true }));
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { ok: boolean; content: string };
+      expect(json.content.endsWith('本文由看山书房 AI 辅助生成 · GB 45438')).toBe(true);
+      const calledWith = mocked.mock.calls[0]?.[0] ?? '';
+      expect(calledWith.endsWith('本文由看山书房 AI 辅助生成 · GB 45438')).toBe(true);
+    });
+
+    it('is idempotent: trailer appears exactly once even on repeat POSTs', async () => {
+      const draft = 'hello world';
+      const trailer = '\n\n———\n本文由看山书房 AI 辅助生成 · GB 45438';
+
+      const first = await routeMod.POST(req({ content: draft, aiAssisted: true }));
+      const firstJson = (await first.json()) as { content: string };
+      expect(firstJson.content).toBe(draft + trailer);
+
+      // Simulate a client retry sending the already-signed content back.
+      const second = await routeMod.POST(req({ content: firstJson.content, aiAssisted: true }));
+      const secondJson = (await second.json()) as { content: string };
+      // Count occurrences of the marker — must be exactly 1.
+      const matches = secondJson.content.match(/GB 45438/g) ?? [];
+      expect(matches.length).toBe(1);
+    });
+
+    it('does NOT append trailer when aiAssisted field omitted (backward compat)', async () => {
+      const res = await routeMod.POST(req({ content: 'plain content' }));
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { content: string };
+      expect(json.content).toBe('plain content');
+      expect(json.content).not.toContain('GB 45438');
+      expect(mocked).toHaveBeenCalledWith('plain content', '2029619126742656657');
+    });
+
+    it('does NOT append trailer when aiAssisted:false', async () => {
+      const res = await routeMod.POST(req({ content: 'plain content', aiAssisted: false }));
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { content: string };
+      expect(json.content).not.toContain('GB 45438');
+    });
+  });
 });

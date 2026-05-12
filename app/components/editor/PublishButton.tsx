@@ -100,7 +100,12 @@ export function PublishButton() {
       const res = await fetch('/api/zhihu/publish-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: body + hashLine, ringId }),
+        body: JSON.stringify({
+          content: body + hashLine,
+          ringId,
+          aiAssisted: true,
+          compliance: 'GB-45438',
+        }),
       });
       const data: PublishResponse = await res.json();
       if (!res.ok || !data.ok) {
@@ -296,6 +301,34 @@ export function PublishButton() {
               </option>
             ))}
           </select>
+
+          <div
+            data-testid="publish-to-zhihu-gb45438-row"
+            style={{
+              marginTop: 12,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 6,
+              padding: '6px 8px',
+              background: '#FFF7E4',
+              border: '1px solid rgba(168,123,42,0.45)',
+              borderRadius: 2,
+              fontSize: 10,
+              lineHeight: 1.5,
+              color: '#5A4A1F',
+            }}
+          >
+            <input
+              type="checkbox"
+              data-testid="publish-to-zhihu-gb45438-checkbox"
+              aria-label="本文由看山书房 AI 辅助生成 · 发布时附 GB 45438 标识"
+              checked
+              disabled
+              readOnly
+              style={{ marginTop: 2, accentColor: '#A87B2A', cursor: 'not-allowed' }}
+            />
+            <span>本文由看山书房 AI 辅助生成 · 发布时附 GB 45438 标识（不可关闭）</span>
+          </div>
 
           <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <button

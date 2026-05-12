@@ -1,0 +1,65 @@
+[
+  {
+    "id": "shan",
+    "name": "刘看山",
+    "verb": "orchestrate",
+    "canHelp": "听一句话，把对的狐叫到面前",
+    "whenToCall": "不知道该叫哪只狐时"
+  },
+  {
+    "id": "mo",
+    "name": "刘看墨",
+    "verb": "内容精加工",
+    "canHelp": "照你旧文的语气重写这一段",
+    "whenToCall": "句子写得别扭、读不顺时"
+  },
+  {
+    "id": "wen",
+    "name": "刘看文",
+    "verb": "思路梳理",
+    "canHelp": "用 4 种读者视角同时读你的稿",
+    "whenToCall": "想知道读者会怎么挑刺时"
+  },
+  {
+    "id": "wen2",
+    "name": "刘看纹",
+    "verb": "思路梳理",
+    "canHelp": "为你剪一张自定读者的脸",
+    "whenToCall": "默认 4 种读者不够用时"
+  },
+  {
+    "id": "shui",
+    "name": "刘看水",
+    "verb": "灵感激发",
+    "canHelp": "现查 3 条出处把这句话坐实",
+    "whenToCall": "写到\"据说\"\"研究表明\"时"
+  },
+  {
+    "id": "dian",
+    "name": "刘看典",
+    "verb": "灵感激发",
+    "canHelp": "从你旧文里翻 5 处可复用段落",
+    "whenToCall": "想引用自己以前写过的内容时"
+  },
+  {
+    "id": "shi",
+    "name": "刘看势",
+    "verb": "灵感激发",
+    "canHelp": "抓 3 个本周相关的热点选题",
+    "whenToCall": "今天不知道写什么时"
+  },
+  {
+    "id": "jing",
+    "name": "刘看镜",
+    "verb": "内容精加工",
+    "canHelp": "复盘已发稿的数据并给出图",
+    "whenToCall": "想看哪一篇真正被读完时"
+  },
+  {
+    "id": "xin",
+    "name": "刘看心",
+    "verb": "思路梳理",
+    "canHelp": "标出医学/投资类强声明并软化",
+    "whenToCall": "发布前最后一审时"
+  }
+]

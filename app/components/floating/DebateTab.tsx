@@ -5,10 +5,29 @@ import { PersonaMessage } from '@/components/persona/PersonaMessage';
 import { TypewriterText } from '@/components/persona/TypewriterText';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
-import type { DebateTurn } from '@/lib/agents/debate';
+import type { DebateRole, DebateTurn } from '@/lib/agents/debate';
 import { fetchWithErrorToast } from '@/lib/fetch-helpers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
 import { useEditorStore } from '@/lib/store/editor';
+import { useAccountStore } from '@/lib/store/account';
+import { useDebateConfigStore } from '@/lib/store/debate-config';
+import { usePersonaMasksStore } from '@/lib/store/persona-masks';
+import { FIXED_MASKS, type CustomMask, type MaskMeta } from '@/lib/personas';
+
+function resolveRole(
+  id: string,
+  customMasks: CustomMask[],
+): { entry: MaskMeta | CustomMask | null; role: DebateRole } {
+  const fixed = FIXED_MASKS.find((m) => m.id === id);
+  if (fixed) return { entry: fixed, role: { id: fixed.id, label: fixed.label, description: fixed.hint } };
+  const custom = customMasks.find((m) => m.id === id);
+  if (custom) return { entry: custom, role: { id: custom.id, label: custom.label, description: custom.description } };
+  return { entry: null, role: { id, label: id } };
+}
+
+function roleDisplayName(entry: MaskMeta | CustomMask | null): string {
+  return entry?.label ?? '未知';
+}
 
 interface DebateTabProps {
   selection?: { text: string; rect?: DOMRect } | null;
@@ -61,6 +80,28 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
   const [fallbackActive, setFallbackActive] = useState<boolean>(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  const account = useAccountStore((s) => s.active);
+  const customMasks = usePersonaMasksStore((s) => s.customMasks);
+  const hydrateMasks = usePersonaMasksStore((s) => s.hydrate);
+  const proRoleId = useDebateConfigStore((s) => s.proRoleId);
+  const conRoleId = useDebateConfigStore((s) => s.conRoleId);
+  const hydrateConfig = useDebateConfigStore((s) => s.hydrate);
+  const setProRole = useDebateConfigStore((s) => s.setProRole);
+  const setConRole = useDebateConfigStore((s) => s.setConRole);
+  const swapRoles = useDebateConfigStore((s) => s.swap);
+
+  useEffect(() => {
+    hydrateMasks(account);
+    hydrateConfig(account);
+  }, [account, hydrateMasks, hydrateConfig]);
+
+  const proResolved = resolveRole(proRoleId, customMasks);
+  const conResolved = resolveRole(conRoleId, customMasks);
+  const proRole = proResolved.role;
+  const conRole = conResolved.role;
+  const proName = roleDisplayName(proResolved.entry);
+  const conName = roleDisplayName(conResolved.entry);
+
   // R8-P1b (2026-05-11): clear stale debate state when the editor empties.
   const editor = useEditorStore((s) => s.editor);
   useEffect(() => {
@@ -99,7 +140,7 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
         const res = await fetchWithErrorToast('/api/agents/debate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ selection: selectionText, turns }),
+          body: JSON.stringify({ selection: selectionText, turns, proRole, conRole }),
           signal: ctrl.signal,
         });
         if (!res.ok) {
@@ -150,7 +191,7 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
     return () => {
       ctrl.abort();
     };
-  }, [selectionText, turns]);
+  }, [selectionText, turns, proRoleId, conRoleId]);
 
   const mockBadge = isMockError(error) ? ' [mock data — LLM 余额不足]' : '';
 
@@ -168,6 +209,15 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
         color: '#1A1F2A',
       }}
     >
+      <DebateRolePickers
+        proRoleId={proRoleId}
+        conRoleId={conRoleId}
+        customMasks={customMasks}
+        onChangePro={setProRole}
+        onChangeCon={setConRole}
+        onSwap={swapRoles}
+      />
+
       <div
         data-testid="debate-quote"
         style={{
@@ -239,8 +289,11 @@ export function DebateTab({ selection, turns = 6 }: DebateTabProps) {
               }}
             />
             <div style={{ fontSize: 14, color: '#1A1F2A' }}>看文 与 看纹 落座中…</div>
-            <div style={{ fontSize: 11, lineHeight: 1.6, maxWidth: 280 }}>
-              正方·力挺 vs 反方·质疑 · 6 回合实时往返
+            <div
+              data-testid="debate-loading-header"
+              style={{ fontSize: 11, lineHeight: 1.6, maxWidth: 320 }}
+            >
+              {`看文 (正方 · ${proName}) ↔ 看纹 (反方 · ${conName}) · ${turns} 回合实时往返`}
               <br />
               每回合都引用原文具体片段做论据。
             </div>
@@ -436,6 +489,131 @@ function LiveDebateRow({
           <TypewriterText text={turn.text} speed={30} onComplete={onComplete} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function DebateRolePickers({
+  proRoleId,
+  conRoleId,
+  customMasks,
+  onChangePro,
+  onChangeCon,
+  onSwap,
+}: {
+  proRoleId: string;
+  conRoleId: string;
+  customMasks: CustomMask[];
+  onChangePro: (id: string) => void;
+  onChangeCon: (id: string) => void;
+  onSwap: () => void;
+}) {
+  const selectStyle: React.CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    border: '1px solid rgba(23,114,246,0.25)',
+    borderRadius: 6,
+    padding: '4px 8px',
+    fontSize: 11.5,
+    color: '#1A1F2A',
+    background: '#fff',
+    outline: 'none',
+    fontFamily: '"Noto Sans SC", sans-serif',
+  };
+
+  const renderOptions = (): React.ReactNode => (
+    <>
+      <optgroup label="固定">
+        {FIXED_MASKS.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label}
+          </option>
+        ))}
+      </optgroup>
+      {customMasks.length > 0 && (
+        <optgroup label="自定义">
+          {customMasks.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </>
+  );
+
+  return (
+    <div
+      data-testid="debate-role-pickers"
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        flexShrink: 0,
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        padding: '8px 14px',
+        borderBottom: '1px solid rgba(23,114,246,0.18)',
+        background: '#fff',
+        fontFamily: '"Noto Sans SC", sans-serif',
+        fontSize: 11,
+        color: '#5A6270',
+      }}
+    >
+      <label
+        style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}
+      >
+        <span style={{ flexShrink: 0, fontFamily: '"Noto Serif SC", serif', color: '#1A1F2A' }}>
+          正方 · 看文
+        </span>
+        <select
+          data-testid="debate-pro-select"
+          aria-label="正方 persona"
+          value={proRoleId}
+          onChange={(e) => onChangePro(e.target.value)}
+          style={selectStyle}
+        >
+          {renderOptions()}
+        </select>
+      </label>
+      <button
+        type="button"
+        data-testid="debate-swap-button"
+        aria-label="互换正反方"
+        onClick={onSwap}
+        style={{
+          flexShrink: 0,
+          width: 24,
+          height: 24,
+          borderRadius: 12,
+          border: '1px solid rgba(23,114,246,0.25)',
+          background: '#fff',
+          color: '#1772F6',
+          fontSize: 13,
+          cursor: 'pointer',
+          fontFamily: 'JetBrains Mono, monospace',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        ⇄
+      </button>
+      <label
+        style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}
+      >
+        <span style={{ flexShrink: 0, fontFamily: '"Noto Serif SC", serif', color: '#1A1F2A' }}>
+          反方 · 看纹
+        </span>
+        <select
+          data-testid="debate-con-select"
+          aria-label="反方 persona"
+          value={conRoleId}
+          onChange={(e) => onChangeCon(e.target.value)}
+          style={selectStyle}
+        >
+          {renderOptions()}
+        </select>
+      </label>
     </div>
   );
 }

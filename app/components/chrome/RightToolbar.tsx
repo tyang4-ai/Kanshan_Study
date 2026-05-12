@@ -1,7 +1,9 @@
 'use client';
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
+import { useDailyFoxPulseStore } from '@/lib/store/daily-fox-pulse';
+import { FoxGuideCard } from '@/components/atoms/FoxGuideCard';
 
 export interface RightToolbarProps {
   selection: { text: string; rect: DOMRect } | null;
@@ -9,6 +11,7 @@ export interface RightToolbarProps {
 
 interface AiItem {
   id: string;
+  foxId: FoxId;
   icon: ReactNode;
   label: string;
   shortcut?: string;
@@ -33,6 +36,7 @@ export function RightToolbar({ selection }: RightToolbarProps) {
     const fox = FOX_BY_ID[foxId];
     return {
       id: `ai-${foxId}-${label}`,
+      foxId,
       icon: (
         <span style={{
           width: 18, height: 18, borderRadius: 9,
@@ -105,35 +109,63 @@ export function RightToolbar({ selection }: RightToolbarProps) {
 
 function AiButton({ tool, hasSelection, selection }: { tool: AiItem; hasSelection: boolean; selection: { text: string; rect: DOMRect } | null }) {
   const [hover, setHover] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  const openTimerRef = useRef<number | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const glowingFox = useDailyFoxPulseStore((s) => s.glowingFox);
+  const pulsing = glowingFox === tool.foxId;
   const disabled = !!tool.needsSelection && !hasSelection;
   const onClick = () => {
     if (disabled) return;
     tool.onClick(selection);
   };
 
+  const handleEnter = () => {
+    setHover(true);
+    if (openTimerRef.current) window.clearTimeout(openTimerRef.current);
+    openTimerRef.current = window.setTimeout(() => {
+      if (btnRef.current) setAnchorRect(btnRef.current.getBoundingClientRect());
+      setGuideOpen(true);
+    }, 300);
+  };
+  const handleLeave = () => {
+    setHover(false);
+    if (openTimerRef.current) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+    setGuideOpen(false);
+  };
+
   return (
     <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
       style={{ position: 'relative' }}
     >
       <button
+        ref={btnRef}
         onMouseDown={(e) => e.preventDefault()}
         onClick={onClick}
         disabled={disabled}
         title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
         aria-label={tool.label}
         aria-disabled={disabled}
-        style={buttonStyle(hover, disabled)}
+        data-fox-id={tool.foxId}
+        data-pulsing={pulsing ? 'true' : undefined}
+        style={buttonStyle(hover, disabled, pulsing, FOX_BY_ID[tool.foxId].glow)}
       >
         {tool.icon}
       </button>
-      {hover && <Tooltip label={tool.label} shortcut={tool.shortcut} />}
+      {guideOpen && anchorRect && !disabled && (
+        <FoxGuideCard foxId={tool.foxId} anchorRect={anchorRect} onClose={() => setGuideOpen(false)} />
+      )}
     </div>
   );
 }
 
-function buttonStyle(hover: boolean, disabled: boolean): CSSProperties {
+function buttonStyle(hover: boolean, disabled: boolean, pulsing = false, pulseColor = '#fff'): CSSProperties {
   return {
     width: 26, height: 26, borderRadius: 13,
     border: 'none',
@@ -144,38 +176,9 @@ function buttonStyle(hover: boolean, disabled: boolean): CSSProperties {
     fontFamily: '"Noto Serif SC", serif',
     fontSize: 13, lineHeight: 1,
     padding: 0,
-    transition: 'background 0.15s, color 0.15s',
+    transition: 'background 0.15s, color 0.15s, box-shadow 0.4s',
     flexShrink: 0,
+    boxShadow: pulsing ? `0 0 0 3px ${pulseColor}66, 0 0 16px ${pulseColor}` : undefined,
   };
 }
 
-function Tooltip({ label, shortcut }: { label: string; shortcut?: string }) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 'calc(100% + 10px)',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        background: '#1A1815',
-        color: '#E8DCC4',
-        padding: '4px 10px',
-        borderRadius: 4,
-        fontSize: 11,
-        fontFamily: '"Noto Sans SC", sans-serif',
-        whiteSpace: 'nowrap',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        pointerEvents: 'none',
-        zIndex: 100,
-        letterSpacing: 0.4,
-      }}
-    >
-      {label}
-      {shortcut && (
-        <span style={{ marginLeft: 8, opacity: 0.5, fontFamily: 'JetBrains Mono, monospace' }}>
-          {shortcut}
-        </span>
-      )}
-    </div>
-  );
-}

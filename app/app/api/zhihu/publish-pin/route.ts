@@ -11,9 +11,18 @@ type SupportedRingId = (typeof SUPPORTED_RING_IDS)[number]['id'];
 interface PublishBody {
   content?: unknown;
   ringId?: unknown;
+  aiAssisted?: unknown;
+  compliance?: unknown;
 }
 
 const VALID_RING_IDS: ReadonlySet<string> = new Set(SUPPORTED_RING_IDS.map((r) => r.id));
+
+// Phase #15.8 Track 5 (2026-05-11): GB 45438 「AI 辅助生成」 标识. Per 周源 + emmett
+// review, the server appends the disclosure trailer to the canonical body so
+// the HMAC sign step covers it. Idempotent — repeat POSTs of the same content
+// don't accumulate trailers.
+const GB45438_TRAILER = '\n\n———\n本文由看山书房 AI 辅助生成 · GB 45438';
+const GB45438_SUFFIX = 'GB 45438';
 
 export async function POST(req: Request): Promise<Response> {
   let body: PublishBody;
@@ -45,12 +54,19 @@ export async function POST(req: Request): Promise<Response> {
     ? (requestedRing as SupportedRingId)
     : DEFAULT_RING_ID;
 
+  const aiAssisted = body.aiAssisted === true;
+  const signedContent =
+    aiAssisted && !content.endsWith(GB45438_SUFFIX) ? content + GB45438_TRAILER : content;
+
   try {
-    const result = await publishPin(content, ringId);
-    return new Response(JSON.stringify({ ok: true, result, ringId }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const result = await publishPin(signedContent, ringId);
+    return new Response(
+      JSON.stringify({ ok: true, result, ringId, content: signedContent }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ ok: false, error: scrubErrorForClient(message) }), {

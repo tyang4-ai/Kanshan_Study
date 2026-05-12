@@ -8,9 +8,19 @@ import { proxyAuth } from '@/lib/apikey/proxy';
 import { requireRateLimitOk, releaseConcurrent } from '@/lib/ratelimit/check';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
 
+const RoleSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    description: z.string().optional(),
+  })
+  .optional();
+
 const Body = z.object({
   selection: z.string().min(1).max(4000),
   turns: z.number().int().min(2).max(10).default(6),
+  proRole: RoleSchema,
+  conRole: RoleSchema,
 });
 
 function sseHeaders(): ResponseInit {
@@ -75,7 +85,14 @@ export async function POST(req: Request): Promise<Response> {
     const intent = debateKey({ selection: body.selection, turns: body.turns });
     steps = await withCache<ReplayStep[]>('persona-debate', intent, async () => {
       const buffered: ReplayStep[] = [];
-      for await (const turn of debateStream(body.selection, body.turns, creds.key, creds.provider)) {
+      for await (const turn of debateStream(
+        body.selection,
+        body.turns,
+        creds.key,
+        creds.provider,
+        body.proRole,
+        body.conRole,
+      )) {
         buffered.push({ event: 'turn', data: turn });
       }
       return buffered;

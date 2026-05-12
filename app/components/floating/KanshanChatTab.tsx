@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { useFloatingWindowStore, type TabKind } from '@/lib/store/floating-window';
 import { useCorkboardStore } from '@/lib/store/corkboard';
+import { useEditorTabsStore, selectActiveDoc } from '@/lib/store/editor-tabs';
+import { useAccountStore } from '@/lib/store/account';
 import type { KanshanTool, KanshanToolCall } from '@/lib/agents/kanshan-router';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { FOX_BY_ID } from '@/lib/foxes/registry';
@@ -16,11 +18,16 @@ import { FOX_BY_ID } from '@/lib/foxes/registry';
 //     the same session — required for finals Q&A replay (L9-2, Lin Maohua R9).
 const KANSHAN_COMPLIANCE = '对话仅用于本次差遣 · 不入第三方训练集 · 关闭浏览器即清空';
 const SESSION_KEY = 'kanshan-chat-session-v1';
+// Sidecar account stamp: separate key so the persisted turn array stays the
+// same shape existing tests / cache code already rely on. Mismatch on mount
+// = suppress revisit hint (avoids cross-account leak when switching me ↔ guwanxi).
+const SESSION_ACCOUNT_KEY = 'kanshan-chat-session-account-v1';
+const REVISIT_WINDOW_MS = 60 * 60 * 1000;
 
 const FALLBACK_REPLY = '看山一时未通 — 请稍后重试。';
 
 interface ChatTurn {
-  role: 'user' | 'kanshan';
+  role: 'user' | 'kanshan' | 'system';
   content: string;
   toolCall?: KanshanToolCall;
   ts: number;
@@ -83,15 +90,18 @@ function loadTurns(): ChatTurn[] {
   }
 }
 
-function persistTurns(turns: ChatTurn[]): void {
+function persistTurns(turns: ChatTurn[], accountId: string): void {
   if (typeof window === 'undefined') return;
+  // Ephemeral system bubbles (e.g. revisit hint) are NOT written back —
+  // otherwise reloading the page would replay them indefinitely.
+  const persistable = turns.filter((t) => t.role !== 'system');
   try {
-    if (turns.length === 0) {
-      // Empty session = remove the key entirely, not write `'[]'`. Avoids
-      // a stale empty record sticking around after the user hits 清空.
+    if (persistable.length === 0) {
       window.sessionStorage.removeItem(SESSION_KEY);
+      window.sessionStorage.removeItem(SESSION_ACCOUNT_KEY);
     } else {
-      window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(turns));
+      window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(persistable));
+      window.sessionStorage.setItem(SESSION_ACCOUNT_KEY, accountId);
     }
   } catch {
     // Quota exceeded or sessionStorage disabled — fail silent; turns still live
@@ -99,8 +109,47 @@ function persistTurns(turns: ChatTurn[]): void {
   }
 }
 
+function truncateTopic(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '刚才那个话题';
+  const first = trimmed.split(/[。！？?.]/)[0]?.trim() ?? '';
+  const base = first.length > 0 ? first : trimmed;
+  if (base.length <= 18) return base;
+  return base.slice(0, 18) + '…';
+}
+
+function computeRevisitTurn(
+  prior: ChatTurn[],
+  now: number,
+  activeFilename: string | null,
+): ChatTurn | null {
+  if (prior.length === 0) return null;
+  const last = prior[prior.length - 1];
+  if (!last) return null;
+  if (now - last.ts < REVISIT_WINDOW_MS) return null;
+  const lastUser = [...prior].reverse().find((t) => t.role === 'user');
+  const topic = truncateTopic(lastUser?.content ?? '');
+  const content = activeFilename
+    ? `上次你在写「${activeFilename}」，聊到「${topic}」 — 要继续吗？`
+    : `上次你聊到「${topic}」 — 要继续吗？`;
+  return { role: 'system', content, ts: now };
+}
+
 export function KanshanChatTab() {
-  const [turns, setTurns] = useState<ChatTurn[]>(() => loadTurns());
+  const activeAccount = useAccountStore((s) => s.active);
+  const activeDoc = useEditorTabsStore(selectActiveDoc);
+  const activeFilename = activeDoc?.filename ?? null;
+  const [turns, setTurns] = useState<ChatTurn[]>(() => {
+    const prior = loadTurns();
+    if (typeof window !== 'undefined') {
+      const storedAccount = window.sessionStorage.getItem(SESSION_ACCOUNT_KEY);
+      if (storedAccount && storedAccount !== activeAccount) {
+        return [];
+      }
+    }
+    const revisit = computeRevisitTurn(prior, Date.now(), activeFilename);
+    return revisit ? [revisit, ...prior] : prior;
+  });
   const [draft, setDraft] = useState('');
   const [composing, setComposing] = useState(false);
   const [streaming, setStreaming] = useState(false);
@@ -125,8 +174,8 @@ export function KanshanChatTab() {
   // sessionStorage is browser-tab-scoped + in-memory — clears on tab close,
   // not on panel close, so the compliance line still reads truthfully.
   useEffect(() => {
-    persistTurns(turns);
-  }, [turns]);
+    persistTurns(turns, activeAccount);
+  }, [turns, activeAccount]);
 
   const dispatchTool = (toolCall: KanshanToolCall, replyText: string) => {
     const target = TOOL_TAB[toolCall.tool];
@@ -516,6 +565,29 @@ export function KanshanChatTab() {
 }
 
 function ChatBubble({ turn }: { turn: ChatTurn }) {
+  if (turn.role === 'system') {
+    return (
+      <div
+        data-testid="chat-bubble-system"
+        style={{
+          alignSelf: 'center',
+          maxWidth: '90%',
+          padding: '6px 12px',
+          fontSize: 11,
+          fontStyle: 'italic',
+          fontFamily: '"Noto Serif SC", serif',
+          color: '#7A6F5A',
+          background: 'rgba(168,155,126,0.08)',
+          border: '1px dashed rgba(168,155,126,0.4)',
+          borderRadius: 12,
+          textAlign: 'center',
+          lineHeight: 1.5,
+        }}
+      >
+        {turn.content}
+      </div>
+    );
+  }
   const isUser = turn.role === 'user';
   const align: CSSProperties = isUser
     ? { alignSelf: 'flex-end', maxWidth: '70%' }
