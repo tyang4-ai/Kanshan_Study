@@ -6,6 +6,8 @@ import { ComplianceStamp } from './ComplianceStamp';
 import { PublishButton } from './PublishButton';
 import { TipTapEditor, type SelectionPayload } from './TipTapEditor';
 import { FormatRibbon } from './FormatRibbon';
+import { FileMenuButtons } from './FileMenuButtons';
+import { useEditorTabsStore } from '@/lib/store/editor-tabs';
 import { MarginSealPopover } from '@/components/compliance/MarginSealPopover';
 import { ToolbarIcon, BudgetChip, ProfileChip, useToolbarOpeners } from '@/components/chrome/TitleBar';
 import { RightToolbar } from '@/components/chrome/RightToolbar';
@@ -24,17 +26,6 @@ export type WritingSurfaceProps = {
   floatingToolbarSelection?: SelectionPayload | null;
 };
 
-type TabEntry = {
-  filename: string;
-  active: boolean;
-  dirty: boolean;
-};
-
-const TABS: ReadonlyArray<TabEntry> = [
-  { filename: '影像组学与基因组学.md', active: true, dirty: true },
-  { filename: 'research-notes.md', active: false, dirty: false },
-  { filename: 'readme.md', active: false, dirty: false },
-];
 
 const outerStyle: CSSProperties = {
   flex: 1,
@@ -87,6 +78,7 @@ export function WritingSurface({
   floatingToolbarSelection,
 }: WritingSurfaceProps) {
   const openers = useToolbarOpeners();
+  const tabs = useEditorTabsStore((s) => s.tabs);
 
   return (
     <div onContextMenu={onContextMenu} style={outerStyle}>
@@ -116,7 +108,7 @@ export function WritingSurface({
         <span>灵感激发 · 思路梳理 · 内容精加工</span>
       </div>
       <div style={tabStripStyle}>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Tab key={t.filename} filename={t.filename} active={t.active} dirty={t.dirty} />
         ))}
         {/* Demo-flow + presentation persona-review 2026-05-11 R2 P0: the
@@ -137,6 +129,13 @@ export function WritingSurface({
           已自动保存 · 16:42
         </div>
         <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 12px' }} />
+        {/* 2026-05-11 phase #15.5: 文件 cluster — 导入/导出 sits with the other
+            tab-strip chrome controls instead of crowding the tabs list. */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingRight: 4 }}>
+          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>文件</span>
+          <FileMenuButtons />
+        </div>
+        <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 8px' }} />
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12 }}>
           {/* Talk-to cluster — the 4 agents the user converses with directly.
               看山 chat lives in the bottom-right floating bubble (KanshanChatBubble). */}

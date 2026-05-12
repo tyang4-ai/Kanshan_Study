@@ -1,0 +1,108 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { chunkMarkdown } from '@/lib/vault/chunker';
+import { scrubErrorForClient } from '@/lib/errors/scrub';
+
+export const runtime = 'nodejs';
+
+const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1MB hard cap
+
+interface IngestBody {
+  markdown?: string;
+  title?: string;
+  tags?: string[];
+  spine?: string;
+  draft?: boolean;
+}
+
+function pickUserId(req: NextRequest): string {
+  return req.headers.get('x-kanshan-account') === 'guwanxi' ? 'guwanxi' : 'me';
+}
+
+export async function POST(req: NextRequest) {
+  const cl = req.headers.get('content-length');
+  if (cl && Number(cl) > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: '文件过大 (>1MB)，请拆分后再传' }, { status: 413 });
+  }
+
+  let body: IngestBody;
+  try {
+    body = (await req.json()) as IngestBody;
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON' }, { status: 400 });
+  }
+
+  const markdown = (body.markdown ?? '').trim();
+  const title = (body.title ?? '').trim();
+  if (!markdown || !title) {
+    return NextResponse.json({ error: 'markdown 与 title 必填' }, { status: 400 });
+  }
+  if (markdown.length > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: '文件过大 (>1MB)，请拆分后再传' }, { status: 413 });
+  }
+
+  const userId = pickUserId(req);
+
+  // Mock-mode fallback: no DB / embedder configured → accept the request,
+  // return a synthetic entry. Lets the demo flow work without Supabase.
+  if (!process.env.SUPABASE_DB_URL || !process.env.SILICONFLOW_API_KEY) {
+    const id = `${userId}-${Date.now()}`;
+    return NextResponse.json({
+      id,
+      title,
+      chunks: chunkMarkdown(markdown).length,
+      source: 'mock',
+    });
+  }
+
+  try {
+    const { getDb } = await import('@/lib/db/client');
+    const { users, articles, chunks } = await import('@/lib/db/schema');
+    const { embed } = await import('@/lib/embeddings');
+
+    const db = getDb();
+    await db.insert(users).values({
+      id: userId,
+      displayName: userId === 'guwanxi' ? '顾婉昔' : '我',
+      bio: userId === 'guwanxi' ? '放射肿瘤学 · 知乎答主 · 演示账号 (虚构)' : 'SCU 生物工程',
+    }).onConflictDoNothing();
+
+    const articleId = `${userId}-upload-${Date.now()}`;
+    await db.insert(articles).values({
+      id: articleId,
+      userId,
+      title,
+      body: markdown,
+      publishedAt: null,
+      draft: body.draft ?? false,
+      tags: Array.isArray(body.tags) ? body.tags : [],
+      borrows: 0,
+      spineColor: typeof body.spine === 'string' ? body.spine : null,
+      wordCount: markdown.length,
+    });
+
+    const chunked = chunkMarkdown(markdown);
+    if (chunked.length > 0) {
+      const embs = await embed(chunked);
+      await db.insert(chunks).values(
+        chunked.map((c, i) => ({
+          id: `${articleId}-c${i}`,
+          articleId,
+          userId,
+          ord: i,
+          content: c,
+          embedding: embs[i],
+        })),
+      );
+    }
+
+    return NextResponse.json({
+      id: articleId,
+      title,
+      chunks: chunked.length,
+      source: 'live',
+    });
+  } catch (err) {
+    const message = scrubErrorForClient(err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

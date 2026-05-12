@@ -58,18 +58,40 @@ export function KanshanChatBubble() {
           just the front-facing view, so crop via object-fit + object-position
           rather than shipping a separately cropped file (avoids image-tooling
           on a Windows host that has no sharp / jimp). */}
+      {/* 2026-05-11 phase #15.5: the 400%/100% sprite trick was non-uniform
+          scaling, which sliced the front view at the wrong x-offset (the
+          fourview PNG is 786×207 — views are NOT exact quarters). Switch to
+          an absolute <img> inside an overflow-hidden window so the front
+          view sits centered in the 42×42 bubble area. */}
       <span
         aria-hidden
         style={{
           display: 'block',
           width: 42,
           height: 42,
-          backgroundImage: 'url(/foxes/shan-fourview.png)',
-          backgroundSize: '400% 100%',
-          backgroundPosition: 'left center',
-          backgroundRepeat: 'no-repeat',
+          position: 'relative',
+          overflow: 'hidden',
         }}
-      />
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/foxes/shan-fourview.png"
+          alt=""
+          style={{
+            position: 'absolute',
+            // Uniform scale so the figure isn't distorted. Source 786×207
+            // height-fits into 42 at scale 42/207 = 0.203, giving full image
+            // width ≈ 160. Front view in source spans roughly x:10–195
+            // (center ≈ 100), which at scale ≈ x:2–40 (center ≈ 20).
+            // Shift left by ~1px so the center lands at container center 21.
+            width: 160,
+            height: 42,
+            left: -1,
+            top: 0,
+            maxWidth: 'none',
+          }}
+        />
+      </span>
     </button>
   );
 }

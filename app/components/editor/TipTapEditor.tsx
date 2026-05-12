@@ -13,6 +13,7 @@ import { MarginSeal } from './MarginSeal';
 import { buildMatches } from './margin-seal-from-seeds';
 import { FontSize } from './FontSize';
 import { CitationMark } from '@/lib/citation/extension';
+import { Markdown } from 'tiptap-markdown';
 import { useEditorStore } from '@/lib/store/editor';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { buildCitationOnClick } from '@/lib/citation/click-router';
@@ -104,6 +105,12 @@ export function TipTapEditor({
         matchesFor: (doc) => buildMatches(doc, marginSeeds),
       }),
       CitationMark,
+      Markdown.configure({
+        html: true,
+        breaks: false,
+        transformPastedText: false,
+        transformCopiedText: false,
+      }),
     ],
     content,
     immediatelyRender: false,

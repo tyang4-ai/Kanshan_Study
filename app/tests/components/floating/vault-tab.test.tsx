@@ -207,4 +207,64 @@ describe('VaultTab', () => {
     expect(screen.getByTestId(`vault-entry-${seed[0].id}`)).toBeInTheDocument();
     errSpy.mockRestore();
   });
+
+  // 2026-05-11 phase #15.5: file I/O ship pass
+  describe('drag-drop ingest', () => {
+    function dt(files: File[] = []): { files: File[]; types: string[] } {
+      return { files, types: ['Files'] };
+    }
+
+    it('shows drop overlay on dragenter with files', () => {
+      vi.useRealTimers();
+      render(<VaultTab />);
+      const tab = screen.getByTestId('vault-tab');
+      fireEvent.dragEnter(tab, { dataTransfer: dt() });
+      expect(screen.getByTestId('vault-drop-overlay')).toBeInTheDocument();
+    });
+
+    it('drop with a .md file POSTs to /api/vault/ingest and shows toast', async () => {
+      vi.useRealTimers();
+      const ingestSpy = vi
+        .fn()
+        .mockResolvedValue({ ok: true, json: async () => ({ chunks: 3, title: 'note' }) });
+      global.fetch = vi.fn().mockImplementation(((url: RequestInfo) => {
+        const u = typeof url === 'string' ? url : (url as Request).url;
+        if (u.includes('/api/vault/ingest')) return ingestSpy(url);
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ hits: guwanxiSeed, source: 'seed' }),
+        });
+      }) as never) as unknown as typeof fetch;
+      render(<VaultTab />);
+      const tab = screen.getByTestId('vault-tab');
+      const file = new File(['# 测试\n\n正文'], 'note.md', { type: 'text/markdown' });
+      await act(async () => {
+        fireEvent.drop(tab, { dataTransfer: dt([file]) });
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      expect(ingestSpy).toHaveBeenCalledTimes(1);
+      expect(await screen.findByTestId('vault-ingest-toast')).toBeInTheDocument();
+    });
+
+    it('drop with unsupported file format does NOT POST', async () => {
+      vi.useRealTimers();
+      const ingestSpy = vi.fn();
+      global.fetch = vi.fn().mockImplementation(((url: RequestInfo) => {
+        const u = typeof url === 'string' ? url : (url as Request).url;
+        if (u.includes('/api/vault/ingest')) return ingestSpy(url);
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ hits: guwanxiSeed, source: 'seed' }),
+        });
+      }) as never) as unknown as typeof fetch;
+      render(<VaultTab />);
+      const tab = screen.getByTestId('vault-tab');
+      const file = new File(['junk'], 'a.exe', { type: 'application/x-msdownload' });
+      await act(async () => {
+        fireEvent.drop(tab, { dataTransfer: dt([file]) });
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      expect(ingestSpy).not.toHaveBeenCalled();
+    });
+  });
 });

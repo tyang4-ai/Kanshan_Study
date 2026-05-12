@@ -94,12 +94,11 @@ export function WorkspaceShell() {
       <a
         href="#main-workspace"
         data-testid="skip-link"
-        className="absolute z-[3000] -translate-y-full bg-white px-3 py-1 text-xs underline outline focus:translate-y-0"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[3000] focus:bg-white focus:px-3 focus:py-1 focus:text-xs focus:underline focus:outline"
         style={{
           left: 8,
           top: 8,
           color: '#1772F6',
-          border: '1px solid #1772F6',
           fontFamily: '"Noto Serif SC", serif',
         }}
       >

@@ -1,10 +1,12 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAccountStore } from '@/lib/store/account';
 import { VaultEntry, type VaultEntryData } from '@/components/floating/VaultEntry';
 import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 import meSeed from '@/content/seed/vault-me.json';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
+import { importFile, sniffFormat } from '@/lib/io/importers';
+import { useAiErrorStore } from '@/lib/store/ai-error';
 
 const VAULT_FILTERS: { id: string; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -80,6 +82,75 @@ interface VaultTabProps {
 export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
   const account = useAccountStore((s) => s.active);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [ingestToast, setIngestToast] = useState<string | null>(null);
+  const pushErr = useAiErrorStore((s) => s.push);
+  const dragCounter = useRef(0);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter.current = 0;
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length === 0) return;
+      for (const file of files) {
+        if (sniffFormat(file) === 'unknown') {
+          pushErr({ message: `${file.name} 格式不支持（只接受 .md / .txt / .docx）` });
+          continue;
+        }
+        try {
+          const { html } = await importFile(file);
+          // Mammoth + marked output is HTML; for ingest we strip back to
+          // plain text so the chunker sees Markdown-like paragraph breaks.
+          const text = html
+            .replace(/<\/(p|h[1-6]|li|blockquote|div)>/gi, '\n\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+          const title = file.name.replace(/\.[^.]+$/, '');
+          const res = await fetch('/api/vault/ingest', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-kanshan-account': account,
+            },
+            body: JSON.stringify({ markdown: text, title }),
+          });
+          if (!res.ok) {
+            const data = (await res.json().catch(() => ({}))) as { error?: string };
+            pushErr({ message: data.error ?? `${file.name} 入档失败 (${res.status})`, status: res.status });
+            continue;
+          }
+          const data = (await res.json()) as { chunks: number; title: string };
+          setIngestToast(`已收入档案库 · 看典登记 ${data.chunks} 段 · ${data.title}`);
+          setTimeout(() => setIngestToast(null), 3000);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : '入档失败';
+          pushErr({ message: msg });
+        }
+      }
+    },
+    [account, pushErr],
+  );
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    dragCounter.current += 1;
+    setDragOver(true);
+  };
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+  };
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    dragCounter.current = Math.max(0, dragCounter.current - 1);
+    if (dragCounter.current === 0) setDragOver(false);
+  };
 
   useEffect(() => {
     if (!scrollToArticleId || !containerRef.current) return;
@@ -167,6 +238,10 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
   return (
     <div
       data-testid="vault-tab"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       style={{
         width: '100%',
         height: '100%',
@@ -176,8 +251,56 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
         fontFamily: '"Noto Serif SC", "Source Han Serif SC", serif',
         overflow: 'hidden',
         color: '#1A1815',
+        position: 'relative',
       }}
     >
+      {dragOver && (
+        <div
+          data-testid="vault-drop-overlay"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(44, 66, 88, 0.78)',
+            color: '#FFFDF7',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: 12,
+            border: '3px dashed rgba(255,255,255,0.5)',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ fontSize: 22, fontFamily: '"Noto Serif SC", serif', letterSpacing: 2 }}>
+            松手即可入档
+          </div>
+          <div style={{ fontSize: 12.5, color: '#C5D6E8', fontFamily: '"Noto Sans SC", sans-serif', letterSpacing: 0.5 }}>
+            .md / .txt / .docx · 看典会登记入库
+          </div>
+        </div>
+      )}
+      {ingestToast && (
+        <div
+          data-testid="vault-ingest-toast"
+          style={{
+            position: 'absolute',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#2C4258',
+            color: '#E8EEF5',
+            padding: '6px 12px',
+            borderRadius: 4,
+            fontSize: 11.5,
+            zIndex: 90,
+            fontFamily: '"Noto Sans SC", sans-serif',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+          }}
+        >
+          {ingestToast}
+        </div>
+      )}
       {/* 头版 catalog header (no drag — TabbedFloatingWindow owns it) */}
       <div
         style={{

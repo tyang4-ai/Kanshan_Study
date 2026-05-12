@@ -11,9 +11,10 @@ export default function Page() {
       <WorkspaceShell />
       <KanshanChatBubble />
       <OnboardingGate guestModeAvailable={guestModeAvailable} />
-      {/* Bottom-left, well clear of LeftRail's "看山想想" input + dock above it,
-          and editor tab strip chips at top. */}
-      <div style={{ position: 'fixed', bottom: 14, left: 360, zIndex: 1000, display: 'flex', gap: 8, alignItems: 'center' }}>
+      {/* 2026-05-11 phase #15.5: moved off bottom-left to free the editor footer
+          for PublishButton + the file I/O buttons; sits top-right above the
+          tagline strip clear of every other chrome control. */}
+      <div style={{ position: 'fixed', top: 4, right: 14, zIndex: 1000, display: 'flex', gap: 8, alignItems: 'center' }}>
         <GuestIndicator />
         <TourTrigger />
       </div>
