@@ -10,9 +10,9 @@ import {
 import { FOX_BY_ID } from '@/lib/foxes/registry';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
-import { getHotList, getFollowingFeed } from '@/lib/zhihu';
+import { getHotList, getFollowingFeed, getStoryList } from '@/lib/zhihu';
 import { hotListToTrendSeed, type TrendSeed } from '@/lib/zhihu/__mappers';
-import type { FeedItem } from '@/lib/zhihu/types';
+import type { FeedItem, Story } from '@/lib/zhihu/types';
 import { useCorkboardStore } from '@/lib/store/corkboard';
 import relevantData from '@/content/seed/trends-relevant.json';
 import allData from '@/content/seed/trends-all.json';
@@ -37,6 +37,12 @@ export function TrendsTab() {
   const [all, setAll] = useState<TrendSeed[]>(ALL_SEED);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [feedExpanded, setFeedExpanded] = useState(false);
+  // 2026-05-11: 知乎故事 surfaces the official `getStoryList` (HMAC live-verified
+  // 2026-05-11; returns 秦始皇登月计划 / 人脸解锁失败 etc.). Mounts as a
+  // collapsible section so judges can see real 知乎-side data, not just our
+  // hot-list mock. Default-collapsed to keep the panel's first paint clean.
+  const [stories, setStories] = useState<Story[]>([]);
+  const [storiesExpanded, setStoriesExpanded] = useState(false);
   const didFetch = useRef(false);
   const remaining = useZhihuBudgetStore((s) => s.remaining('hot_list'));
   const used = 100 - remaining;
@@ -58,6 +64,11 @@ export function TrendsTab() {
       .then((page) => setFeedItems(page.items.slice(0, 5)))
       .catch(() => {
         // Following feed silently absent — section just doesn't render.
+      });
+    getStoryList()
+      .then((items) => setStories(items.slice(0, 6)))
+      .catch(() => {
+        // Story list silently absent — section just doesn't render.
       });
   }, []);
 
@@ -111,6 +122,20 @@ export function TrendsTab() {
       createdBy: 'user',
       w: 180,
       h: 120,
+    });
+  };
+
+  const pinStory = (s: Story): void => {
+    useCorkboardStore.getState().addPin({
+      kind: 'trends',
+      sourceId: `story-${s.work_id}`,
+      content: {
+        title: `知乎故事 · ${s.title}`,
+        snippet: s.description?.slice(0, 80) ?? (s.labels?.join(' · ') ?? ''),
+      },
+      createdBy: 'user',
+      w: 200,
+      h: 140,
     });
   };
 
@@ -249,6 +274,95 @@ export function TrendsTab() {
         <div style={{ flex: 1 }} />
         <span style={cachedStyle}>16:42 · 已缓存</span>
       </div>
+
+      {/* 知乎故事 section — collapsible, above 关注流. Surfaces the
+          官方 hackathon_story/list endpoint as 灵感素材 (Li8-PitchProd /
+          Li8-Moat). Live HMAC-verified 2026-05-11. */}
+      {stories.length > 0 && (
+        <div data-testid="trends-stories-section" style={{
+          flexShrink: 0, background: '#EFF6FB',
+          borderBottom: '1px solid rgba(23,114,246,0.28)',
+        }}>
+          <button
+            type="button"
+            data-testid="trends-stories-toggle"
+            onClick={() => setStoriesExpanded((v) => !v)}
+            style={{
+              width: '100%', padding: '6px 14px', textAlign: 'left',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontFamily: '"Noto Sans SC", sans-serif',
+              fontSize: 11, color: '#1F4A7A', letterSpacing: 0.5,
+            }}
+          >
+            <span style={{ fontSize: 9, transform: storiesExpanded ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .15s' }}>
+              ▶
+            </span>
+            <span style={{ flex: 1 }}>知乎故事 · 官方脑洞库 · {stories.length} 篇</span>
+            <span style={{ fontSize: 9, color: '#5B7CA0', fontFamily: 'JetBrains Mono, monospace' }}>
+              {storiesExpanded ? 'COLLAPSE' : 'EXPAND'}
+            </span>
+          </button>
+          {storiesExpanded && (
+            <div style={{ padding: '0 14px 8px' }}>
+              {stories.map((s) => (
+                <div
+                  key={s.work_id}
+                  data-testid="trends-story-item"
+                  style={{
+                    padding: '6px 0',
+                    borderTop: '1px solid rgba(23,114,246,0.14)',
+                    display: 'flex', gap: 8, alignItems: 'flex-start',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 11, fontWeight: 600, color: '#1A1F2A',
+                      fontFamily: '"Noto Serif SC", serif',
+                    }}>
+                      {s.title}
+                    </div>
+                    {s.labels && s.labels.length > 0 && (
+                      <div style={{
+                        fontSize: 10, color: '#1772F6', marginTop: 2, lineHeight: 1.4,
+                        fontFamily: 'JetBrains Mono, monospace',
+                      }}>
+                        {s.labels.slice(0, 4).join(' · ')}
+                      </div>
+                    )}
+                    {s.description && (
+                      <div style={{
+                        fontSize: 10.5, color: '#3A4452', marginTop: 2, lineHeight: 1.4,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}>
+                        {s.description}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="trends-story-pin"
+                    aria-label={`钉 ${s.title} 到便签板`}
+                    onClick={() => pinStory(s)}
+                    style={{
+                      flexShrink: 0, padding: '2px 6px',
+                      background: 'transparent',
+                      border: '1px solid rgba(23,114,246,0.45)',
+                      color: '#1772F6',
+                      fontFamily: '"Noto Serif SC", serif',
+                      fontSize: 9, letterSpacing: 1,
+                      borderRadius: 2, cursor: 'pointer',
+                    }}
+                  >
+                    钉
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 关注流 section — collapsible, above 热榜 list */}
       {feedItems.length > 0 && (

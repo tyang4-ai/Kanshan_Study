@@ -82,4 +82,42 @@ describe('TrendsTab', () => {
     render(<TrendsTab />);
     expect(screen.getByText(/100\/天 已用/)).toBeInTheDocument();
   });
+
+  // 2026-05-11: 知乎故事 section surfaces the official hackathon_story/list
+  // endpoint (HMAC live-verified). Mock-mode returns the fixture array, so the
+  // section should render on initial paint.
+  describe('知乎故事 section (Li8-PitchProd)', () => {
+    it('renders the stories section header with count', async () => {
+      render(<TrendsTab />);
+      // Wait one tick for getStoryList's then() to flush.
+      await new Promise((r) => setTimeout(r, 0));
+      const section = await screen.findByTestId('trends-stories-section');
+      expect(section).toBeInTheDocument();
+      expect(section.textContent).toMatch(/知乎故事/);
+      expect(section.textContent).toMatch(/官方脑洞库/);
+    });
+
+    it('collapsed by default; toggle expands story items', async () => {
+      render(<TrendsTab />);
+      await new Promise((r) => setTimeout(r, 0));
+      const toggle = await screen.findByTestId('trends-stories-toggle');
+      // Items hidden initially
+      expect(screen.queryAllByTestId('trends-story-item').length).toBe(0);
+      fireEvent.click(toggle);
+      expect(screen.getAllByTestId('trends-story-item').length).toBeGreaterThan(0);
+    });
+
+    it('clicking story 钉 pins the story into the corkboard', async () => {
+      const { useCorkboardStore } = await import('@/lib/store/corkboard');
+      const before = useCorkboardStore.getState().pins.length;
+      render(<TrendsTab />);
+      await new Promise((r) => setTimeout(r, 0));
+      fireEvent.click(await screen.findByTestId('trends-stories-toggle'));
+      fireEvent.click(screen.getAllByTestId('trends-story-pin')[0]);
+      const after = useCorkboardStore.getState().pins.length;
+      expect(after).toBe(before + 1);
+      const newest = useCorkboardStore.getState().pins[after - 1];
+      expect(newest.content.title).toMatch(/知乎故事/);
+    });
+  });
 });
