@@ -7,6 +7,7 @@ import { ContextMenu } from '@/components/menu/ContextMenu';
 import { TabbedFloatingWindow } from '@/components/floating/TabbedFloatingWindow';
 import { LorePortal } from '@/components/lore/LorePortal';
 import { AiFailureToast } from '@/components/chrome/AiFailureToast';
+import { AuthErrorToast } from '@/components/chrome/AuthErrorToast';
 import { DailyFoxPulse } from '@/components/onboarding/DailyFoxPulse';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
 import {
@@ -143,6 +144,8 @@ export function WorkspaceShell() {
       <TabbedFloatingWindow />
 
       <AiFailureToast />
+
+      <AuthErrorToast />
 
       <DailyFoxPulse />
 

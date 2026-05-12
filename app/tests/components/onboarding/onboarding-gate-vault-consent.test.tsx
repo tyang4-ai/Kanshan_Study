@@ -3,6 +3,7 @@ import { render, fireEvent, cleanup } from '@testing-library/react';
 import { OnboardingGate } from '@/components/onboarding/OnboardingGate';
 import { useAccountStore } from '@/lib/store/account';
 import { useVaultConsentStore } from '@/lib/store/vault-consent';
+import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
@@ -13,14 +14,18 @@ describe('OnboardingGate · vault consent step', () => {
     document.cookie = 'kanshan-provider=; path=/; max-age=0';
     useVaultConsentStore.setState({ consented: false, hydratedFor: null });
     useAccountStore.setState({ active: 'me' });
+    useZhihuSessionStore.setState({
+      uid: null, fullname: null, avatarPath: null, exp: null, hydrated: false,
+    });
   });
   afterEach(() => cleanup());
 
-  it('shows the vault-consent screen after a `me` BYO key submit', () => {
+  it('shows the vault-consent screen after a `me` BYO key submit (via zhihu-skip)', () => {
     const { getByTestId, queryByTestId } = render(<OnboardingGate />);
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    fireEvent.click(getByTestId('onboarding-zhihu-skip'));
     expect(getByTestId('onboarding-vault-consent')).toBeInTheDocument();
     expect(queryByTestId('onboarding-byo-submit')).toBeNull();
   });
@@ -30,6 +35,7 @@ describe('OnboardingGate · vault consent step', () => {
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    fireEvent.click(getByTestId('onboarding-zhihu-skip'));
     const panel = getByTestId('onboarding-vault-consent');
     const text = panel.textContent ?? '';
     expect(text).toContain('看典 · 档案库使用说明');
@@ -47,6 +53,7 @@ describe('OnboardingGate · vault consent step', () => {
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    fireEvent.click(getByTestId('onboarding-zhihu-skip'));
     fireEvent.click(getByTestId('onboarding-vault-accept'));
     expect(useVaultConsentStore.getState().consented).toBe(true);
     expect(window.localStorage.getItem('kanshan-vault-consent:me')).toBe('1');
@@ -59,6 +66,7 @@ describe('OnboardingGate · vault consent step', () => {
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    fireEvent.click(getByTestId('onboarding-zhihu-skip'));
     fireEvent.click(getByTestId('onboarding-vault-decline'));
     expect(useVaultConsentStore.getState().consented).toBe(false);
     expect(window.localStorage.getItem(STORAGE_KEY)).not.toBeNull();

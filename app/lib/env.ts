@@ -48,6 +48,14 @@ export const envSchema = z.object({
   ZHIHU_OAUTH_APP_ID: z.string().optional(),
   ZHIHU_OAUTH_APP_KEY: z.string().optional(),
   ZHIHU_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  // OAuth authorize endpoint not documented in captured spec; default to the
+  // public 知乎 OAuth page, env-overridable when the platform publishes a
+  // canonical URL.
+  ZHIHU_OAUTH_AUTHORIZE_URL: z.string().url().default('https://www.zhihu.com/oauth/authorize'),
+  // Session signing secret for the kanshan-zhihu-session HMAC cookie. Optional
+  // at module load (cache-only / no-OAuth deploys are valid); the OAuth routes
+  // return 503 at request time when missing.
+  KANSHAN_SESSION_SECRET: z.string().min(32).optional(),
   CACHE_MODE: z.enum(['auto', 'cache-only', 'live-only']).default('auto'),
   ELEVENLABS_API_KEY: z.string().optional(),
   ELEVENLABS_VOICE_ID_NARRATOR: z.string().optional(),
@@ -77,6 +85,8 @@ export function parseEnv(input: NodeJS.ProcessEnv | Record<string, string | unde
     ZHIHU_OAUTH_APP_ID: input.ZHIHU_OAUTH_APP_ID,
     ZHIHU_OAUTH_APP_KEY: input.ZHIHU_OAUTH_APP_KEY,
     ZHIHU_OAUTH_REDIRECT_URI: input.ZHIHU_OAUTH_REDIRECT_URI,
+    ZHIHU_OAUTH_AUTHORIZE_URL: input.ZHIHU_OAUTH_AUTHORIZE_URL,
+    KANSHAN_SESSION_SECRET: input.KANSHAN_SESSION_SECRET,
     CACHE_MODE: input.CACHE_MODE,
     ELEVENLABS_API_KEY: input.ELEVENLABS_API_KEY,
     ELEVENLABS_VOICE_ID_NARRATOR: input.ELEVENLABS_VOICE_ID_NARRATOR,

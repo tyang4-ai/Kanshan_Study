@@ -1,0 +1,54 @@
+// Phase #15.10 Track 3 (2026-05-11): OAuth authorize-redirect handler.
+// 知乎 OAuth credentials are optional — if any are missing we return 503 at
+// request time (not module load) so cache-only / no-OAuth deploys keep
+// working. Authorize URL not in the captured spec; default to the public
+// 知乎 OAuth page, env-overridable via ZHIHU_OAUTH_AUTHORIZE_URL.
+import { NextResponse, type NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
+import { randomBytes } from 'node:crypto';
+
+export const runtime = 'nodejs';
+
+const STATE_COOKIE = 'kanshan-oauth-state';
+const STATE_MAX_AGE_SECONDS = 600;
+
+export async function GET(req: NextRequest): Promise<Response> {
+  const appId = process.env.ZHIHU_OAUTH_APP_ID;
+  const redirectUri = process.env.ZHIHU_OAUTH_REDIRECT_URI;
+  if (!appId || !redirectUri) {
+    return NextResponse.json(
+      { error: 'OAuth 未配置 — 缺少 ZHIHU_OAUTH_APP_ID 等环境变量' },
+      { status: 503 },
+    );
+  }
+
+  const authorizeUrl =
+    process.env.ZHIHU_OAUTH_AUTHORIZE_URL || 'https://www.zhihu.com/oauth/authorize';
+
+  const state = randomBytes(16).toString('hex');
+  const url =
+    `${authorizeUrl}` +
+    `?client_id=${encodeURIComponent(appId)}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=code` +
+    `&state=${state}`;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[oauth] authorize URL:', url);
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: STATE_MAX_AGE_SECONDS,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  });
+
+  if (req.nextUrl.searchParams.get('debug') === '1') {
+    return NextResponse.json({ authorizeUrl: url, state });
+  }
+
+  return NextResponse.redirect(url, 302);
+}

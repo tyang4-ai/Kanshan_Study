@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import { OnboardingGate } from '@/components/onboarding/OnboardingGate';
+import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
@@ -10,6 +11,10 @@ describe('OnboardingGate', () => {
     // Wipe any residual cookies between tests
     document.cookie = 'kanshan-account=; path=/; max-age=0';
     document.cookie = 'kanshan-provider=; path=/; max-age=0';
+    // Reset zhihu session so the `me` BYO flow lands on zhihu-login step.
+    useZhihuSessionStore.setState({
+      uid: null, fullname: null, avatarPath: null, exp: null, hydrated: false,
+    });
   });
   afterEach(() => cleanup());
 
@@ -66,6 +71,8 @@ describe('OnboardingGate', () => {
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    // Zhihu-login step interposes for `me`; skip it.
+    fireEvent.click(getByTestId('onboarding-zhihu-skip'));
     // Vault-consent step interposes for the default `me` account.
     fireEvent.click(getByTestId('onboarding-vault-accept'));
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -183,6 +190,8 @@ describe('OnboardingGate', () => {
     const input = getByTestId('onboarding-api-key-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'sk-abcdefghijklmnop1234' } });
     fireEvent.click(getByTestId('onboarding-byo-submit'));
+    // Zhihu-login step interposes for `me`; skip it.
+    fireEvent.click(getByTestId('onboarding-zhihu-skip'));
     // Vault-consent step interposes for the default `me` account.
     fireEvent.click(getByTestId('onboarding-vault-accept'));
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -198,8 +207,9 @@ describe('OnboardingGate', () => {
     // Simulate composition Enter (keyCode 229)
     fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
-    // Now submit normally — vault-consent step interposes for `me`.
+    // Now submit normally — zhihu-login + vault-consent steps interpose for `me`.
     fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 });
+    fireEvent.click(getByTestId('onboarding-zhihu-skip'));
     fireEvent.click(getByTestId('onboarding-vault-accept'));
     expect(window.localStorage.getItem(STORAGE_KEY)).not.toBeNull();
   });

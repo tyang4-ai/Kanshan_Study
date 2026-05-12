@@ -6,6 +6,8 @@
 
 import { useEffect, useState } from 'react';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
+import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
+import { useAiErrorStore } from '@/lib/store/ai-error';
 
 interface OnboardingProfile {
   provider?: 'kimi' | 'deepseek' | 'qwen-local' | string;
@@ -288,6 +290,9 @@ export function SettingsTab() {
           </ul>
         </section>
 
+        {/* 知乎账号 section */}
+        <ZhihuAccountSection />
+
         {/* Version footer */}
         <section>
           <div
@@ -305,5 +310,105 @@ export function SettingsTab() {
 
       <ComplianceLine>设置仅本地保存 · 不同步至云</ComplianceLine>
     </div>
+  );
+}
+
+function ZhihuAccountSection(): React.ReactElement {
+  const fullname = useZhihuSessionStore((s) => s.fullname);
+  const uid = useZhihuSessionStore((s) => s.uid);
+  const avatarPath = useZhihuSessionStore((s) => s.avatarPath);
+  const clear = useZhihuSessionStore((s) => s.clear);
+
+  const onConnect = (): void => {
+    window.open('/api/auth/zhihu/start', '_blank');
+  };
+
+  const onDisconnect = async (): Promise<void> => {
+    try {
+      await fetch('/api/auth/zhihu/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch {
+      // best-effort
+    }
+    clear();
+    useAiErrorStore.getState().push({ message: '已退出知乎账号' });
+  };
+
+  return (
+    <section style={{ marginBottom: 22 }} data-testid="settings-zhihu-section">
+      <h3
+        style={{
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: '#1772F6',
+          letterSpacing: 0.6,
+          marginBottom: 8,
+          fontFamily: 'JetBrains Mono, monospace',
+          textTransform: 'uppercase',
+        }}
+      >
+        知乎账号
+      </h3>
+      {!fullname ? (
+        <button
+          type="button"
+          data-testid="settings-zhihu-connect"
+          onClick={onConnect}
+          style={{
+            padding: '6px 12px',
+            fontSize: 11,
+            border: '1px solid #0084FF',
+            background: 'transparent',
+            color: '#0084FF',
+            fontFamily: '"Noto Serif SC", serif',
+            borderRadius: 3,
+            cursor: 'pointer',
+          }}
+        >
+          连接你的知乎账号 ↗
+        </button>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            width: 28, height: 28, borderRadius: 14,
+            background: avatarPath ? '#fff' : '#0084FF',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, color: '#fff', overflow: 'hidden',
+            flexShrink: 0,
+          }}>
+            {avatarPath ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarPath} alt="" width={28} height={28} style={{ display: 'block', objectFit: 'cover' }} />
+            ) : fullname.slice(0, 1)}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1F2A' }}>{fullname}</span>
+            {uid && (
+              <span style={{
+                fontSize: 10, color: '#5A6270',
+                fontFamily: 'JetBrains Mono, monospace',
+              }}>{uid}</span>
+            )}
+          </div>
+          <button
+            type="button"
+            data-testid="settings-zhihu-disconnect"
+            onClick={onDisconnect}
+            style={{
+              padding: '6px 12px',
+              fontSize: 11,
+              border: '1px solid rgba(184,85,67,0.45)',
+              background: 'transparent',
+              color: '#B85543',
+              fontFamily: '"Noto Serif SC", serif',
+              borderRadius: 3,
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            断开连接
+          </button>
+        </div>
+      )}
+    </section>
   );
 }

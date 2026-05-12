@@ -3,12 +3,13 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { useAccountStore } from '@/lib/store/account';
 import { useVaultConsentStore } from '@/lib/store/vault-consent';
+import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
 type OnboardingMode = 'byo-key' | 'guest';
 type ProviderChoice = 'kimi' | 'deepseek';
-type Step = 'run-mode' | 'vault-consent';
+type Step = 'run-mode' | 'zhihu-login' | 'vault-consent';
 
 interface OnboardingRecord {
   mode: OnboardingMode;
@@ -54,6 +55,18 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
     setHidden(window.localStorage.getItem(STORAGE_KEY) !== null);
   }, []);
 
+  // Track #15.10 — hooks must be called unconditionally (above the early
+  // return below). The skip-to-vault-consent effect fires when the user is
+  // already logged in via zhihu OAuth.
+  const sessionFullname = useZhihuSessionStore((s) => s.fullname);
+  useEffect(() => {
+    if (step !== 'zhihu-login') return;
+    if (sessionFullname && pendingRecord) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStep('vault-consent');
+    }
+  }, [step, sessionFullname, pendingRecord]);
+
   if (hidden) return null;
 
   const finalizeRecord = (record: OnboardingRecord) => {
@@ -63,6 +76,11 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
     // was empty at that time) to re-check and auto-start the tour now that
     // onboarding has been completed within this session.
     window.dispatchEvent(new CustomEvent('kanshan-onboarding-done'));
+  };
+
+  const advanceToVaultConsent = (record: OnboardingRecord) => {
+    setPendingRecord(record);
+    setStep('vault-consent');
   };
 
   const advanceAfterRunMode = (record: OnboardingRecord) => {
@@ -75,8 +93,26 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
       finalizeRecord(record);
       return;
     }
+    // `me` account → interpose zhihu-login step between run-mode and vault-consent.
+    // If session already hydrated with a fullname (user logged in earlier), skip.
+    const sessionFullname = useZhihuSessionStore.getState().fullname;
+    if (sessionFullname) {
+      advanceToVaultConsent(record);
+      return;
+    }
     setPendingRecord(record);
-    setStep('vault-consent');
+    setStep('zhihu-login');
+    // Fire-and-forget hydration; if the user is already logged in we'll
+    // auto-advance via the effect below.
+    void useZhihuSessionStore.getState().hydrate();
+  };
+
+  const onZhihuLogin = () => {
+    window.location.href = '/api/auth/zhihu/start';
+  };
+
+  const onZhihuSkip = () => {
+    if (pendingRecord) advanceToVaultConsent(pendingRecord);
   };
 
   const submitByoKey = () => {
@@ -355,6 +391,57 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false }
     gap: 12,
     marginTop: 8,
   };
+
+  if (step === 'zhihu-login') {
+    return (
+      <div
+        data-testid="onboarding-gate"
+        style={root}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+          }
+        }}
+        onKeyDown={handleBackdropKeyDown}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          data-testid="onboarding-zhihu-login-step"
+          style={{ ...card, maxWidth: 620 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={titleRow}>
+            <div style={titleText}>连接你的知乎账号 (可选)</div>
+            <div style={subtitleText}>第二步 · 知乎登录</div>
+          </div>
+          <ul style={consentBulletList}>
+            <li>我们只读取你的昵称和头像 —— 用于在标题栏显示「已登录 · {'{昵称}'}」</li>
+            <li>不会代你发布、不会读私信、不会绑定永久 token</li>
+            <li>退出登录后服务端立即清除会话</li>
+          </ul>
+          <div style={consentButtonRow}>
+            <button
+              type="button"
+              data-testid="onboarding-zhihu-login"
+              style={buttonStyle}
+              onClick={onZhihuLogin}
+            >
+              使用知乎账号登录
+            </button>
+            <button
+              type="button"
+              data-testid="onboarding-zhihu-skip"
+              style={guestButtonStyle}
+              onClick={onZhihuSkip}
+            >
+              跳过 — 之后再说
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'vault-consent') {
     return (

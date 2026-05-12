@@ -1,10 +1,12 @@
 'use client';
 // Phase #13.99 — talk-to / tool reframe (revision tag for HMR invalidation)
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
 import { useDemoMode } from '@/lib/demo-mode/context';
+import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
+import { useAiErrorStore } from '@/lib/store/ai-error';
 
 export type ToolbarKind = 'vault' | 'stats' | 'trends' | 'settings' | 'persona' | 'debate';
 
@@ -23,6 +25,12 @@ export function useToolbarOpeners() {
 
 export function TitleBar() {
   const openTab = useFloatingWindowStore((s) => s.openTab);
+
+  // Hydrate the zhihu OAuth session once on mount; the badge below decides
+  // whether to render based on the result.
+  useEffect(() => {
+    void useZhihuSessionStore.getState().hydrate();
+  }, []);
 
   const onOpenVault    = () => openTab('vault', '看典 · 档案库');
   const onOpenTrends   = () => openTab('trends', '看势 · 热榜雷达');
@@ -66,7 +74,144 @@ export function TitleBar() {
         <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button" title="看山书房 · 设置"/>
         <BudgetChip />
         <ProfileChip />
+        <ZhihuBadge />
       </div>
+    </div>
+  );
+}
+
+function truncate(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+export function ZhihuBadge() {
+  const fullname = useZhihuSessionStore((s) => s.fullname);
+  const uid = useZhihuSessionStore((s) => s.uid);
+  const avatarPath = useZhihuSessionStore((s) => s.avatarPath);
+  const clear = useZhihuSessionStore((s) => s.clear);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // Outside-click closes the popover.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent): void => {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  if (!fullname) return null;
+
+  const onLogout = async (): Promise<void> => {
+    try {
+      await fetch('/api/auth/zhihu/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch {
+      // Server unreachable — still clear client state.
+    }
+    clear();
+    setOpen(false);
+    useAiErrorStore.getState().push({ message: '已退出知乎账号' });
+  };
+
+  const accent = '#0084FF';
+  const label = `已登录 · ${truncate(fullname, 6)}`;
+  const initial = fullname.slice(0, 1);
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        type="button"
+        data-testid="zhihu-badge"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={`知乎账号 ${fullname}`}
+        title={`知乎账号 · ${fullname}`}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '2px 8px', borderRadius: 4,
+          border: `1px solid ${accent}`,
+          background: 'transparent',
+          color: accent,
+          fontSize: 11, cursor: 'pointer',
+          fontFamily: '"Noto Serif SC", serif',
+        }}
+      >
+        <span style={{
+          width: 18, height: 18, borderRadius: 9,
+          background: avatarPath ? '#fff' : accent,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 10, color: '#fff', overflow: 'hidden',
+        }}>
+          {avatarPath ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarPath} alt="" width={18} height={18} style={{ display: 'block', objectFit: 'cover' }} />
+          ) : initial}
+        </span>
+        <span>{label}</span>
+      </button>
+      {open && (
+        <div
+          data-testid="zhihu-badge-popover"
+          style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            marginTop: 6,
+            minWidth: 220,
+            padding: '10px 12px',
+            background: '#FFFDF8',
+            border: '1px solid rgba(168,155,126,0.45)',
+            borderRadius: 4,
+            boxShadow: '0 14px 30px rgba(0,0,0,0.32)',
+            color: '#2A2419',
+            fontFamily: '"Noto Serif SC", serif',
+            zIndex: 5000,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{
+              width: 28, height: 28, borderRadius: 14,
+              background: avatarPath ? '#fff' : accent,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, color: '#fff', overflow: 'hidden',
+            }}>
+              {avatarPath ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarPath} alt="" width={28} height={28} style={{ display: 'block', objectFit: 'cover' }} />
+              ) : initial}
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{fullname}</span>
+              {uid && (
+                <span style={{
+                  fontSize: 10, color: '#7A6F5A',
+                  fontFamily: 'JetBrains Mono, monospace',
+                }}>{uid}</span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            data-testid="zhihu-logout"
+            onClick={onLogout}
+            style={{
+              width: '100%',
+              padding: '6px 10px',
+              fontSize: 11,
+              border: '1px solid rgba(184,85,67,0.45)',
+              background: 'transparent',
+              color: '#B85543',
+              fontFamily: '"Noto Serif SC", serif',
+              borderRadius: 3,
+              cursor: 'pointer',
+            }}
+          >
+            退出登录
+          </button>
+        </div>
+      )}
     </div>
   );
 }
