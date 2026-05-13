@@ -9,6 +9,13 @@ import { db } from '../db/client';
 export const HOUR_LIMIT = 60;
 export const DAY_LIMIT = 200;
 export const CONCURRENT_LIMIT = 3;
+// SSE streams that abort mid-flight (client disconnect, Chrome MCP CDP
+// timeout, mobile-flaky network) skip `releaseConcurrent`, leaving the
+// counter stuck. Anything older than this stale-window is treated as already
+// released — decremented in-place inside the upsert. Tuned to the longest
+// expected legitimate request (LLM completion + replay gap ≈ 30s on the
+// slowest path); shorter would let real long-poll requests get double-counted.
+export const CONCURRENT_STALE_SECONDS = 45;
 
 export type RateCheckResult =
   | { ok: true; count_hour: number; count_day: number }
@@ -69,8 +76,10 @@ export async function checkAndIncrement(
   const hour = hourBucket(now);
 
   // Upsert: if row exists, reset counters when bucket label changed; otherwise
-  // increment. Always increment concurrent. Returns the post-update row so we
-  // can decide whether to allow.
+  // increment. Concurrent increments by 1, BUT if the previous request ended
+  // more than `CONCURRENT_STALE_SECONDS` ago we assume the prior in-flight
+  // request died without calling releaseConcurrent and reset the counter to
+  // 1 (this request) rather than letting it grow unbounded.
   const rows = (await db.execute(sql`
     insert into rate_limit (ip_hash, day_bucket, hour_bucket, count_day, count_hour, concurrent, updated_at)
     values (${ipHash}, ${day}, ${hour}, 1, 1, 1, now())
@@ -79,7 +88,10 @@ export async function checkAndIncrement(
       hour_bucket = ${hour},
       count_day = case when rate_limit.day_bucket = ${day} then rate_limit.count_day + 1 else 1 end,
       count_hour = case when rate_limit.hour_bucket = ${hour} then rate_limit.count_hour + 1 else 1 end,
-      concurrent = rate_limit.concurrent + 1,
+      concurrent = case
+        when rate_limit.updated_at < now() - interval '${sql.raw(String(CONCURRENT_STALE_SECONDS))} seconds' then 1
+        else rate_limit.concurrent + 1
+      end,
       updated_at = now()
     returning ip_hash, day_bucket, hour_bucket, count_day, count_hour, concurrent
   `)) as unknown as Row[];
