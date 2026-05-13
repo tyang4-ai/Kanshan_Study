@@ -1,6 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 import type { Tab } from '@/lib/store/floating-window';
+import { FirstOpenGuide } from './FirstOpenGuide';
 
 const VaultTab     = dynamic(() => import('./VaultTab').then((m) => m.VaultTab),     { ssr: false });
 const SettingsTab  = dynamic(() => import('./SettingsTab').then((m) => m.SettingsTab),  { ssr: false });
@@ -12,7 +13,7 @@ const VoiceDiffTab = dynamic(() => import('./VoiceDiffTab').then((m) => m.VoiceD
 const ResearchTab  = dynamic(() => import('./ResearchTab').then((m) => m.ResearchTab),  { ssr: false });
 const KanshanChatTab = dynamic(() => import('./KanshanChatTab').then((m) => m.KanshanChatTab), { ssr: false });
 
-export function TabBody({ tab }: { tab: Tab }) {
+function renderBody(tab: Tab) {
   switch (tab.kind) {
     case 'vault':         return <VaultTab     {...tab.props} />;
     case 'settings':      return <SettingsTab  {...tab.props} />;
@@ -24,4 +25,13 @@ export function TabBody({ tab }: { tab: Tab }) {
     case 'research':      return <ResearchTab  {...tab.props} />;
     case 'kanshan-chat':  return <KanshanChatTab />;
   }
+}
+
+export function TabBody({ tab }: { tab: Tab }) {
+  return (
+    <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {renderBody(tab)}
+      <FirstOpenGuide kind={tab.kind} />
+    </div>
+  );
 }

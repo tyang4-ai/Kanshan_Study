@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { OverviewTab } from '@/components/stats/OverviewTab';
 import { EngagementTab } from '@/components/stats/EngagementTab';
@@ -17,17 +17,78 @@ const SUB_TABS: { id: SubTabId; label: string }[] = [
   { id: 'income', label: '收益' },
 ];
 
+interface JingTurn {
+  role: 'user' | 'jing';
+  content: string;
+}
+
 export function StatsTab() {
   const [tab, setTab] = useState<SubTabId>('overview');
   const jing = FOX_BY_ID.jing;
-  // R3 (李笛 P1 2026-05-12): CPS-style埋点 surface. 看镜 reads from the local
-  // `kanshan-last-visit` store, which is now a 4-counter shape (sessionCount /
-  // crossFoxEventCount / trendOutboundClicks / lastVisits.length). 数据仅来自
-  // 本地交互, 不读已发布作品 — 与底部 ComplianceLine 一致.
   const sessionCount = useLastVisitStore((s) => s.sessionCount);
   const crossFoxEventCount = useLastVisitStore((s) => s.crossFoxEventCount);
   const trendOutboundClicks = useLastVisitStore((s) => s.trendOutboundClicks);
   const trackedDocsCount = useLastVisitStore((s) => s.lastVisits.length);
+
+  // 看镜 chat state — live LLM-backed Q&A about the stats above.
+  const [turns, setTurns] = useState<JingTurn[]>([]);
+  const [draft, setDraft] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const sendingRef = useRef(false);
+
+  const send = async (): Promise<void> => {
+    if (sendingRef.current) return;
+    const text = draft.trim();
+    if (!text) return;
+    sendingRef.current = true;
+    setStreaming(true);
+    setDraft('');
+    const next: JingTurn[] = [...turns, { role: 'user', content: text }];
+    setTurns(next);
+    try {
+      const res = await fetch('/api/agents/jing/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: text,
+          history: turns,
+          context: { sessionCount, crossFoxEventCount, trendOutboundClicks, trackedDocsCount },
+        }),
+      });
+      const data = (await res.json()) as { text?: string; error?: string };
+      const reply = data.text ?? data.error ?? '看镜一时未通 — 请稍后重试。';
+      setTurns((prev) => [...prev, { role: 'jing', content: reply }]);
+    } catch {
+      setTurns((prev) => [...prev, { role: 'jing', content: '网络中断 — 请稍后重试。' }]);
+    } finally {
+      setStreaming(false);
+      sendingRef.current = false;
+    }
+  };
+
+  const handleKey = (e: KeyboardEvent<HTMLInputElement>): void => {
+    if (composing || e.nativeEvent.keyCode === 229) return;
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void send();
+    }
+  };
+
+  const bubbleStyle = (role: 'user' | 'jing'): CSSProperties => ({
+    alignSelf: role === 'user' ? 'flex-end' : 'flex-start',
+    maxWidth: '85%',
+    padding: '8px 12px',
+    borderRadius: 8,
+    fontSize: 12.5,
+    lineHeight: 1.6,
+    fontFamily: '"Noto Serif SC", serif',
+    background: role === 'user' ? '#2A2419' : '#FFFCF4',
+    color: role === 'user' ? '#FAF8F3' : '#1A1F2A',
+    border: role === 'jing' ? `1px solid ${jing.glow}55` : 'none',
+    boxShadow: role === 'jing' ? `0 0 0 2px ${jing.glow}14` : 'none',
+    whiteSpace: 'pre-wrap',
+  });
 
   return (
     <div
@@ -90,8 +151,6 @@ export function StatsTab() {
         </div>
       </div>
 
-      {/* R3 (李笛 P1): cross-fox / 回访 / 导流 埋点 row — visible across all
-          sub-tabs because it measures product-engagement, not 答主 content. */}
       <div
         data-testid="stats-engagement-row"
         style={{
@@ -125,7 +184,36 @@ export function StatsTab() {
         {tab === 'income' && <IncomeTab />}
       </div>
 
-      {/* 看镜 chat affordance */}
+      {/* 看镜 chat — turns history (collapsed when empty) */}
+      {turns.length > 0 && (
+        <div
+          data-testid="stats-chat-history"
+          style={{
+            flexShrink: 0,
+            maxHeight: 220,
+            overflowY: 'auto',
+            padding: '10px 14px',
+            background: '#F4F7FB',
+            borderTop: '1px solid rgba(23,114,246,0.18)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          {turns.map((t, i) => (
+            <div key={i} data-testid={`stats-chat-bubble-${t.role}`} style={bubbleStyle(t.role)}>
+              {t.content}
+            </div>
+          ))}
+          {streaming && (
+            <div data-testid="stats-chat-streaming" style={{ ...bubbleStyle('jing'), fontStyle: 'italic', opacity: 0.7 }}>
+              看镜想想…
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 看镜 chat input */}
       <div
         style={{
           flexShrink: 0,
@@ -157,6 +245,12 @@ export function StatsTab() {
         </div>
         <input
           data-testid="stats-chat-input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
+          onKeyDown={handleKey}
+          disabled={streaming}
           placeholder="问看镜：本月互动为何下降？是某一篇的问题吗？"
           style={{
             flex: 1,
@@ -168,23 +262,25 @@ export function StatsTab() {
             fontFamily: '"Noto Sans SC", sans-serif',
             outline: 'none',
             color: '#1A1F2A',
+            opacity: streaming ? 0.6 : 1,
           }}
         />
         <button
           data-testid="stats-chat-send"
-          onClick={() => console.log('TODO plan #11: 看镜 chat')}
+          onClick={() => void send()}
+          disabled={streaming || !draft.trim()}
           style={{
-            background: jing.glow,
+            background: streaming || !draft.trim() ? '#D1CDB7' : jing.glow,
             color: '#fff',
             border: 'none',
             padding: '6px 12px',
             fontSize: 11,
             borderRadius: 4,
-            cursor: 'pointer',
+            cursor: streaming || !draft.trim() ? 'not-allowed' : 'pointer',
             fontFamily: '"Noto Sans SC", sans-serif',
           }}
         >
-          问
+          {streaming ? '…' : '问'}
         </button>
       </div>
       <ComplianceLine>数据仅来自你已发布作品 · 不读私信</ComplianceLine>
