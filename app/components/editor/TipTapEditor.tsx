@@ -20,6 +20,8 @@ import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useEditorTabsStore } from '@/lib/store/editor-tabs';
 import { useAccountStore } from '@/lib/store/account';
 import { useLastVisitStore } from '@/lib/store/last-visit';
+import { useProvenanceStore } from '@/lib/store/provenance';
+import { detectClaims } from '@/lib/compliance/xin-detect';
 import { reflowBlockAt, blockStartFromSelection } from './markdown-reflow';
 import { LivePreview } from './LivePreview';
 import { buildCitationOnClick } from '@/lib/citation/click-router';
@@ -111,6 +113,10 @@ export function TipTapEditor({
   // Coalesces a burst of keystrokes into a single localStorage write every
   // ~3s; avoids hammering the persist middleware on every onUpdate.
   const lastVisitTimerRef = useRef<number | null>(null);
+  // 看心 live-scan debounce — runs detectClaims over the editor text after
+  // typing settles (~800ms) so the bottom stamp counters tick in real time
+  // without re-running the regex set on every keystroke.
+  const xinScanTimerRef = useRef<number | null>(null);
   // Obsidian-style live markdown: track the block-position the caret was in
   // on the previous tick. When it changes (caret moved to a different block),
   // reflow the previous block — that's the "click away → render" trigger.
@@ -200,6 +206,40 @@ export function TipTapEditor({
             topicSnippet: text.trim(),
           });
         }, 3000);
+
+        // 看心 live-scan: debounced 800ms. After typing settles, run
+        // detectClaims over the editor's plain text, slice the document by
+        // sentence terminators, find offending sentences, and write them to
+        // the provenance store via replaceLiveScan (relatedAction='live-scan')
+        // so previous scan results are evicted. The bottom ComplianceStamp
+        // subscribes to the store and updates the counters in real time.
+        if (xinScanTimerRef.current != null) {
+          window.clearTimeout(xinScanTimerRef.current);
+        }
+        xinScanTimerRef.current = window.setTimeout(() => {
+          const text = e.state.doc.textContent ?? '';
+          if (!text.trim()) {
+            useProvenanceStore.getState().replaceLiveScan([]);
+            return;
+          }
+          // Split by Chinese + Western sentence terminators. Scan each
+          // sentence in isolation so the excerpt + flag is sentence-grained,
+          // not full-document-grained.
+          const sentences = text
+            .split(/(?<=[。！？!?])\s*|\n+/)
+            .map((s) => s.trim())
+            .filter((s) => s.length >= 6);
+          const next: Array<Omit<import('@/lib/store/provenance').ProvenanceEntry, 'id' | 'at'>> = [];
+          for (const sent of sentences) {
+            const flags = detectClaims(sent);
+            if (flags.safe) continue;
+            const excerpt = sent.slice(0, 80);
+            if (flags.medical) next.push({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'live-scan' });
+            if (flags.financial) next.push({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'live-scan' });
+            if (flags.cherryPick) next.push({ kind: 'hedge', excerpt, fox: 'xin', relatedAction: 'live-scan' });
+          }
+          useProvenanceStore.getState().replaceLiveScan(next);
+        }, 800);
       }
       try {
         setTabContent(id, e.getHTML());

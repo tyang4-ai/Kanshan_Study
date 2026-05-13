@@ -24,6 +24,11 @@ interface ProvenanceState {
   add: (e: Omit<ProvenanceEntry, 'id' | 'at'>) => ProvenanceEntry;
   remove: (id: string) => void;
   clear: () => void;
+  /** Replace every 看心 live-scan entry (relatedAction='live-scan') with
+   *  the new set. Used by the debounced editor scanner so the count stays
+   *  bounded as the user keeps typing. Manual 看心 audits (no live-scan
+   *  tag) are preserved. */
+  replaceLiveScan: (next: Array<Omit<ProvenanceEntry, 'id' | 'at'>>) => void;
 }
 
 let counter = 0;
@@ -51,6 +56,15 @@ export const useProvenanceStore = create<ProvenanceState>((set) => ({
   },
   remove: (id) => set((s) => ({ entries: s.entries.filter((x) => x.id !== id) })),
   clear: () => set(() => ({ entries: [] })),
+  replaceLiveScan: (next) => set((s) => {
+    const preserved = s.entries.filter((e) => e.relatedAction !== 'live-scan');
+    const created: ProvenanceEntry[] = next.map((e) => ({
+      ...e,
+      id: `prov-${Date.now()}-${(counter++).toString(36)}`,
+      at: Date.now(),
+    }));
+    return { entries: [...preserved, ...created] };
+  }),
 }));
 
 /**
