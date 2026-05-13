@@ -38,6 +38,20 @@ export function FirstOpenGuide({ kind }: FirstOpenGuideProps) {
     }
   }, [kind]);
 
+  // Demo-day (2026-05-13): the per-window "?" button in TabbedFloatingWindow
+  // wipes the seen flag and fires this event so the guide reappears even
+  // after dismissal.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onReopen = (e: Event): void => {
+      const detail = (e as CustomEvent<{ kind?: string }>).detail;
+      if (!detail || detail.kind !== kind) return;
+      setShow(true);
+    };
+    window.addEventListener('kanshan-reopen-guide', onReopen);
+    return () => window.removeEventListener('kanshan-reopen-guide', onReopen);
+  }, [kind]);
+
   const dismiss = (): void => {
     setShow(false);
     try {

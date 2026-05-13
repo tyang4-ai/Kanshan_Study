@@ -4,7 +4,6 @@ import { useAccountStore } from '@/lib/store/account';
 import { useVaultConsentStore } from '@/lib/store/vault-consent';
 import { VaultEntry, type VaultEntryData } from '@/components/floating/VaultEntry';
 import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
-import meSeed from '@/content/seed/vault-me.json';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { importFile, importMarkdown, sniffFormat } from '@/lib/io/importers';
 import { useAiErrorStore } from '@/lib/store/ai-error';
@@ -104,7 +103,10 @@ export function VaultTab({ scrollToArticleId, preloadQuery }: VaultTabProps = {}
     hydrateConsent(account);
   }, [account, hydrateConsent]);
 
-  const consentEffective = account === 'guwanxi' || consented;
+  // Demo persona is always 顾婉昔 → vault consent implicit (her own seeded
+   // archive). The remote `useAccountStore` still drives `account` for any
+   // back-compat header writes (e.g. `x-kanshan-account`).
+  const consentEffective = true || consented;
 
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>) => {
@@ -183,8 +185,8 @@ export function VaultTab({ scrollToArticleId, preloadQuery }: VaultTabProps = {}
   }, [scrollToArticleId]);
 
   const initialEntries = useMemo<VaultEntryData[]>(
-    () => (account === 'guwanxi' ? (guwanxiSeed as VaultEntryData[]) : (meSeed as VaultEntryData[])),
-    [account]
+    () => guwanxiSeed as VaultEntryData[],
+    []
   );
 
   const [query, setQuery] = useState(preloadQuery ?? '');

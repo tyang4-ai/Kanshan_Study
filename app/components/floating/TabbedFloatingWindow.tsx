@@ -105,6 +105,25 @@ export function TabbedFloatingWindow() {
           ))}
         </div>
         <button
+          onClick={() => {
+            // Demo-day (2026-05-13): per-window help — wipes the FirstOpenGuide
+            // "seen" flag and emits an event that the guide listens for so it
+            // reappears even if previously dismissed.
+            try {
+              window.localStorage.removeItem(`kanshan-window-guide-seen:${activeTab.kind}`);
+            } catch { /* localStorage unavailable — non-fatal */ }
+            window.dispatchEvent(
+              new CustomEvent('kanshan-reopen-guide', { detail: { kind: activeTab.kind } }),
+            );
+          }}
+          className="my-2 ml-2 h-[22px] w-[22px] shrink-0 rounded-full border-none bg-white/10 p-0 text-xs text-slate-100 hover:bg-white/20"
+          aria-label={`重新查看 ${activeTab.title} 说明`}
+          title="重新查看本面板说明"
+          data-testid="floating-window-help"
+        >
+          ?
+        </button>
+        <button
           onClick={closeWindow}
           className="m-2 h-[22px] w-[22px] shrink-0 rounded-full border-none bg-white/10 p-0 text-sm text-slate-100 hover:bg-white/20"
           title="关闭窗口"

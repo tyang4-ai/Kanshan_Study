@@ -3,25 +3,31 @@ import { useEffect, useState } from 'react';
 
 interface State {
   guestId: string | null;
-  mode: 'guest' | 'byo-key' | null;
+  liveMode: boolean;
 }
 
+// Demo-day collapse (2026-05-13): used to switch between "受限模式" / "自带密钥"
+// labels reading the (now-retired) byo-key vs guest onboarding mode. Now
+// just indicates whether the workspace is in cache demo (default) or live
+// LLM mode, plus the per-browser guest id.
 export function GuestIndicator() {
-  const [s, setS] = useState<State>({ guestId: null, mode: null });
+  const [s, setS] = useState<State>({ guestId: null, liveMode: false });
   useEffect(() => {
     const m = document.cookie.match(/kanshan-guest-id=([a-f0-9]+)/);
     const guestId = m ? m[1] : null;
-    let mode: 'guest' | 'byo-key' | null = null;
+    let liveMode = false;
     try {
-      const onb = window.localStorage.getItem('kanshan-onboarding');
-      if (onb) mode = (JSON.parse(onb) as { mode: 'guest' | 'byo-key' }).mode;
-    } catch {}
-    // SSR snapshot can't read cookies/localStorage — must hydrate on mount.
+      const raw = window.localStorage.getItem('kanshan-live-mode');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { enabled?: boolean };
+        liveMode = parsed?.enabled === true;
+      }
+    } catch { /* localStorage unavailable */ }
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setS({ guestId, mode });
+    setS({ guestId, liveMode });
   }, []);
   if (!s.guestId) return null;
-  const label = s.mode === 'byo-key' ? '自带密钥' : '受限模式';
+  const label = s.liveMode ? '实时模式' : '缓存演示';
   return (
     <div data-testid="guest-indicator" style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,

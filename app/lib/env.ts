@@ -56,7 +56,7 @@ export const envSchema = z.object({
   // at module load (cache-only / no-OAuth deploys are valid); the OAuth routes
   // return 503 at request time when missing.
   KANSHAN_SESSION_SECRET: z.string().min(32).optional(),
-  CACHE_MODE: z.enum(['auto', 'cache-only', 'live-only']).default('auto'),
+  CACHE_MODE: z.enum(['auto', 'cache-only', 'live-only']).default('cache-only'),
   ELEVENLABS_API_KEY: z.string().optional(),
   ELEVENLABS_VOICE_ID_NARRATOR: z.string().optional(),
 });

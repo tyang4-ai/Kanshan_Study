@@ -2,10 +2,7 @@
 // Phase #13.99 — talk-to / tool reframe (revision tag for HMR invalidation)
 import { useEffect, useRef, useState } from 'react';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
-import { useTweak } from '@/lib/store/tweak';
-import { useAccountStore } from '@/lib/store/account';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
-import { useDemoMode } from '@/lib/demo-mode/context';
 import { useZhihuSessionStore } from '@/lib/store/zhihu-session';
 import { useAiErrorStore } from '@/lib/store/ai-error';
 
@@ -13,6 +10,10 @@ import { useAiErrorStore } from '@/lib/store/ai-error';
 // import the type here because that module is `server-only`; pulling even a
 // type-only import would risk bundling node:fs into the client chunk under
 // some TS configs. Keep this shape in sync with that module.
+//
+// Demo-day collapse (2026-05-13): only 顾婉昔 ships now. `me` kept as a
+// nullable field so older art-fetch code paths don't fail at type-check
+// time; nothing renders it.
 export interface AccountAvatarUrls {
   readonly me: string | null;
   readonly guwanxi: string | null;
@@ -109,7 +110,7 @@ export function TitleBar({ avatarUrls = EMPTY_AVATAR_URLS }: TitleBarProps = {})
         <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button" title="看山书房 · 设置"/>
         <ManualLink />
         <BudgetChip />
-        <ProfileChip avatarUrls={avatarUrls} />
+        <DemoPersonaBadge avatarUrls={avatarUrls} />
         <ZhihuBadge />
       </div>
     </div>
@@ -391,102 +392,36 @@ export function BudgetChip() {
   );
 }
 
-interface ProfileChipProps {
+interface DemoPersonaBadgeProps {
   avatarUrls?: AccountAvatarUrls;
 }
 
-export function ProfileChip({ avatarUrls = EMPTY_AVATAR_URLS }: ProfileChipProps = {}) {
-  const active = useAccountStore((s) => s.active);
-  const switchTo = useAccountStore((s) => s.switchTo);
-  const demoMode = useDemoMode();
-  const avatarSize = useTweak('titlebar.avatar.size', 24);
-  const label = active === 'guwanxi' ? '顾婉昔' : '我';
-  const initial = active === 'guwanxi' ? '顾' : '我';
-  const avatarUrl = avatarUrls[active];
-  const onClick = async () => {
-    const target = active === 'guwanxi' ? 'me' : 'guwanxi';
-    const targetLabel = target === 'guwanxi' ? '顾婉昔 (演示账号)' : '我的账号';
-    // R6 casual-user (Sun Yulin) P0: native confirm() was hard-locking the
-    // page renderer for accessibility users + Chrome MCP automation, AND was
-    // factually wrong — the per-account localStorage persist (added below)
-    // saves both drafts independently, so the original "edits will be cleared"
-    // copy was misleading. Drop the confirm entirely; surface a soft toast on
-    // /  so the user knows the switch happened.
-    // R6 demo-flow review (Tan Shulin) P0: clearing to empty made 顾婉昔's
-    // editor open on a blank placeholder. Instead, restore the target account's
-    // persisted draft if one exists, otherwise fall through to that account's
-    // seed doc — so the 0:30 account-switch beat always lands on real prose.
-    try {
-      const { useEditorStore } = await import('@/lib/store/editor');
-      const { defaultDocForAccount } = await import('@/content/seed/default-document');
-      const editor = useEditorStore.getState().editor;
-      if (editor) {
-        let next: string | null = null;
-        try {
-          const persisted = window.localStorage.getItem(`kanshan-editor-doc:${target}`);
-          if (persisted) {
-            const stripped = persisted.replace(/<[^>]+>/g, '').replace(/\s+/g, '');
-            if (stripped.length > 0) next = persisted;
-          }
-        } catch {
-          /* localStorage blocked — fall back to seed */
-        }
-        // R8 casual-user (Sun Yulin) P0: previously did `setContent(newDoc)`
-        // BEFORE `switchTo(target)`. setContent fired TipTapEditor.onUpdate,
-        // which read `kanshan-account` (still the SOURCE account) and wrote
-        // the new doc to `kanshan-editor-doc:{source}` — destroying the source
-        // account's draft on every round-trip. Order fixed below: switch
-        // account first, then setContent with `emitUpdate:false` so the
-        // hydration write doesn't clobber the target's persisted draft
-        // we just decided to use.
-        switchTo(target);
-        editor.commands.setContent(next ?? defaultDocForAccount(target), { emitUpdate: false });
-      } else {
-        switchTo(target);
-      }
-    } catch {
-      /* SSR / HMR boundary — store not loaded, skip */
-      switchTo(target);
-    }
-    // Soft toast on / so the user notices the switch happened. On /live the
-    // teleprompter narrates the switch so a toast is redundant noise.
-    if (demoMode !== 'live') {
-      try {
-        const { useAiErrorStore } = await import('@/lib/store/ai-error');
-        useAiErrorStore.getState().push({
-          message: `已切换到 ${targetLabel} · 双账号草稿独立保存`,
-        });
-      } catch {
-        /* lazy import failure — best-effort */
-      }
-    }
-  };
+// Demo-day collapse (2026-05-13): the persona switcher was deleted. Now a
+// non-interactive badge that just announces the inhabited persona. The real
+// 知乎 identity sits in ZhihuBadge to the right.
+export function DemoPersonaBadge({ avatarUrls = EMPTY_AVATAR_URLS }: DemoPersonaBadgeProps = {}) {
+  const avatarUrl = avatarUrls.guwanxi;
   return (
-    <button
-      onClick={onClick}
-      data-tour-id="profile-chip"
-      aria-label={`切换账号: 当前 ${label}, 点击切换到 ${active === 'guwanxi' ? '我的账号' : '顾婉昔 (演示账号)'}`}
+    <div
+      data-testid="demo-persona-badge"
+      aria-label="演示角色: 顾婉昔"
+      title="演示角色 · 顾婉昔"
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        padding: '2px 6px', borderRadius: 4, border: 'none',
+        padding: '2px 6px', borderRadius: 4,
         background: 'transparent',
-        color: 'rgba(168,155,126,0.8)', fontSize: 11, cursor: 'pointer',
+        color: 'rgba(168,155,126,0.8)', fontSize: 11,
         fontFamily: '"Noto Serif SC", serif',
       }}
-      title={`切换到 ${active === 'guwanxi' ? '我的账号' : '顾婉昔 (演示)'}`}
     >
       {avatarUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={avatarUrl}
           alt=""
-          data-testid="profile-avatar"
-          width={avatarSize}
-          height={avatarSize}
-          style={{
-            width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2,
-            objectFit: 'cover', display: 'block',
-          }}
+          width={24}
+          height={24}
+          style={{ width: 24, height: 24, borderRadius: 12, objectFit: 'cover', display: 'block' }}
         />
       )}
       <span style={{
@@ -494,15 +429,13 @@ export function ProfileChip({ avatarUrls = EMPTY_AVATAR_URLS }: ProfileChipProps
         background: 'rgba(232,179,51,0.4)',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 10, color: '#fff',
-      }}>{initial}</span>
-      <span>{label}</span>
-      {active === 'guwanxi' && (
-        <span style={{
-          marginLeft: 2, padding: '0 4px', borderRadius: 2,
-          background: 'rgba(139,69,19,0.6)', color: '#fff',
-          fontSize: 8, letterSpacing: 1,
-        }}>演示</span>
-      )}
-    </button>
+      }}>顾</span>
+      <span>顾婉昔</span>
+      <span style={{
+        marginLeft: 2, padding: '0 4px', borderRadius: 2,
+        background: 'rgba(139,69,19,0.6)', color: '#fff',
+        fontSize: 8, letterSpacing: 1,
+      }}>演示</span>
+    </div>
   );
 }

@@ -15,7 +15,7 @@ import { useAccountStore } from '@/lib/store/account';
 import { exportMarkdown } from '@/lib/io/exporters';
 import { triggerDownload, safeFilename } from '@/lib/io/download';
 import { MarginSealPopover } from '@/components/compliance/MarginSealPopover';
-import { ToolbarIcon, BudgetChip, ProfileChip, useToolbarOpeners, type AccountAvatarUrls } from '@/components/chrome/TitleBar';
+import { ToolbarIcon, BudgetChip, DemoPersonaBadge, useToolbarOpeners, type AccountAvatarUrls } from '@/components/chrome/TitleBar';
 import { RightToolbar } from '@/components/chrome/RightToolbar';
 import marginSeedsJson from '@/content/seed/margin-seals-demo.json';
 import type { MarginSealSeed } from './margin-seal-from-seeds';
@@ -241,7 +241,7 @@ export function WritingSurface({
           <span style={{ width: 1, height: 14, background: 'rgba(0,0,0,0.2)' }} aria-hidden />
           <ToolbarIcon kind="settings" onClick={openers.onOpenSettings} title="看山书房 · 设置" />
           <BudgetChip />
-          <ProfileChip avatarUrls={avatarUrls} />
+          <DemoPersonaBadge avatarUrls={avatarUrls} />
         </div>
       </div>
 

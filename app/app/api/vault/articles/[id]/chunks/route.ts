@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import meSeed from '@/content/seed/vault-me.json';
+import meSeed from '@/content/seed/vault-guwanxi.json';
 import { chunkMarkdown } from '@/lib/vault/chunker';
 import { getAccountId } from '@/lib/account';
 

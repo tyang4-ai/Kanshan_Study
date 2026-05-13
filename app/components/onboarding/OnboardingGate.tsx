@@ -8,33 +8,17 @@ import { useTweak } from '@/lib/store/tweak';
 
 const STORAGE_KEY = 'kanshan-onboarding';
 
-type OnboardingMode = 'byo-key' | 'guest';
-type ProviderChoice = 'kimi' | 'deepseek';
-type Step = 'run-mode' | 'zhihu-login' | 'vault-consent';
+type Step = 'zhihu-login' | 'demo-notice' | 'vault-consent';
 
 interface OnboardingRecord {
-  mode: OnboardingMode;
-  provider?: ProviderChoice;
-  apiKey?: string;
+  // 'cache-demo' replaces the previous 'byo-key' | 'guest' modes (2026-05-13).
+  // BYO key now lives in Settings → 实时模式; the welcome screen is just a
+  // one-button "I understand we're in cache mode" gate.
+  mode: 'cache-demo';
   dismissedAt: string;
 }
 
-function validateKey(k: string): string | null {
-  const trimmed = k.trim();
-  if (!trimmed) return '请输入密钥';
-  if (!trimmed.startsWith('sk-')) return '密钥格式不对，应以 sk- 开头';
-  if (trimmed.length < 20) return '密钥太短';
-  return null;
-}
-
 interface OnboardingGateProps {
-  guestModeAvailable?: boolean;
-  /**
-   * When true, the deployment is shared with anonymous visitors (the live
-   * site during judging). "Guest mode" becomes cache-only — no live LLM
-   * calls on the operator's credits. Set from `KANSHAN_PUBLIC_MODE` env.
-   */
-  publicMode?: boolean;
   /**
    * Pre-resolved onboarding background image URL (server-side via
    * `getOnboardingBgUrl`). Null when the asset is absent.
@@ -42,19 +26,13 @@ interface OnboardingGateProps {
   bgUrl?: string | null;
 }
 
-export function OnboardingGate({ guestModeAvailable = true, publicMode = false, bgUrl = null }: OnboardingGateProps = {}) {
+export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
   // Hydration-safe pattern: server + client first render BOTH return null,
   // then a post-mount effect sets the real visibility from localStorage.
-  // Avoids hydration mismatch between SSR (no localStorage) and CSR.
   const [hidden, setHidden] = useState<boolean>(true);
   const onboardingBgDarken = useTweak('onboarding.bg.darken', 0.55);
-  const [apiKey, setApiKey] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [provider, setProvider] = useState<ProviderChoice>('kimi');
-  // OAuth-first flow (2026-05-13, parity with 深流's gate): zhihu-login is
-  // the entry step and identity wall — without it the user only gets a
-  // per-browser guest id with no cross-device sync. After login we advance
-  // to run-mode (BYO key vs guest LLM provider), then vault-consent.
+  // OAuth-first flow: zhihu-login is the entry step. Once the session has a
+  // real fullname we advance to demo-notice, then vault-consent.
   const [step, setStep] = useState<Step>('zhihu-login');
   const [pendingRecord, setPendingRecord] = useState<OnboardingRecord | null>(null);
   const activeAccount = useAccountStore((s) => s.active);
@@ -66,11 +44,6 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
     setHidden(window.localStorage.getItem(STORAGE_KEY) !== null);
   }, []);
 
-  // Auto-advance off the zhihu-login step once the session has hydrated with
-  // a real fullname. Covers both (a) first arrival after OAuth redirect (the
-  // useEffect-fired hydrate() call returns with the new uid) and (b) returning
-  // visitors who already had a valid kanshan-zhihu-session cookie before the
-  // gate even mounted.
   const sessionFullname = useZhihuSessionStore((s) => s.fullname);
   const hydrateZhihuSession = useZhihuSessionStore((s) => s.hydrate);
   useEffect(() => {
@@ -80,7 +53,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
     if (step !== 'zhihu-login') return;
     if (sessionFullname) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStep('run-mode');
+      setStep('demo-notice');
     }
   }, [step, sessionFullname]);
 
@@ -112,62 +85,24 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
   const finalizeRecord = (record: OnboardingRecord) => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
     setHidden(true);
-    // Notify TourTrigger (mounted earlier with 'done' state since localStorage
-    // was empty at that time) to re-check and auto-start the tour now that
-    // onboarding has been completed within this session.
     window.dispatchEvent(new CustomEvent('kanshan-onboarding-done'));
-  };
-
-  const advanceToVaultConsent = (record: OnboardingRecord) => {
-    setPendingRecord(record);
-    setStep('vault-consent');
-  };
-
-  const advanceAfterRunMode = (record: OnboardingRecord) => {
-    // OAuth-first flow: zhihu-login is upstream of run-mode now, so by the
-    // time we land here the identity is already settled. Always go to
-    // vault-consent next (single linear path, no branching).
-    advanceToVaultConsent(record);
   };
 
   const onZhihuLogin = () => {
     window.location.href = '/api/auth/zhihu/start';
   };
-  // Skip path was removed 2026-05-13: OAuth is now mandatory — matches 深流's
-  // hard gate. Without login the workspace can't offer cross-device storage,
-  // and judges who never connect their account get a less-useful demo.
 
-  const submitByoKey = () => {
-    const err = validateKey(apiKey);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setError(null);
-    // Cookie tells server which LLM adapter to route this user's BYO key to.
-    document.cookie = `kanshan-provider=${provider}; path=/; max-age=31536000; SameSite=Lax`;
-    advanceAfterRunMode({
-      mode: 'byo-key',
-      provider,
-      apiKey: apiKey.trim(),
-      dismissedAt: new Date().toISOString(),
-    });
-  };
-
-  const submitGuest = () => {
-    // Default guest visitors to the guwanxi demo account so the vault is non-empty.
+  const acknowledgeDemoNotice = () => {
+    // The cache-demo welcome screen has no inputs — single button just
+    // advances to vault-consent. Default the demo persona cookie so the
+    // server-side vault routes see 顾婉昔 from the first request.
     document.cookie = 'kanshan-account=guwanxi; path=/; max-age=31536000; SameSite=Lax';
-    // Guest mode uses the app's Kimi credit in self-hosted dev; in shared
-    // (public-mode) deployments, set kanshan-mode=cache so the server forces
-    // cache-only replies and never charges the operator's credits.
-    document.cookie = 'kanshan-provider=kimi; path=/; max-age=31536000; SameSite=Lax';
-    if (publicMode) {
-      document.cookie = 'kanshan-mode=cache; path=/; max-age=31536000; SameSite=Lax';
-    }
-    advanceAfterRunMode({
-      mode: 'guest',
+    const record: OnboardingRecord = {
+      mode: 'cache-demo',
       dismissedAt: new Date().toISOString(),
-    });
+    };
+    setPendingRecord(record);
+    setStep('vault-consent');
   };
 
   const acceptVault = () => {
@@ -177,18 +112,8 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
   };
 
   const declineVault = () => {
-    // Leave consented = false; still close onboarding so the rest of the
-    // workspace stays usable. /api/vault/ingest will 403 until the user
-    // accepts via the VaultTab inline banner.
     hydrateVaultConsent(activeAccount);
     if (pendingRecord) finalizeRecord(pendingRecord);
-  };
-
-  const handleKeyInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== 'Enter') return;
-    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-    e.preventDefault();
-    submitByoKey();
   };
 
   const handleBackdropKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -216,13 +141,9 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
     border: '1px solid rgba(168,155,126,0.35)',
     borderRadius: 4,
     padding: 28,
-    maxWidth: 920,
+    maxWidth: 620,
     width: 'calc(100% - 48px)',
     boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
-    // Lift above the bgLayer's z=1 darken div. Without this, the card is
-    // position:static (no stacking context) and the positioned darken layer
-    // paints over it, leaving the user staring at the village background
-    // with no welcome card.
     position: 'relative',
     zIndex: 2,
   };
@@ -246,79 +167,6 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
     marginTop: 6,
   };
 
-  const columnsRow: CSSProperties = {
-    display: 'flex',
-    alignItems: 'stretch',
-  };
-
-  const column: CSSProperties = {
-    flex: 1,
-    padding: '4px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-  };
-
-  const divider: CSSProperties = {
-    width: 1,
-    background: 'rgba(168,155,126,0.35)',
-    alignSelf: 'stretch',
-    margin: '0 8px',
-  };
-
-  const colHeading: CSSProperties = {
-    fontSize: 16,
-    color: '#2A2419',
-    fontFamily: '"Noto Serif SC", serif',
-    marginBottom: 4,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  };
-
-  const recommendBadge: CSSProperties = {
-    fontSize: 9,
-    fontStyle: 'italic',
-    color: 'rgba(168,155,126,0.55)',
-    fontFamily: 'JetBrains Mono, monospace',
-    letterSpacing: 1,
-  };
-
-  const captionLabel: CSSProperties = {
-    fontSize: 10,
-    letterSpacing: 2,
-    color: '#7A6F5A',
-    fontFamily: 'JetBrains Mono, monospace',
-    marginBottom: 10,
-  };
-
-  const stepList: CSSProperties = {
-    fontSize: 13,
-    color: '#3A3225',
-    lineHeight: 1.7,
-    margin: '0 0 14px 18px',
-    padding: 0,
-  };
-
-  const inputStyle: CSSProperties = {
-    width: '100%',
-    padding: '8px 10px',
-    fontFamily: 'JetBrains Mono, monospace',
-    fontSize: 12,
-    background: '#FFFDF8',
-    border: '1px solid rgba(168,155,126,0.45)',
-    borderRadius: 2,
-    color: '#2A2419',
-    outline: 'none',
-    boxSizing: 'border-box',
-  };
-
-  const errorText: CSSProperties = {
-    fontSize: 11,
-    color: '#9A2E2E',
-    marginTop: 6,
-    fontFamily: '"Noto Serif SC", serif',
-  };
-
   const buttonStyle: CSSProperties = {
     marginTop: 12,
     padding: '10px 14px',
@@ -334,65 +182,6 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
 
   const guestButtonStyle: CSSProperties = {
     ...buttonStyle,
-    background: 'transparent',
-    color: '#2A2419',
-  };
-
-  const localNote: CSSProperties = {
-    fontSize: 10,
-    color: '#7A6F5A',
-    fontFamily: '"Noto Serif SC", serif',
-    marginTop: 10,
-    letterSpacing: 1,
-  };
-
-  const limitList: CSSProperties = {
-    fontSize: 13,
-    color: '#3A3225',
-    lineHeight: 1.7,
-    margin: '0 0 14px 18px',
-    padding: 0,
-  };
-
-  const limitSubtitle: CSSProperties = {
-    fontSize: 11,
-    color: '#7A6F5A',
-    fontFamily: '"Noto Serif SC", serif',
-    marginTop: 8,
-    fontStyle: 'italic',
-  };
-
-  const linkStyle: CSSProperties = {
-    color: '#5A6F8A',
-    textDecoration: 'underline',
-  };
-
-  const providerRow: CSSProperties = {
-    display: 'flex',
-    gap: 8,
-    marginBottom: 12,
-  };
-
-  const providerPillBase: CSSProperties = {
-    flex: 1,
-    padding: '8px 10px',
-    fontFamily: 'JetBrains Mono, monospace',
-    fontSize: 11,
-    letterSpacing: 1,
-    border: '1px solid #2A2419',
-    borderRadius: 2,
-    cursor: 'pointer',
-    textAlign: 'center',
-  };
-
-  const providerPillSelected: CSSProperties = {
-    ...providerPillBase,
-    background: '#2A2419',
-    color: '#FAF8F3',
-  };
-
-  const providerPillUnselected: CSSProperties = {
-    ...providerPillBase,
     background: 'transparent',
     color: '#2A2419',
   };
@@ -437,7 +226,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
         {bgLayer}
         <div
           data-testid="onboarding-zhihu-login-step"
-          style={{ ...card, maxWidth: 620 }}
+          style={card}
           onClick={(e) => e.stopPropagation()}
         >
           <div style={titleRow}>
@@ -488,7 +277,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
         {bgLayer}
         <div
           data-testid="onboarding-vault-consent"
-          style={{ ...card, maxWidth: 620 }}
+          style={card}
           onClick={(e) => e.stopPropagation()}
         >
           <div style={titleRow}>
@@ -525,12 +314,12 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
     );
   }
 
+  // step === 'demo-notice'
   return (
     <div
       data-testid="onboarding-gate"
       style={root}
       onClick={(e) => {
-        // Backdrop click does not dismiss. Stop propagation only when target is the root.
         if (e.target === e.currentTarget) {
           e.preventDefault();
         }
@@ -540,173 +329,30 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
       aria-modal="true"
     >
       {bgLayer}
-      <div style={card} onClick={(e) => e.stopPropagation()}>
+      <div
+        data-testid="onboarding-demo-notice"
+        style={card}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={titleRow}>
-          <div style={titleText}>欢迎来到 看山书房</div>
-          <div style={subtitleText}>第二步 · 选择运行方式</div>
-          <div
-            data-testid="onboarding-guest-privacy"
-            style={{
-              fontSize: 11,
-              color: '#5A4E33',
-              fontFamily: '"Noto Serif SC", serif',
-              marginTop: 10,
-              padding: '6px 12px',
-              background: 'rgba(168,155,126,0.12)',
-              border: '1px solid rgba(168,155,126,0.25)',
-              borderRadius: 2,
-              display: 'inline-block',
-              letterSpacing: 0.5,
-            }}
-          >
-            本浏览器已分配独立访客身份 · 你的档案、笔记、写作进度仅本浏览器可见 · 无法被其他用户读取
-          </div>
+          <div style={titleText}>缓存演示模式</div>
+          <div style={subtitleText}>第二步 · 演示说明</div>
         </div>
-        <div style={columnsRow}>
-          {/* Left column: BYO key */}
-          <div style={column} data-testid="onboarding-byo-column">
-            <div style={colHeading}>
-              <span>自带密钥</span>
-              <span style={recommendBadge}>推荐</span>
-            </div>
-            <div style={captionLabel}>BYO · LLM API KEY</div>
-            <div style={providerRow}>
-              <button
-                type="button"
-                data-testid="onboarding-provider-kimi"
-                style={provider === 'kimi' ? providerPillSelected : providerPillUnselected}
-                onClick={() => setProvider('kimi')}
-              >
-                Kimi (推荐 · 比赛额度)
-              </button>
-              <button
-                type="button"
-                data-testid="onboarding-provider-deepseek"
-                style={provider === 'deepseek' ? providerPillSelected : providerPillUnselected}
-                onClick={() => setProvider('deepseek')}
-              >
-                DeepSeek
-              </button>
-            </div>
-            {provider === 'kimi' ? (
-              <ol style={stepList}>
-                <li>
-                  前往{' '}
-                  <a
-                    href="https://platform.moonshot.cn"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={linkStyle}
-                  >
-                    platform.moonshot.cn
-                  </a>{' '}
-                  注册
-                </li>
-                <li>在控制台创建一个密钥</li>
-                <li>比赛期间使用组委会 ¥199 额度（不需自行充值）</li>
-              </ol>
-            ) : (
-              <ol style={stepList}>
-                <li>
-                  注册{' '}
-                  <a
-                    href="https://platform.deepseek.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={linkStyle}
-                  >
-                    platform.deepseek.com
-                  </a>
-                </li>
-                <li>在 API 控制台创建一个密钥</li>
-                <li>充值 ¥10 即可玩通整个工作台 (~10 万 tokens)</li>
-              </ol>
-            )}
-            <input
-              data-testid="onboarding-api-key-input"
-              type="text"
-              value={apiKey}
-              onChange={(e) => {
-                setApiKey(e.target.value);
-                if (error) setError(null);
-              }}
-              onKeyDown={handleKeyInputKeyDown}
-              placeholder="sk-..."
-              style={inputStyle}
-              spellCheck={false}
-              autoComplete="off"
-            />
-            {error && (
-              <div data-testid="onboarding-error" style={errorText}>
-                {error}
-              </div>
-            )}
-            <button
-              type="button"
-              data-testid="onboarding-byo-submit"
-              style={buttonStyle}
-              onClick={submitByoKey}
-            >
-              开始使用 →
-            </button>
-            <div style={localNote}>密钥仅保存在本机 · 不上传至我们的服务器</div>
-          </div>
-
-          <div style={divider} aria-hidden />
-
-          {/* Right column: guest / cache-demo mode */}
-          <div style={column} data-testid="onboarding-guest-column">
-            <div style={colHeading}>
-              <span>{publicMode ? '演示模式' : '受限模式'}</span>
-              {!guestModeAvailable && !publicMode && (
-                <span style={recommendBadge}>本部署暂未开放</span>
-              )}
-              {publicMode && <span style={recommendBadge}>缓存回放</span>}
-            </div>
-            <div style={captionLabel}>
-              {publicMode ? 'DEMO · CACHED REPLAY ONLY' : 'GUEST · NO KEY REQUIRED'}
-            </div>
-            {publicMode ? (
-              <ul style={limitList}>
-                <li>预录制的演示流程可正常回放</li>
-                <li>未缓存的对话会返回 “请提供您的 API key” 提示</li>
-                <li>编辑器、档案库、工作台框架完全可用</li>
-                <li>不会使用作者本人的 LLM 额度</li>
-              </ul>
-            ) : (
-              <ul style={limitList}>
-                <li>每小时 60 次 LLM 请求</li>
-                <li>每天 200 次 LLM 请求</li>
-                <li>同时最多 3 个请求</li>
-                <li>跨设备/跨网络共享额度（按 IP 计费）</li>
-              </ul>
-            )}
-            <div style={limitSubtitle}>
-              {publicMode
-                ? '本次比赛期间的公开访问采用缓存模式。想跑真实 AI，请用左侧自带密钥（仅本机保存）。'
-                : guestModeAvailable
-                  ? '适合: 仅想快速看看；想完整体验请用自己的密钥'
-                  : '此预览部署未配置共享额度。AI 功能请使用左侧自带密钥；浏览界面 / 工作台框架不需密钥也可正常使用。'}
-            </div>
-            <button
-              type="button"
-              data-testid="onboarding-guest-submit"
-              style={
-                publicMode || guestModeAvailable
-                  ? guestButtonStyle
-                  : { ...guestButtonStyle, opacity: 0.4, cursor: 'not-allowed' }
-              }
-              onClick={publicMode || guestModeAvailable ? submitGuest : undefined}
-              disabled={!publicMode && !guestModeAvailable}
-              aria-disabled={!publicMode && !guestModeAvailable}
-            >
-              {publicMode
-                ? '看演示 (缓存模式) →'
-                : guestModeAvailable
-                  ? '我了解，先体验受限版本 →'
-                  : '受限模式不可用'}
-            </button>
-          </div>
+        <ul style={consentBulletList}>
+          <li>本演示采用 <strong>预生成缓存</strong>，所有狐影回答即时返回，不调用任何 LLM、不消耗任何配额</li>
+          <li>请按编辑器中的<strong>分步引导文档</strong>操作，以体验完整的「看山 → 看水/看典 → 看心 → 看文 → 看墨 → 发布」工作流</li>
+          <li>若想看真实模型生成：进入<strong>右下角设置 → 实时模式</strong>，开启并填入你自带的 Kimi 或 DeepSeek 密钥</li>
+          <li>你的 知乎 OAuth 身份保持不变；发布会用你真实的账号推送 Pin</li>
+        </ul>
+        <div style={consentButtonRow}>
+          <button
+            type="button"
+            data-testid="onboarding-demo-acknowledge"
+            style={buttonStyle}
+            onClick={acknowledgeDemoNotice}
+          >
+            我理解，开始体验 →
+          </button>
         </div>
       </div>
     </div>

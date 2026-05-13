@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
 import { requireRateLimitOk } from '@/lib/ratelimit/check';
-import meSeed from '@/content/seed/vault-me.json';
+import meSeed from '@/content/seed/vault-guwanxi.json';
 import { getAccountId } from '@/lib/account';
 
 export const runtime = 'nodejs';

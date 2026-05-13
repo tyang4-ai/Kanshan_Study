@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import meSeed from '@/content/seed/vault-me.json';
+import meSeed from '@/content/seed/vault-guwanxi.json';
 import { getAccountId } from '@/lib/account';
 
 // Switched off edge runtime (2026-05-13) because the lib/account.ts identity
