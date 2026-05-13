@@ -19,8 +19,7 @@ type BeatAction =
   | 'open-voice-diff'
   | 'open-persona'
   | 'open-custom-mask'
-  | 'open-debate'
-  | 'open-lore';
+  | 'open-debate';
 
 // R8 demo coherence (Lin Maohua + Shi Junhe + Tan Shulin) P0: beats 1-5
 // of the teleprompter narrated actions that didn't actually happen on
@@ -62,13 +61,6 @@ function runBeatAction(action: BeatAction | undefined): void {
       return;
     case 'open-debate':
       floating.openTab('debate', '看文 · 看纹辩论', {});
-      return;
-    case 'open-lore':
-      if (account.active !== 'me') {
-        const chip = document.querySelector<HTMLButtonElement>('[data-tour-id="profile-chip"]');
-        chip?.click();
-      }
-      window.dispatchEvent(new CustomEvent('kanshan:open-lore'));
       return;
   }
 }

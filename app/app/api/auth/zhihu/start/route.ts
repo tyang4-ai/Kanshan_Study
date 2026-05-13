@@ -22,8 +22,12 @@ export async function GET(req: NextRequest): Promise<Response> {
     );
   }
 
+  // r4 2026-05-12: captured spec from
+  // www.zhihu.com/ring/moltbook/api/oauth/oauth_quickstart says authorize URL
+  // is `https://openapi.zhihu.com/authorize` (NOT `www.zhihu.com/oauth/...`).
+  // Our earlier default was a guess and returned 500 from 知乎's side.
   const authorizeUrl =
-    process.env.ZHIHU_OAUTH_AUTHORIZE_URL || 'https://www.zhihu.com/oauth/authorize';
+    process.env.ZHIHU_OAUTH_AUTHORIZE_URL || 'https://openapi.zhihu.com/authorize';
 
   // Defence-in-depth: even with a compromised env we will not redirect users
   // off the zhihu.com domain. Stops a poisoned ZHIHU_OAUTH_AUTHORIZE_URL from
@@ -38,9 +42,11 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const state = randomBytes(16).toString('hex');
+  // r4 2026-05-12: param name is `app_id`, NOT `client_id` (per the same
+  // captured spec). 知乎 returns 500 if `client_id` is used.
   const url =
     `${authorizeUrl}` +
-    `?client_id=${encodeURIComponent(appId)}` +
+    `?app_id=${encodeURIComponent(appId)}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code` +
     `&state=${state}`;

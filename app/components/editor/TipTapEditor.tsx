@@ -123,7 +123,12 @@ export function TipTapEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      // StarterKit v3 bundles a Link extension by default. We need our own
+      // configured Link (openOnClick:false + autolink + kanshan-md-link class),
+      // so disable StarterKit's bundled one to avoid the duplicate-extension
+      // warning and the silent-no-op input rule that resulted (r4 周源 +
+      // 张荣乐 + emmett + 史中 P0/P1).
+      StarterKit.configure({ link: false }),
       // Placeholder shows when editor doc has only an empty paragraph. Without
       // showOnlyCurrent:false + includeChildren:true, deleting all content
       // leaves a blank canvas with no copy — looks broken on the projector

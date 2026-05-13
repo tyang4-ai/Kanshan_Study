@@ -43,13 +43,6 @@
       "title": "辩论 · 看文 vs 看纹",
       "body": "看文 正方 vs 看纹 反方，6 轮 typewriter，看心 监听。",
       "action": "open-debate"
-    },
-    {
-      "tStart": 170,
-      "tLabel": "2:50",
-      "title": "回到 me · 北极小镇",
-      "body": "切回 me；点 LoreEnvelope；快速浏览 9 户 + 告示牌。",
-      "action": "open-lore"
     }
   ]
 }

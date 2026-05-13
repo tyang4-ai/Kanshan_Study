@@ -10,9 +10,27 @@ export function exportMarkdown(editor: Editor): Blob {
 
 function editorToMarkdown(editor: Editor): string {
   const storage = (editor.storage as { markdown?: { getMarkdown(): string } }).markdown;
-  return typeof storage?.getMarkdown === 'function'
+  const raw = typeof storage?.getMarkdown === 'function'
     ? storage.getMarkdown()
     : htmlToFallbackMarkdown(editor.getHTML());
+  return unescapeBlockquoteMarkers(raw);
+}
+
+// r4 徐诗 P0 (2026-05-12): prosemirror-markdown's default serializer escapes
+// the first list / link / heading marker after a blockquote `> ` prefix —
+// output looks like `> \- 第二项` or `> \[链接\](url)`. Strip the leading
+// backslash on the first marker of each `> ` line so blockquoted lists and
+// links round-trip to readable markdown. Only the first marker is touched;
+// the rest of the line is preserved verbatim.
+function unescapeBlockquoteMarkers(md: string): string {
+  return md
+    .split('\n')
+    .map((line) => {
+      const m = /^(\s*>\s+)(\\(?:[-*+]|\d+\.|\[|#|>))(.*)$/.exec(line);
+      if (!m) return line;
+      return m[1] + m[2].slice(1) + m[3];
+    })
+    .join('\n');
 }
 
 /**

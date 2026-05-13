@@ -45,11 +45,4 @@ export const TOUR_STEPS: TourStep[] = [
     selector: '[data-tour-id="profile-chip"]',
     side: 'bottom',
   },
-  {
-    id: 'envelope',
-    title: '看完了？拆封那只信封',
-    body: '右上角的蜡封是九狐之家——一个雪夜的小镇。点开即可进入 lore portal。',
-    selector: '[data-tour-id="lore-envelope"]',
-    side: 'left',
-  },
 ];

@@ -58,12 +58,17 @@ export function TitleBar({ avatarUrls = EMPTY_AVATAR_URLS }: TitleBarProps = {})
     void useZhihuSessionStore.getState().hydrate();
   }, []);
 
-  const onOpenVault    = () => openTab('vault', '看典 · 档案库');
-  const onOpenTrends   = () => openTab('trends', '看势 · 热榜雷达');
-  const onOpenStats    = () => openTab('stats', '看镜 · 数据看板');
-  const onOpenSettings = () => openTab('settings', '看山书房 · 设置');
-  const onOpenPersona  = () => openTab('persona', '看文 · 读者反应');
-  const onOpenDebate   = () => openTab('debate', '看文 · 看纹辩论');
+  const onOpenVault     = () => openTab('vault', '看典 · 档案库');
+  const onOpenTrends    = () => openTab('trends', '看势 · 热榜雷达');
+  const onOpenStats     = () => openTab('stats', '看镜 · 数据看板');
+  const onOpenSettings  = () => openTab('settings', '看山书房 · 设置');
+  const onOpenPersona   = () => openTab('persona', '看文 · 读者反应');
+  const onOpenDebate    = () => openTab('debate', '看文 · 看纹辩论');
+  // r4 张荣乐 + 吴伟 + 周源 P0 (2026-05-12): daily 4 = mo/shi/dian/shui — in
+  // topbar terms voice-diff/trends/vault/research. The other two (voice-diff,
+  // research) were defined in useToolbarOpeners but never rendered.
+  const onOpenVoiceDiff = () => openTab('voice-diff', '看墨 · 润色');
+  const onOpenResearch  = () => openTab('research', '看水 · 考据卷');
 
   return (
     <div style={{
@@ -94,9 +99,13 @@ export function TitleBar({ avatarUrls = EMPTY_AVATAR_URLS }: TitleBarProps = {})
         <ToolbarIcon kind="debate" onClick={onOpenDebate} tourId="debate-button" title="看文 · 看纹辩论"/>
         <ToolbarIcon kind="stats" onClick={onOpenStats} tourId="stats-button" title="看镜 · 数据看板"/>
         <span style={{ width: 1, height: 16, background: 'rgba(168,155,126,0.25)' }} aria-hidden />
-        {/* Tool cluster — surfaces dispatched by 看山, also user-launchable for direct access. */}
-        <ToolbarIcon kind="vault" onClick={onOpenVault} title="看典 · 档案库"/>
+        {/* Tool cluster (daily 4 + settings) — surfaces dispatched by 看山,
+            also user-launchable for direct access. Daily 4 = mo/shi/dian/shui
+            (voice-diff / trends / vault / research). */}
+        <ToolbarIcon kind="voice-diff" onClick={onOpenVoiceDiff} title="看墨 · 润色"/>
         <ToolbarIcon kind="trends" onClick={onOpenTrends} title="看势 · 热榜雷达"/>
+        <ToolbarIcon kind="vault" onClick={onOpenVault} title="看典 · 档案库"/>
+        <ToolbarIcon kind="research" onClick={onOpenResearch} title="看水 · 考据卷"/>
         <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button" title="看山书房 · 设置"/>
         <ManualLink />
         <BudgetChip />
@@ -269,17 +278,24 @@ export function ZhihuBadge() {
 }
 
 export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKind; onClick: () => void; tourId?: string; title?: string }) {
-  const icons: Record<ToolbarKind, React.ReactNode> = {
-    vault:    <path d="M3 5h12v9H3z M5 5V3h8v2 M3 9h12" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round"/>,
-    stats:    <path d="M3 14V8 M7 14V4 M11 14V10 M15 14V6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>,
-    trends:   <><path d="M3 13l4-4 3 3 5-6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none"/><circle cx="15" cy="6" r="1.2" fill="currentColor"/></>,
-    settings: <><circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M9 1v3 M9 14v3 M1 9h3 M14 9h3 M3.4 3.4l2 2 M12.6 12.6l2 2 M3.4 14.6l2-2 M12.6 5.4l2-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></>,
-    persona:  <><circle cx="6" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="12" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M2 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5 M8 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/></>,
-    debate:   <><path d="M3 4h7l-2 4H3z M8 8h7l-2 4H8z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></>,
-    // R3 daily-4 promotion: 看墨 (writing brush) + 看水 (research droplet).
-    'voice-diff': <><path d="M5 4l2 10 M10 4l2 10 M3 12h11" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"/></>,
+  // r4 user 2026-05-12: 4 ACTION slots have designed PNG icons in
+  // public/icons/ (vault / stats / trends / settings). 4 fox-themed slots
+  // (voice-diff = 看墨, research = 看水, persona / debate = 看文) keep their
+  // line-art SVGs because no action-icon PNG exists for them (the fox-named
+  // PNGs are LORE HOUSE illustrations, not action glyphs).
+  const pngSrc: Partial<Record<ToolbarKind, string>> = {
+    vault:        '/icons/vault.png',
+    stats:        '/icons/stats.png',
+    trends:       '/icons/trends.png',
+    settings:     '/icons/settings.png',
+    'voice-diff': '/icons/ai-touched.png',
+  };
+  const svgPaths: Partial<Record<ToolbarKind, React.ReactNode>> = {
+    persona:      <><circle cx="6" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="12" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M2 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5 M8 15c0-2 2-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/></>,
+    debate:       <><path d="M3 4h7l-2 4H3z M8 8h7l-2 4H8z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/></>,
     research:     <><circle cx="8" cy="8" r="4" stroke="currentColor" strokeWidth="1.4" fill="none"/><path d="M11.2 11.2L14.5 14.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></>,
   };
+  const src = pngSrc[kind];
   return (
     <button
       type="button"
@@ -298,10 +314,32 @@ export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKin
         justifyContent: 'center',
       }}
     >
-      <svg width="18" height="18" viewBox="0 0 18 18">
-        {title && <title>{title}</title>}
-        {icons[kind]}
-      </svg>
+      {/* Uniform 20×20 outer box. Bold/filled icons (ai-touched sparkle) get
+          a slight inner scale-down so their visual weight matches the line-art
+          icons that have thin strokes (r4 user 2026-05-12). */}
+      {src ? (
+        <span style={{ display: 'block', width: 20, height: 20, position: 'relative' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={title ?? kind}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              transform: kind === 'voice-diff' ? 'scale(0.78)' : 'scale(1)',
+              transformOrigin: 'center',
+            }}
+          />
+        </span>
+      ) : (
+        <svg width="20" height="20" viewBox="0 0 18 18" style={{ display: 'block', width: 20, height: 20 }}>
+          {title && <title>{title}</title>}
+          {svgPaths[kind]}
+        </svg>
+      )}
     </button>
   );
 }

@@ -16,7 +16,6 @@ export type CacheKind =
   | 'compliance'
   | 'account-switch'
   | 'tail-click'
-  | 'lore'
   | 'chat'
   | 'kanshan-chat';
 
@@ -42,7 +41,6 @@ const THRESHOLD_BY_KIND: Record<CacheKind, number> = {
   // Kinds not in the proposed map — sensible default
   'account-switch': 0.78,
   'tail-click': 0.78,
-  lore: 0.78,
   chat: 0.78,
   // 看山 chat: high-precision matching — exact phrasing matters because the
   // tool dispatch is sensitive to wording ("找研究" → open_research, but

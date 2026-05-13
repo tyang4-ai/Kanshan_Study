@@ -355,13 +355,7 @@
   }
 }
 
-/* ==== Obsidian-style live markdown rendering (2026-05-13) ==== */
-/* Per-element rules that make rendered nodes visually distinct from raw text.
-   Input rules in StarterKit convert typed markdown to these nodes; this CSS
-   layer is what makes the user *feel* the rendering. Scoped under .ProseMirror
-   so it doesn't leak to vault / lore / chat surfaces. Font family inherits
-   from the documentColumnStyle inline style (Noto Serif SC). */
-@layer utilities {
+/* Obsidian-style live markdown rendering — plain CSS so Tailwind v4 Preflight base resets are overridden. */
   .ProseMirror h1 {
     font-size: 28px;
     font-weight: 600;
@@ -454,7 +448,6 @@
     text-decoration: none;
     border-bottom-color: #1772F6;
   }
-}
 
 /* Live Preview decoration widget — Part 7 (cursor-in-block source visibility).
    Dim, monospace, non-selectable so the cursor doesn't get stuck inside. */

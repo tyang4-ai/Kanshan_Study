@@ -61,6 +61,14 @@ export const SUPPORTED_RING_IDS = [
 
 const MODE = process.env.ZHIHU_API_MODE ?? 'mock';
 
+// r4 吴伟 P1 (2026-05-12): expose mode so UI surfaces (e.g. the LIVE badge in
+// ResearchTab) can distinguish "real network call succeeded" from "fixture
+// served synchronously in mock-mode". Without this, the badge would display
+// LIVE over fixture bytes — which 吴伟 explicitly called out as misleading
+// theater. Process.env is server-side but Next embeds the value at build time
+// in this client-imported module, so this works in the browser bundle.
+export const IS_REAL_MODE: boolean = MODE === 'real';
+
 // Real-mode fetch against https://openapi.zhihu.com/* with HMAC signing.
 // Auth scheme captured 2026-05-10 from
 // https://www.zhihu.com/ring/moltbook/api/community/quickstart.

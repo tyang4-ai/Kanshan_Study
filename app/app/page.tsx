@@ -3,7 +3,6 @@ import { OnboardingGate } from '@/components/onboarding/OnboardingGate';
 import { TourTrigger } from '@/components/tour/TourTrigger';
 import { GuestIndicator } from '@/components/chrome/GuestIndicator';
 import { KanshanChatBubble } from '@/components/chrome/KanshanChatBubble';
-import { getLoreAssets } from '@/components/lore/loreAssets.server';
 import { getWorkspaceBgUrl } from '@/lib/art/workspace-bg';
 import { getOnboardingBgUrl } from '@/lib/art/onboarding-bg';
 import { getAccountAvatarUrls } from '@/lib/art/account-avatars';
@@ -14,15 +13,12 @@ export default function Page() {
   // spend); in self-hosted mode it falls back to the deployment's own key.
   const guestModeAvailable =
     publicMode || Boolean(process.env.KIMI_API_KEY || process.env.DEEPSEEK_API_KEY);
-  const loreAssets = getLoreAssets();
   const workspaceBgUrl = getWorkspaceBgUrl();
   const onboardingBgUrl = getOnboardingBgUrl();
   const avatarUrls = getAccountAvatarUrls();
   return (
     <>
       <WorkspaceShell
-        loreHutImages={loreAssets.huts}
-        loreBgImage={loreAssets.bg}
         workspaceBgUrl={workspaceBgUrl}
         avatarUrls={avatarUrls}
       />

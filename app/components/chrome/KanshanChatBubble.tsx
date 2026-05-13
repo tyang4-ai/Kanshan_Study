@@ -63,35 +63,14 @@ export function KanshanChatBubble() {
           fourview PNG is 786×207 — views are NOT exact quarters). Switch to
           an absolute <img> inside an overflow-hidden window so the front
           view sits centered in the 42×42 bubble area. */}
-      <span
-        aria-hidden
-        style={{
-          display: 'block',
-          width: 42,
-          height: 42,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/foxes/shan-fourview.png"
-          alt=""
-          style={{
-            position: 'absolute',
-            // Uniform scale so the figure isn't distorted. Source 786×207
-            // height-fits into 42 at scale 42/207 = 0.203, giving full image
-            // width ≈ 160. Front view in source spans roughly x:10–195
-            // (center ≈ 100), which at scale ≈ x:2–40 (center ≈ 20).
-            // Shift left by ~1px so the center lands at container center 21.
-            width: 160,
-            height: 42,
-            left: -1,
-            top: 0,
-            maxWidth: 'none',
-          }}
-        />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/icons/Favicon.png"
+        alt=""
+        width={42}
+        height={42}
+        style={{ display: 'block', objectFit: 'contain' }}
+      />
     </button>
   );
 }

@@ -23,6 +23,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: '看山书房 · Workspace',
   description: '助力答主完成「灵感激发 · 思路梳理 · 内容精加工」的多智能体工作台',
+  icons: { icon: '/icons/Favicon.png', shortcut: '/icons/Favicon.png', apple: '/icons/Favicon.png' },
   openGraph: {
     title: '看山书房',
     description: '答主的灵感激发 · 思路梳理 · 内容精加工 — 9 只狐狸的多 agent 工作台',

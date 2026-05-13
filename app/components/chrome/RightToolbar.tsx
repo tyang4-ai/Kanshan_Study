@@ -28,10 +28,8 @@ export function RightToolbar({ selection }: RightToolbarProps) {
     openTab(kind, title, props);
   };
 
-  // Persona-fix #7 (2026-05-09 顾婉昔 review): mo + wen each have 2 actions
-  // (polish/fill, persona/debate). Without a glyph differentiator the right
-  // strip reads as "墨 墨 文 文" — looks like a bug to a first-time user.
-  // `glyph` overrides the fox initial when the same fox has multiple actions.
+  // mo + wen each have 2 actions in this rail; `glyph` disambiguates so the
+  // strip doesn't read "墨 墨 文 文" as a bug.
   const aiTool = (foxId: FoxId, label: string, shortcut: string | undefined, needsSelection: boolean, onClick: () => void, glyph?: string): AiItem => {
     const fox = FOX_BY_ID[foxId];
     return {
@@ -52,32 +50,19 @@ export function RightToolbar({ selection }: RightToolbarProps) {
     };
   };
 
-  // S7-A4 disposition (2026-05-11): the abbreviated verbs (墨润/墨续/文读/文辩
-  // for the first 4 entries, single 让X 短句 for the rest) intentionally show
-  // ACTIONS, not the 9-fox roster. wen + mo carry 2 actions each (4 buttons);
-  // the remaining 5 foxes carry 1 action each. Total = 9, but it's NOT a
-  // "show me all 9 foxes" surface — the roster lives in lore/onboarding. User
-  // confirmed leave-as-is; do not re-open in future reviews.
-  // R3 fix (user 2026-05-12): right toolbar = 5 advanced foxes' features.
-  // wen (persona + debate, 2 entries) / wen2 (custom-mask, NEW) / jing (stats)
-  // / xin (compliance) / 看山 (chat bubble — bottom-right, not in this rail).
-  // The 4 daily foxes (mo / shui / dian / shi) still have right-bar entries
-  // because their selection-driven dispatchers (Ctrl+Shift+M / R / F shortcuts)
-  // live here — top bar opens the panel cold; right bar acts on selection.
+  // r4 张荣乐 P0 + 吴伟 P2 (2026-05-12 sprint subtraction): right rail =
+  // advanced 5 ONLY. Daily 4 (mo / shi / dian / shui) live in the topbar
+  // (TitleBar daily-launchers) — duplicating them here was the cognitive-load
+  // failure 张荣乐 flagged in r4. Selection-driven Ctrl+Shift+M/R/F shortcuts
+  // still fire via `useGlobalShortcuts` so the keyboard path is preserved.
+  // Right rail now: wen×2 (persona + debate), wen2 (custom-mask), jing (stats),
+  // xin (compliance) = 5 actions across 4 advanced foxes.
   const AI_TOOLS: AiItem[] = [
-    aiTool('mo', '让看墨润色', 'Ctrl+Shift+M', true, () => selection && dispatchAi('voice-diff', '看墨 · 润色', { mode: 'polish', selection }), '墨润'),
-    aiTool('mo', '让看墨续写', undefined, true, () => selection && dispatchAi('voice-diff', '看墨 · 续写', { mode: 'fill', selection }), '墨续'),
     aiTool('wen', '召集读者团', 'Ctrl+Shift+R', true, () => selection && dispatchAi('persona', '看文 · 读者团', { mode: 'auto', selection }), '文读'),
     aiTool('wen', '请看辩开场', undefined, true, () => selection && dispatchAi('debate', '看辩席 · 正反对论', { selection }), '文辩'),
-    // R3 NEW: 看纹 custom-mask. Routes to the debate runner with a custom-mask
-    // shape (see api/agents/persona-panel/route.ts:22-27). For now opens the
-    // debate tab pre-pointed at the custom-mask flow.
     aiTool('wen2', '让看纹剪一张脸', undefined, true, () => selection && dispatchAi('debate', '看纹 · 自定读者', { selection, mode: 'custom-mask' }), '纹'),
-    aiTool('shui', '让看水查证', 'Ctrl+Shift+F', true, () => selection && dispatchAi('research', '看水 · 查证', { selection })),
-    aiTool('dian', '让看典找旧文', undefined, false, () => dispatchAi('vault', '看典 · 档案库', {})),
-    aiTool('shi', '问看势热榜', undefined, false, () => dispatchAi('trends', '看势 · 热榜', {})),
     aiTool('jing', '问看镜看看', undefined, false, () => dispatchAi('stats', '看镜 · 数据', {})),
-    aiTool('xin', '让看心审一审', undefined, true, () => selection && console.log('[看心] compliance review (plan #10):', selection.text)),
+    aiTool('xin', '让看心审一审', undefined, true, () => selection && console.log('[看心] compliance review:', selection.text)),
   ];
 
   return (

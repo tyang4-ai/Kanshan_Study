@@ -3,7 +3,6 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { useEditorStore } from '@/lib/store/editor';
 import { useAiErrorStore } from '@/lib/store/ai-error';
 import { SUPPORTED_RING_IDS, DEFAULT_RING_ID } from '@/lib/zhihu';
-import { useProvenanceStore } from '@/lib/store/provenance';
 
 // S7-B2 (2026-05-11): "发布到知乎 黑客松脑洞补给站" affordance. The pitch
 // already claimed 知乎 OpenAPI integration but no button surfaced it — judges
@@ -56,13 +55,6 @@ export function PublishButton() {
 
   const editor = useEditorStore((s) => s.editor);
   const pushError = useAiErrorStore((s) => s.push);
-  // R2 judge fix (史中 P2 2026-05-12): 看心藏金尾 lore Easter egg. Only
-  // surfaces once 看心 has actually contributed (≥ 1 provenance entry),
-  // so judges who exercised the compliance pass see a wink at the lore;
-  // judges who never used 看心 won't see an unearned flourish.
-  const xinHasSpoken = useProvenanceStore((s) =>
-    s.entries.some((e) => e.fox === 'xin'),
-  );
 
   // Preview = first 200 chars of current editor body. Computed live so the
   // preview reflects what the user has actually written, not the cold-start
@@ -389,36 +381,6 @@ export function PublishButton() {
           >
             发布走 HMAC + Bearer 双签 · 不上传第三方训练集 · 演示模式下不会真投递
           </div>
-          {xinHasSpoken && (
-            <button
-              type="button"
-              data-testid="publish-to-zhihu-golden-tail"
-              title="看心的故事 — 点击进入小镇"
-              onClick={() => {
-                // R3 (史中 P1 2026-05-12): golden-tail Easter egg now jumps
-                // straight to 看心's lore portal entry instead of just sitting
-                // as static italic text.
-                window.dispatchEvent(
-                  new CustomEvent('kanshan:open-lore', { detail: { foxId: 'xin' } }),
-                );
-              }}
-              style={{
-                marginTop: 6,
-                fontSize: 9.5,
-                fontStyle: 'italic',
-                color: 'rgba(122,111,90,0.55)',
-                fontFamily: '"Noto Serif SC", serif',
-                letterSpacing: 0.4,
-                background: 'transparent',
-                border: 'none',
-                padding: 0,
-                cursor: 'help',
-                textAlign: 'left',
-              }}
-            >
-              看心独见，不语
-            </button>
-          )}
         </div>
       )}
     </div>

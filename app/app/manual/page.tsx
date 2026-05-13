@@ -60,12 +60,6 @@ const MULTI_TABS: ReadonlyArray<{ key: string; title: string }> = [
   { key: 'research', title: '看水 · 查证' },
 ];
 
-// Closing 三句 — locked from Documents/kanshan_lore.md A.三章 emotional payoff.
-const LORE_CLOSING: ReadonlyArray<string> = [
-  '九重书房之门，唯读者能开。',
-  '看山从未抬头看过自己的尾色。',
-  '也许有一天，会有读者告诉它。',
-];
 
 export default function ManualPage(): React.ReactElement {
   return (
@@ -347,35 +341,8 @@ export default function ManualPage(): React.ReactElement {
           </ul>
         </section>
 
-        {/* Section 7 — easter egg */}
-        <section data-testid="manual-section-7" style={sectionStyle}>
-          <h2 style={h2Style}>七、彩蛋 · 信封</h2>
-          <p style={leadStyle}>
-            标题栏右上角有一枚<strong>蜡封信封</strong>。点开即进入 lore portal —— 北极小镇 · 九重书房 · 雪夜中的看山。
-            读完最后三句，你会发现：
-          </p>
-          <blockquote
-            data-testid="manual-lore-closing"
-            style={{
-              margin: '18px 0 0 0',
-              padding: '18px 22px',
-              borderLeft: '3px solid #A89B7E',
-              background: 'rgba(168,155,126,0.08)',
-              fontFamily: '"Noto Serif SC", serif',
-              fontSize: 15,
-              color: '#1A1815',
-              lineHeight: 2.2,
-              letterSpacing: 2,
-            }}
-          >
-            {LORE_CLOSING.map((line) => (
-              <div key={line}>{line}</div>
-            ))}
-          </blockquote>
-        </section>
-
         <footer style={{ marginTop: 48, paddingTop: 20, borderTop: '1px solid rgba(168,155,126,0.35)', fontSize: 11, color: '#7A6F5A', letterSpacing: 1.5, textAlign: 'center', fontFamily: '"Noto Serif SC", serif' }}>
-          看山书房 · 知乎黑客松 2026 · 刘看山 IP 经官方授权使用
+          看山书房 · 知乎黑客松 2026
         </footer>
       </article>
     </main>

@@ -1,12 +1,9 @@
 'use client';
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { LeftRail } from '@/components/rail/LeftRail';
-import { LoreEnvelope } from '@/components/rail/LoreEnvelope';
 import { WritingSurface } from '@/components/editor/WritingSurface';
 import { ContextMenu } from '@/components/menu/ContextMenu';
 import { TabbedFloatingWindow } from '@/components/floating/TabbedFloatingWindow';
-import { LorePortal } from '@/components/lore/LorePortal';
-import type { FoxId } from '@/lib/foxes/registry';
 import { AiFailureToast } from '@/components/chrome/AiFailureToast';
 import { AuthErrorToast } from '@/components/chrome/AuthErrorToast';
 import { DailyFoxPulse } from '@/components/onboarding/DailyFoxPulse';
@@ -28,10 +25,6 @@ const ZERO_RECT: DOMRect = {
 } as DOMRect;
 
 interface WorkspaceShellProps {
-  /** Pre-resolved painted-hut image map (server-side via `getLoreAssets`). Optional; missing entries fall back to procedural SVG. */
-  loreHutImages?: Partial<Record<FoxId, string>>;
-  /** Pre-resolved lore-portal background image URL (server-side via `getLoreAssets`). */
-  loreBgImage?: string | null;
   /** Pre-resolved workspace background image URL (server-side via `getWorkspaceBgUrl`). */
   workspaceBgUrl?: string | null;
   /** Pre-resolved account avatar URLs (server-side via `getAccountAvatarUrls`). */
@@ -40,28 +33,10 @@ interface WorkspaceShellProps {
 
 // Shared workspace shell. `/` (clickthrough) and `/live` (finals) both mount
 // this; the wrapping providers / overlays differ per route.
-export function WorkspaceShell({ loreHutImages, loreBgImage, workspaceBgUrl = null, avatarUrls }: WorkspaceShellProps = {}) {
+export function WorkspaceShell({ workspaceBgUrl = null, avatarUrls }: WorkspaceShellProps = {}) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect } | null>(null);
-  const [loreOpen, setLoreOpen] = useState(false);
-  // R3 (史中 P1 2026-05-12): when an event detail carries `foxId`, pre-pin
-  // that fox in the portal (used by PublishPin 金尾 Easter egg → 'xin').
-  const [loreInitialFox, setLoreInitialFox] = useState<FoxId | null>(null);
   const workspaceBgDarken = useTweak('workspace.bg.darken', 0.65);
-
-  // R8 demo coherence (Lin Maohua + Shi Junhe) P0: NextBeatHint's "open-lore"
-  // action dispatches a `kanshan:open-lore` window event; listen and open the
-  // portal so the 2:50 demo beat actually pops the aurora scene on-screen
-  // instead of requiring the founder to click LoreEnvelope manually.
-  useEffect(() => {
-    const onOpenLore = (event: Event): void => {
-      const detail = (event as CustomEvent<{ foxId?: FoxId }>).detail;
-      setLoreInitialFox(detail?.foxId ?? null);
-      setLoreOpen(true);
-    };
-    window.addEventListener('kanshan:open-lore', onOpenLore);
-    return () => window.removeEventListener('kanshan:open-lore', onOpenLore);
-  }, []);
 
   // R3 (李笛 / 徐诗 P1 2026-05-12): cross-device visit-state sync. On mount,
   // pull server snapshot if newer. Subscribe to store updates and push back
@@ -183,8 +158,6 @@ export function WorkspaceShell({ loreHutImages, loreBgImage, workspaceBgUrl = nu
         />
       </main>
 
-      <LoreEnvelope onClick={() => setLoreOpen(true)} />
-
       {menu && (
         <ContextMenu
           x={menu.x}
@@ -192,18 +165,6 @@ export function WorkspaceShell({ loreHutImages, loreBgImage, workspaceBgUrl = nu
           hasSelection={!!effectiveSelection}
           selection={effectiveSelection}
           onClose={() => setMenu(null)}
-        />
-      )}
-
-      {loreOpen && (
-        <LorePortal
-          onClose={() => {
-            setLoreOpen(false);
-            setLoreInitialFox(null);
-          }}
-          hutImages={loreHutImages}
-          bgImage={loreBgImage}
-          initialFoxId={loreInitialFox}
         />
       )}
 

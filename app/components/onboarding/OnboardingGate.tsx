@@ -672,7 +672,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
                 ? '本次比赛期间的公开访问采用缓存模式。想跑真实 AI，请用左侧自带密钥（仅本机保存）。'
                 : guestModeAvailable
                   ? '适合: 仅想快速看看；想完整体验请用自己的密钥'
-                  : '此预览部署未配置共享额度。AI 功能请使用左侧自带密钥；浏览界面 / lore 门户 / 工作台框架不需密钥也可正常使用。'}
+                  : '此预览部署未配置共享额度。AI 功能请使用左侧自带密钥；浏览界面 / 工作台框架不需密钥也可正常使用。'}
             </div>
             <button
               type="button"

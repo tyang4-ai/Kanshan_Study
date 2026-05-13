@@ -13,7 +13,7 @@ import { useCorkboardStore } from '@/lib/store/corkboard';
 import { useProvenanceStore, findOverlappingXinFlag } from '@/lib/store/provenance';
 import researchDataJson from '@/content/seed/research-radiogenomics.json';
 import { renderResearchBody } from '@/lib/research/sanitize';
-import { searchZhihu } from '@/lib/zhihu';
+import { searchZhihu, IS_REAL_MODE } from '@/lib/zhihu';
 import type { SearchResult } from '@/lib/zhihu/types';
 
 type ResearchScope = 'quick' | 'deep' | 'thorough';
@@ -126,7 +126,10 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
           return;
         }
         setLiveHits(results.slice(0, 8));
-        setSearchStatus('live');
+        // r4 吴伟 P1: only claim LIVE when a real network call actually fired.
+        // In mock-mode searchZhihu resolves synchronously from a bundled fixture,
+        // so displaying LIVE there is misleading theater.
+        setSearchStatus(IS_REAL_MODE ? 'live' : 'fallback');
       })
       .catch(() => {
         setSearchStatus('fallback');

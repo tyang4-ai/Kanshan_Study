@@ -13,7 +13,6 @@ import { RailContent } from './RailContent';
 // Fox dispatch lives on the right toolbar only now; 看山 is reachable via the
 // KanshanChatBubble (bottom-right).
 // Width is driven by useRailWidthStore (clamped 220–560 inside the store).
-// LoreEnvelope is mounted at workspace shell level, NOT here.
 export function LeftRail() {
   const dragRef = useRef<HTMLDivElement | null>(null);
   const width = useRailWidthStore((s) => s.width);
