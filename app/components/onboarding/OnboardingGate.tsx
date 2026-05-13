@@ -51,7 +51,11 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<ProviderChoice>('kimi');
-  const [step, setStep] = useState<Step>('run-mode');
+  // OAuth-first flow (2026-05-13, parity with 深流's gate): zhihu-login is
+  // the entry step and identity wall — without it the user only gets a
+  // per-browser guest id with no cross-device sync. After login we advance
+  // to run-mode (BYO key vs guest LLM provider), then vault-consent.
+  const [step, setStep] = useState<Step>('zhihu-login');
   const [pendingRecord, setPendingRecord] = useState<OnboardingRecord | null>(null);
   const activeAccount = useAccountStore((s) => s.active);
   const acceptVaultConsent = useVaultConsentStore((s) => s.accept);
@@ -62,17 +66,23 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
     setHidden(window.localStorage.getItem(STORAGE_KEY) !== null);
   }, []);
 
-  // Track #15.10 — hooks must be called unconditionally (above the early
-  // return below). The skip-to-vault-consent effect fires when the user is
-  // already logged in via zhihu OAuth.
+  // Auto-advance off the zhihu-login step once the session has hydrated with
+  // a real fullname. Covers both (a) first arrival after OAuth redirect (the
+  // useEffect-fired hydrate() call returns with the new uid) and (b) returning
+  // visitors who already had a valid kanshan-zhihu-session cookie before the
+  // gate even mounted.
   const sessionFullname = useZhihuSessionStore((s) => s.fullname);
+  const hydrateZhihuSession = useZhihuSessionStore((s) => s.hydrate);
+  useEffect(() => {
+    void hydrateZhihuSession();
+  }, [hydrateZhihuSession]);
   useEffect(() => {
     if (step !== 'zhihu-login') return;
-    if (sessionFullname && pendingRecord) {
+    if (sessionFullname) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStep('vault-consent');
+      setStep('run-mode');
     }
-  }, [step, sessionFullname, pendingRecord]);
+  }, [step, sessionFullname]);
 
   if (hidden) return null;
 
@@ -114,27 +124,10 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
   };
 
   const advanceAfterRunMode = (record: OnboardingRecord) => {
-    // Guest flow defaults to guwanxi (auto-accepted by the consent store);
-    // skip the consent screen for that account. `me` (and any other non-
-    // guwanxi account) must see the consent screen before closing.
-    const effectiveAccount = record.mode === 'guest' ? 'guwanxi' : activeAccount;
-    if (effectiveAccount === 'guwanxi') {
-      hydrateVaultConsent('guwanxi');
-      finalizeRecord(record);
-      return;
-    }
-    // `me` account → interpose zhihu-login step between run-mode and vault-consent.
-    // If session already hydrated with a fullname (user logged in earlier), skip.
-    const sessionFullname = useZhihuSessionStore.getState().fullname;
-    if (sessionFullname) {
-      advanceToVaultConsent(record);
-      return;
-    }
-    setPendingRecord(record);
-    setStep('zhihu-login');
-    // Fire-and-forget hydration; if the user is already logged in we'll
-    // auto-advance via the effect below.
-    void useZhihuSessionStore.getState().hydrate();
+    // OAuth-first flow: zhihu-login is upstream of run-mode now, so by the
+    // time we land here the identity is already settled. Always go to
+    // vault-consent next (single linear path, no branching).
+    advanceToVaultConsent(record);
   };
 
   const onZhihuLogin = () => {
@@ -142,7 +135,11 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
   };
 
   const onZhihuSkip = () => {
-    if (pendingRecord) advanceToVaultConsent(pendingRecord);
+    // Fallback path: user can't / won't OAuth. We still need them to get
+    // through the gate so they can try the workspace. Drop them into
+    // run-mode with a per-browser guest identity (kanshan-guest-id) — same
+    // as before, just no cross-device sync.
+    setStep('run-mode');
   };
 
   const submitByoKey = () => {
@@ -449,13 +446,20 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
           onClick={(e) => e.stopPropagation()}
         >
           <div style={titleRow}>
-            <div style={titleText}>连接你的知乎账号 (可选)</div>
-            <div style={subtitleText}>第二步 · 知乎登录</div>
+            <div style={titleText}>用知乎账号登录</div>
+            <div style={subtitleText}>第一步 · 账号</div>
           </div>
+          <div style={consentBodyStyle}>登录后你将获得：</div>
           <ul style={consentBulletList}>
-            <li>我们只读取你的昵称和头像 —— 用于在标题栏显示「已登录 · {'{昵称}'}」</li>
-            <li>不会代你发布、不会读私信、不会绑定永久 token</li>
-            <li>退出登录后服务端立即清除会话</li>
+            <li>跨设备同步：档案、笔记、写作进度在任意设备共用一个账户</li>
+            <li>云端档案库：你的旧文档语风指纹长期保留，不入第三方训练集</li>
+            <li>用知乎账号一键发布到知乎，无需重新登录</li>
+          </ul>
+          <div style={consentBodyStyle}>权限边界：</div>
+          <ul style={consentBulletList}>
+            <li>只读取昵称 + 头像，不读私信</li>
+            <li>不会代你发布、不会绑定永久 token</li>
+            <li>「设置 · 账号 · 退出登录」可随时清除会话</li>
           </ul>
           <div style={consentButtonRow}>
             <button
@@ -472,7 +476,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
               style={guestButtonStyle}
               onClick={onZhihuSkip}
             >
-              跳过 — 之后再说
+              不登录 · 仅本浏览器体验
             </button>
           </div>
         </div>
@@ -502,7 +506,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
         >
           <div style={titleRow}>
             <div style={titleText}>看典 · 档案库使用说明</div>
-            <div style={subtitleText}>第二步 · 数据使用同意</div>
+            <div style={subtitleText}>第三步 · 数据使用同意</div>
           </div>
           <div style={consentBodyStyle}>当你导入文档到看典：</div>
           <ul style={consentBulletList}>
@@ -552,7 +556,7 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
       <div style={card} onClick={(e) => e.stopPropagation()}>
         <div style={titleRow}>
           <div style={titleText}>欢迎来到 看山书房</div>
-          <div style={subtitleText}>第一步 · 选择运行方式</div>
+          <div style={subtitleText}>第二步 · 选择运行方式</div>
           <div
             data-testid="onboarding-guest-privacy"
             style={{
