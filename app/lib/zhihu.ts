@@ -346,6 +346,118 @@ export async function chatWithZhida(prompt: string): Promise<ZhidaAnswer> {
   return ZhidaAnswer.parse({ text, citations: [] });
 }
 
+export interface ZhihuUserBrief {
+  uid: string;
+  fullname: string;
+  avatarPath: string | null;
+  hashId?: string;
+  url?: string;
+  headline?: string;
+}
+
+/** Best-effort uid extraction from a raw text fragment (preserves precision
+ *  for 19-digit snowflakes). `keys` are tried in declaration order. */
+function pickUidFromText(rawText: string, key: string): string | null {
+  const re = new RegExp(`"${key}"\\s*:\\s*"?(\\d+)"?`);
+  const m = rawText.match(re);
+  return m ? m[1] : null;
+}
+
+function coerceUserBrief(raw: unknown, rawText: string, offset: number): ZhihuUserBrief | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  // Try to find the uid in the slice of raw text that contains this user
+  // object — keeps precision for big int uids. Falls back to the parsed
+  // (rounded) number if the slice probe misses.
+  const slice = rawText.slice(offset, offset + 800);
+  const uid = pickUidFromText(slice, 'uid') ??
+    (typeof o.uid === 'number' ? String(o.uid) : null) ??
+    (typeof o.uid === 'string' ? o.uid : null);
+  if (!uid) return null;
+  const fullname = pickStr(o, 'fullname', 'Fullname', 'name', 'Name');
+  if (!fullname) return null;
+  return {
+    uid,
+    fullname,
+    avatarPath: pickStr(o, 'avatar_path', 'AvatarPath') ?? null,
+    hashId: pickStr(o, 'hash_id', 'HashId'),
+    url: pickStr(o, 'url', 'URL'),
+    headline: pickStr(o, 'headline', 'Headline'),
+  };
+}
+
+/**
+ * 粉丝列表 / 关注列表 — Documents/zhihu-api/04-api-spec-endpoints-2026-05-10.md §11-12.
+ * `GET /user/followers?page=&per_page=` and `GET /user/followed?page=&per_page=`.
+ * Response: top-level ARRAY of user objects (same fields as `/user` plus
+ * `hash_id`, `url`). When the user isn't OAuth'd we return [] (no fixture —
+ * follower lists are real-user-specific data; faking them would be misleading).
+ */
+export async function getFollowers(
+  accessToken?: string,
+  page = 0,
+  perPage = 10,
+): Promise<ZhihuUserBrief[]> {
+  if (!accessToken || MODE === 'mock') return [];
+  return fetchUserList('/user/followers', accessToken, page, perPage);
+}
+
+export async function getFollowed(
+  accessToken?: string,
+  page = 0,
+  perPage = 10,
+): Promise<ZhihuUserBrief[]> {
+  if (!accessToken || MODE === 'mock') return [];
+  return fetchUserList('/user/followed', accessToken, page, perPage);
+}
+
+async function fetchUserList(
+  path: string,
+  accessToken: string,
+  page: number,
+  perPage: number,
+): Promise<ZhihuUserBrief[]> {
+  const url = new URL(path, 'https://openapi.zhihu.com');
+  url.searchParams.set('page', String(page));
+  url.searchParams.set('per_page', String(perPage));
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+    const text = await res.text();
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { return []; }
+    // Spec says top-level array, but defensive against wrapped variants.
+    let arr: unknown[] = [];
+    if (Array.isArray(parsed)) arr = parsed;
+    else if (parsed && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>;
+      for (const k of ['data', 'Data', 'items', 'Items']) {
+        const v = obj[k];
+        if (Array.isArray(v)) { arr = v; break; }
+      }
+    }
+    const out: ZhihuUserBrief[] = [];
+    // Track text-cursor so each user's uid is extracted from its own slice.
+    let cursor = 0;
+    for (const item of arr) {
+      const brief = coerceUserBrief(item, text, cursor);
+      if (brief) {
+        out.push(brief);
+        // Advance cursor past this user object's text — find next `{`
+        const nextObj = text.indexOf('{', cursor + 1);
+        if (nextObj > -1) cursor = nextObj;
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 /**
  * 关注动态 — content from people the OAuth'd user follows. Per the captured
  * spec (Documents/zhihu-api/04-api-spec-endpoints-2026-05-10.md §13) the
