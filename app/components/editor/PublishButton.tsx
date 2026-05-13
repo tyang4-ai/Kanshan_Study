@@ -40,8 +40,9 @@ const buttonStyle: CSSProperties = {
 
 interface PublishResponse {
   ok?: boolean;
-  result?: { ring_id?: string; pin_id?: string };
+  result?: { ring_id?: string; pin_id?: string; content_token?: string };
   ringId?: string;
+  mock?: boolean;
   error?: string;
 }
 
@@ -52,6 +53,9 @@ export function PublishButton() {
   const [tagDraft, setTagDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [doneMsg, setDoneMsg] = useState<string | null>(null);
+  // GB 45438 trailer in body — user-controllable. Metadata tagging at the
+  // route layer is always-on regardless of this checkbox (per spec 2026-05-13).
+  const [bodyTrailerOn, setBodyTrailerOn] = useState(true);
 
   const editor = useEditorStore((s) => s.editor);
   const pushError = useAiErrorStore((s) => s.push);
@@ -103,7 +107,7 @@ export function PublishButton() {
         body: JSON.stringify({
           content: body + hashLine,
           ringId,
-          aiAssisted: true,
+          aiAssisted: bodyTrailerOn,
           compliance: 'GB-45438',
         }),
       });
@@ -113,7 +117,8 @@ export function PublishButton() {
         return;
       }
       const ringLabel = SUPPORTED_RING_IDS.find((r) => r.id === ringId)?.name ?? '圈子';
-      setDoneMsg(`已发布到「${ringLabel}」`);
+      const prefix = data.mock ? '演示模式 · 未真实推送' : '已发布到知乎';
+      setDoneMsg(`${prefix} · 「${ringLabel}」`);
       setOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : '网络中断';
@@ -307,9 +312,6 @@ export function PublishButton() {
             data-testid="publish-to-zhihu-gb45438-row"
             style={{
               marginTop: 12,
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 6,
               padding: '6px 8px',
               background: '#FFF7E4',
               border: '1px solid rgba(168,123,42,0.45)',
@@ -319,16 +321,20 @@ export function PublishButton() {
               color: '#5A4A1F',
             }}
           >
-            <input
-              type="checkbox"
-              data-testid="publish-to-zhihu-gb45438-checkbox"
-              aria-label="本文由看山书房 AI 辅助生成 · 发布时附 GB 45438 标识"
-              checked
-              disabled
-              readOnly
-              style={{ marginTop: 2, accentColor: '#A87B2A', cursor: 'not-allowed' }}
-            />
-            <span>本文由看山书房 AI 辅助生成 · 发布时附 GB 45438 标识（不可关闭）</span>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                data-testid="publish-to-zhihu-gb45438-checkbox"
+                aria-label="在正文末尾追加 GB 45438 AI 标识"
+                checked={bodyTrailerOn}
+                onChange={(e) => setBodyTrailerOn(e.target.checked)}
+                style={{ marginTop: 2, accentColor: '#A87B2A' }}
+              />
+              <span>在正文末尾追加 「本文由看山书房 AI 辅助生成 · GB 45438」 标识</span>
+            </label>
+            <div style={{ marginTop: 6, paddingLeft: 22, fontSize: 9.5, color: '#7A6647' }}>
+              元数据 GB 45438 标识始终自动写入 Pin 的隐藏字段（不可关闭）；此选项仅控制是否在正文末尾追加可见的标识行。
+            </div>
           </div>
 
           <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -379,7 +385,7 @@ export function PublishButton() {
               lineHeight: 1.5,
             }}
           >
-            发布走 HMAC + Bearer 双签 · 不上传第三方训练集 · 演示模式下不会真投递
+            发布走 HMAC + Bearer 双签 · 不上传第三方训练集 · 缓存演示模式下返回 mock 响应，不真推送
           </div>
         </div>
       )}

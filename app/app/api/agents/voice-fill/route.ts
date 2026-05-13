@@ -79,7 +79,7 @@ export async function POST(req: Request): Promise<Response> {
     if (guestId) await releaseConcurrent(guestId);
     const isCacheMiss = err instanceof CacheMissError;
     const friendly = isCacheMiss
-      ? '此操作尚未缓存。请在右上角设置 — 输入您的 Kimi / DeepSeek API key 以解锁实时 AI。'
+      ? '当前为缓存演示模式 · 该操作未在预生成缓存中。请按编辑器内的引导文档操作，或到设置 → 实时模式开启自带密钥模式。'
       : scrubErrorForClient(err instanceof Error ? err.message : String(err));
     const encoder = new TextEncoder();
     const errStream = new ReadableStream<Uint8Array>({

@@ -1,25 +1,42 @@
 [
   {
-    "kind": "web",
-    "id": "cite-w-3",
-    "index": 3,
-    "url": "https://arxiv.org/abs/1411.5878",
-    "title": "Decoding tumour phenotype by noninvasive imaging using a quantitative radiomics approach (Aerts et al., 2014)"
+    "kind": "vault",
+    "id": "cite-who-cns5-2021",
+    "index": 1,
+    "articleId": "cite-who-cns5-2021",
+    "sourceTitle": "The 2021 WHO Classification of Tumors of the Central Nervous System",
+    "preview": "Reclassifies adult-type diffuse gliomas; glioblastoma now defined strictly as IDH-wildtype, WHO grade 4."
   },
   {
     "kind": "vault",
-    "id": "cite-v-7",
-    "index": 7,
-    "articleId": "01-imaging-genomics-turn",
-    "sourceTitle": "影像组学的基因组学转向",
-    "preview": "如果某个影像特征能稳定映射到某条已知通路（比如缺氧通路、EMT 通路），那么这个特征就有了生物学锚点，模型也就有了可解释性。"
+    "id": "cite-stupp-2005",
+    "index": 2,
+    "articleId": "cite-stupp-2005",
+    "sourceTitle": "Radiotherapy plus concomitant and adjuvant temozolomide for glioblastoma (Stupp et al., NEJM 2005)",
+    "preview": "Median OS 12.1 → 14.6 months; 2-year OS 10.4% → 26.5%. The Stupp protocol."
   },
   {
-    "kind": "zhihu",
-    "id": "cite-z-leng",
-    "handle": "leng-quan",
-    "displayName": "冷泉",
-    "answerUrl": "https://www.zhihu.com/people/leng-quan",
-    "bio": "临床医生 / 影像组学研究者"
+    "kind": "vault",
+    "id": "cite-hegi-2005",
+    "index": 3,
+    "articleId": "cite-hegi-2005",
+    "sourceTitle": "MGMT gene silencing and benefit from temozolomide in glioblastoma (Hegi et al., NEJM 2005)",
+    "preview": "Methylated MGMT promoter → 2-year OS 46% with RT + TMZ; primary predictive biomarker for TMZ benefit."
+  },
+  {
+    "kind": "vault",
+    "id": "cite-stupp-2017-ttfields",
+    "index": 4,
+    "articleId": "cite-stupp-2017-ttfields",
+    "sourceTitle": "TTFields + Maintenance TMZ vs TMZ Alone in Glioblastoma (Stupp et al., JAMA 2017, EF-14)",
+    "preview": "Median OS 20.9 vs 16.0 months; 5-year OS 13% vs 5%. First non-surgical, non-radiation intervention to extend OS since 2005."
+  },
+  {
+    "kind": "vault",
+    "id": "cite-checkmate-143",
+    "index": 5,
+    "articleId": "cite-checkmate-143",
+    "sourceTitle": "Nivolumab vs Bevacizumab in Recurrent Glioblastoma (CheckMate 143, JAMA Oncol 2020)",
+    "preview": "Negative trial — checkpoint blockade alone does not extend survival in recurrent GBM."
   }
 ]

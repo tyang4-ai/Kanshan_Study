@@ -65,10 +65,11 @@ export async function POST(req: Request): Promise<Response> {
   const signedContent =
     aiAssisted && !content.endsWith(GB45438_SUFFIX) ? content + GB45438_TRAILER : content;
 
+  const mock = process.env.ZHIHU_API_MODE !== 'real';
   try {
     const result = await publishPin(signedContent, ringId);
     return new Response(
-      JSON.stringify({ ok: true, result, ringId, content: signedContent }),
+      JSON.stringify({ ok: true, result, ringId, content: signedContent, mock }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

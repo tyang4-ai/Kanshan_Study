@@ -1,23 +1,35 @@
 {
-  "text": "放射基因组学（radiogenomics）是把医学影像特征与基因组学数据相关联的研究方向，目前主要应用于肿瘤的非侵入性分子诊断辅助。距离规模化临床落地仍存在三个关键瓶颈：(1) 外部验证不足 — Park 2020 的 77 项研究中仅 6% 提供独立外部验证；(2) 跨机构 AUC 滑落 0.08–0.15 是常态；(3) 监管审批路径与 PACS 数据脱敏成本高。建议关注 Aerts 2014 的 440 特征基线 + Wang 2023 的跨机构验证方法学。",
+  "text": "胶质母细胞瘤 (GBM) 是成人最常见的恶性原发性脑肿瘤，2021 WHO CNS5 将其定义为 IDH-野生型、WHO 4 级。一线治疗仍是 Stupp 方案（术后放疗 60 Gy + 同步及辅助 TMZ × 6 周期），来自 2005 年 NEJM 那篇里程碑论文，使中位 OS 从 12.1 → 14.6 月、2 年 OS 从 10.4% → 26.5%。2015 年起 TTFields (Optune) 加入维持期，EF-14 (Stupp JAMA 2017) 进一步把中位 OS 推到 20.9 月、5 年 OS 到 13%。MGMT 启动子甲基化是目前最稳定的预测性生物标志物，mMGMT+ 患者从 TMZ 中获益最显著 (Hegi NEJM 2005)。复发场景下，免疫检查点抑制剂 (CheckMate 143) 与抗血管生成 (贝伐珠单抗) 均未能延长总生存。家属应理解：GBM 现阶段是「延长有质量的时间」的疾病，而非「治愈」。",
   "citations": [
     {
-      "answererId": "academic-aerts-hjwl",
-      "answererName": "Aerts H J W L et al.",
-      "url": "https://www.nature.com/articles/ncomms5006",
-      "snippet": "440 hand-crafted CT features predicting prognosis across multiple lung cancer cohorts."
+      "answererId": "academic-stupp-r",
+      "answererName": "Stupp R et al. (NEJM 2005)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15758009/",
+      "snippet": "Radiotherapy plus concomitant and adjuvant temozolomide for glioblastoma — median OS 14.6 vs 12.1 months."
     },
     {
-      "answererId": "academic-park-je",
-      "answererName": "Park J E et al.",
-      "url": "https://link.springer.com/article/10.1007/s00330-019-06555-0",
-      "snippet": "Only 6% of 77 surveyed radiomics studies provided independent external validation."
+      "answererId": "academic-hegi-me",
+      "answererName": "Hegi ME et al. (NEJM 2005)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15758010/",
+      "snippet": "MGMT gene silencing and benefit from temozolomide in GBM — mMGMT+ 2-year OS 46%."
     },
     {
-      "answererId": "demo-author-radio-1",
-      "answererName": "@示例答主-甲",
-      "url": "https://www.zhihu.com/question/123456/answer/789012",
-      "snippet": "影像组学是从影像里抽 hand-crafted 特征做统计分析。"
+      "answererId": "academic-stupp-2017",
+      "answererName": "Stupp R et al. (JAMA 2017, EF-14)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29260225/",
+      "snippet": "TTFields + maintenance TMZ vs TMZ alone — median OS 20.9 vs 16.0 months."
+    },
+    {
+      "answererId": "academic-louis-dn",
+      "answererName": "Louis DN et al. (Neuro-Oncology 2021)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/34185076/",
+      "snippet": "2021 WHO CNS5 classification — GBM strictly IDH-wildtype, WHO grade 4."
+    },
+    {
+      "answererId": "zhihu-neurosurg-attending",
+      "answererName": "@神外主治-顾",
+      "url": "https://www.zhihu.com/question/447832901/answer/2189765432",
+      "snippet": "Stupp 方案 + TTFields 是 IDH-野生型 GBM 的当前一线标准，MGMT 甲基化决定个体收益。"
     }
   ]
 }

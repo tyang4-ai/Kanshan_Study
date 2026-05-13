@@ -64,10 +64,12 @@ export function SettingsTab() {
 
   useEffect(() => {
     // SSR can't access localStorage; sync once on mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     const r = readLiveMode();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLive(r);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (r.provider) setDraftProvider(r.provider);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (r.apiKey) setDraftKey(r.apiKey);
   }, []);
 

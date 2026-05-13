@@ -104,7 +104,7 @@ export async function POST(req: Request): Promise<Response> {
     }, { mode: cacheMode });
   } catch (err) {
     const friendly = err instanceof CacheMissError
-      ? '此对话尚未缓存。请在 onboarding 输入您的 Kimi / DeepSeek API key 以解锁实时 AI。'
+      ? '当前为缓存演示模式 · 该对话未在预生成缓存中。请按编辑器内的引导文档操作，或到设置 → 实时模式开启自带密钥模式。'
       : scrubErrorForClient((err as Error).message);
     const inner = errorStream(friendly);
     return new Response(wrapRelease(inner, guestId), sseHeaders());
