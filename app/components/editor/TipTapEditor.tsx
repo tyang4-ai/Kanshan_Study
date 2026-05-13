@@ -269,6 +269,28 @@ export function TipTapEditor({
     return () => setEditor(null);
   }, [editor, setEditor]);
 
+  // Real autosave heartbeat. onUpdate already flushes on every keystroke, but
+  // (a) bursts where the user pastes / runs an AI tweak in another tab don't
+  // re-fire onUpdate, and (b) the indicator should advance even on idle so
+  // the user has a visible "I am still being saved" signal. Every 5 minutes:
+  // pull the editor's current HTML, push it through the store (no-op if
+  // unchanged), and stamp lastSavedAt regardless so the indicator ticks.
+  useEffect(() => {
+    if (!editor) return;
+    const intervalId = window.setInterval(() => {
+      const tabId = useEditorTabsStore.getState().activeId;
+      if (!tabId) return;
+      try {
+        setTabContent(tabId, editor.getHTML());
+        useEditorTabsStore.getState().markSaved(tabId);
+      } catch {
+        // setContent already routes quota errors to the toast on the keystroke
+        // path; silent on this heartbeat path so we don't double-notify.
+      }
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [editor, setTabContent]);
+
   // Obsidian-style: when the editor loses focus, reflow whatever block the
   // caret was last in. Catches clicks into the rail / toolbar / floating tab.
   useEffect(() => {
