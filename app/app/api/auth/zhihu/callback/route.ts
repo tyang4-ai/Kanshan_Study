@@ -48,12 +48,20 @@ function redirectWithError(req: NextRequest, code: string): NextResponse {
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const code = req.nextUrl.searchParams.get('code');
-  const state = req.nextUrl.searchParams.get('state');
+  // 知乎's OAuth implementation is non-standard:
+  //   1. The redirect param is named `authorization_code` (not `code` per RFC 6749).
+  //   2. The `state` we sent on /authorize is NOT echoed back — so we can't do
+  //      a state-match CSRF check. The best we can do is confirm a state cookie
+  //      exists (proving the user initiated auth through our /start endpoint
+  //      within the last 10 min). Lower-confidence than RFC-style state but
+  //      no worse than the wider OAuth ecosystem when state is unavailable.
+  const code =
+    req.nextUrl.searchParams.get('authorization_code') ??
+    req.nextUrl.searchParams.get('code');
   const cookieStore = await cookies();
   const cookieState = cookieStore.get(STATE_COOKIE)?.value ?? null;
 
-  if (!code || !state || !cookieState || state !== cookieState) {
+  if (!code || !cookieState) {
     return redirectWithError(req, 'state_mismatch');
   }
 
