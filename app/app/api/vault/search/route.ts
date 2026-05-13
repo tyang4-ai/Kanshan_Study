@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import meSeed from '@/content/seed/vault-me.json';
 import { getAccountId } from '@/lib/account';
 
-export const runtime = 'edge';
+// Switched off edge runtime (2026-05-13) because the lib/account.ts identity
+// resolver now imports verifySession from cookie-sign, which uses node:crypto.
+// The route is a thin proxy over Supabase pgvector — runs fine on nodejs.
+export const runtime = 'nodejs';
 
 interface SeedEntry {
   id: string;
