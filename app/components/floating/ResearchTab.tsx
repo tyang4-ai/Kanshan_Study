@@ -13,8 +13,17 @@ import { useCorkboardStore } from '@/lib/store/corkboard';
 import { useProvenanceStore, findOverlappingXinFlag } from '@/lib/store/provenance';
 import researchDataJson from '@/content/seed/research-radiogenomics.json';
 import { renderResearchBody } from '@/lib/research/sanitize';
-import { searchZhihu, IS_REAL_MODE } from '@/lib/zhihu';
 import type { SearchResult } from '@/lib/zhihu/types';
+
+// Server-proxy: hits `/api/zhihu/search?q=...` instead of the in-process
+// adapter so the secret + mode flag stay server-side. Response shape:
+// `{ results: SearchResult[], source: 'live' | 'mock' }`.
+async function fetchZhihuSearch(q: string): Promise<{ results: SearchResult[]; isLive: boolean }> {
+  const res = await fetch(`/api/zhihu/search?q=${encodeURIComponent(q)}`);
+  if (!res.ok) throw new Error(`search ${res.status}`);
+  const data = (await res.json()) as { results: SearchResult[]; source?: string };
+  return { results: data.results, isLive: data.source === 'live' };
+}
 
 type ResearchScope = 'quick' | 'deep' | 'thorough';
 
@@ -118,18 +127,17 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
     if (didFetchRef.current === selection.text) return;
     didFetchRef.current = selection.text;
     setSearchStatus('loading');
-    searchZhihu(selection.text)
-      .then((results) => {
+    fetchZhihuSearch(selection.text)
+      .then(({ results, isLive }) => {
         if (results.length === 0) {
           setSearchStatus('fallback');
           setLiveHits(null);
           return;
         }
         setLiveHits(results.slice(0, 8));
-        // r4 吴伟 P1: only claim LIVE when a real network call actually fired.
-        // In mock-mode searchZhihu resolves synchronously from a bundled fixture,
-        // so displaying LIVE there is misleading theater.
-        setSearchStatus(IS_REAL_MODE ? 'live' : 'fallback');
+        // Only claim LIVE when the server reported `source: 'live'` — mock-mode
+        // returns the same fixture and would otherwise display LIVE misleadingly.
+        setSearchStatus(isLive ? 'live' : 'fallback');
       })
       .catch(() => {
         setSearchStatus('fallback');
@@ -299,6 +307,46 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
           已就位
         </span>
       </div>
+
+      {/* Live progress banner — visible whenever a real network call is in
+          flight. The previous tiny "实时检索中…" tag inside the query line
+          was easy to miss; this banner makes the orchestration moment
+          obvious so the user knows 看水 is actually working. */}
+      {searchStatus === 'loading' && (
+        <div
+          data-testid="research-progress-banner"
+          style={{
+            flexShrink: 0,
+            padding: '10px 14px',
+            background: 'linear-gradient(90deg, rgba(23,114,246,0.12) 0%, rgba(23,114,246,0.02) 100%)',
+            borderBottom: '1px solid rgba(23,114,246,0.30)',
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+            fontSize: 12,
+            color: '#1A4480',
+            fontFamily: '"Noto Sans SC", sans-serif',
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 10, height: 10, borderRadius: 5,
+              background: '#1772F6',
+              animation: 'pulse 1.2s ease-in-out infinite',
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontWeight: 600 }}>看水正在检索：</span>
+          <span style={{ fontFamily: '"Noto Serif SC", serif', color: '#1772F6' }}>
+            「{queryText.slice(0, 40)}{queryText.length > 40 ? '…' : ''}」
+          </span>
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: 10, color: '#5A6B85', fontFamily: 'JetBrains Mono, monospace' }}>
+            知乎 API · 实时
+          </span>
+        </div>
+      )}
 
       {/* R2 judge fix (周源 / 吴伟 P1 2026-05-12): trend-origin banner. Makes
           the 清朗 第二阶段 commitment visible at the surface where it's most

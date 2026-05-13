@@ -185,15 +185,14 @@
   outline: 0;
   box-shadow: none;
 }
-/* R2 a11y (Yang Zhihua / Xu Ling) WCAG 2.4.7 fix: keyboard-focused editor
-   must show a visible focus indicator. :focus-visible only paints when focus
-   arrived via keyboard, so mouse clicks stay clean. */
+/* Keyboard-arrived focus indicator. Reduced from the original 2px blue ring
+   that the author found visually loud — now a 1px warm-paper tone consistent
+   with the rest of the chrome. Still WCAG 2.4.7 compliant: a visible
+   indicator paints only on keyboard focus (:focus-visible), not on mouse. */
 .ProseMirror:focus-visible,
 .tiptap:focus-visible {
-  outline: 2px solid rgba(23, 114, 246, 0.55);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(23, 114, 246, 0.12);
-  border-radius: 2px;
+  outline: 1px solid rgba(168, 155, 126, 0.45);
+  outline-offset: 1px;
 }
 
 /* TipTap Placeholder extension — attaches data-placeholder to empty <p>.

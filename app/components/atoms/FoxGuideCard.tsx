@@ -5,16 +5,18 @@ import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 import guidesData from '@/content/seed/fox-guides.json';
 
 interface FoxGuide {
-  id: FoxId;
+  id: string;
   name: string;
   verb: string;
   canHelp: string;
   whenToCall: string;
 }
 
-const GUIDES: Record<FoxId, FoxGuide> = Object.fromEntries(
+// Indexed by guide id, which is either a FoxId OR a per-action override
+// (e.g. `wen-debate`) for foxes that have multiple right-rail actions.
+const GUIDES: Record<string, FoxGuide> = Object.fromEntries(
   (guidesData as FoxGuide[]).map((g) => [g.id, g]),
-) as Record<FoxId, FoxGuide>;
+) as Record<string, FoxGuide>;
 
 const VERB_LABEL: Record<string, string> = {
   orchestrate: '总调度',
@@ -28,13 +30,16 @@ const CARD_OFFSET = 12;
 
 interface FoxGuideCardProps {
   foxId: FoxId;
+  /** Optional per-action override (e.g. `wen-debate` for the debate
+   *  variant of the 看文 button). Falls back to `foxId` when absent. */
+  guideId?: string;
   anchorRect: DOMRect;
   onClose: () => void;
 }
 
-export function FoxGuideCard({ foxId, anchorRect, onClose }: FoxGuideCardProps) {
+export function FoxGuideCard({ foxId, guideId, anchorRect, onClose }: FoxGuideCardProps) {
   const fox = FOX_BY_ID[foxId];
-  const guide = GUIDES[foxId];
+  const guide = GUIDES[guideId ?? foxId] ?? GUIDES[foxId];
   if (typeof window === 'undefined' || typeof document === 'undefined') return null;
 
   // Default: place to the right of anchor; flip if it would clip.

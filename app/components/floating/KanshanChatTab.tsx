@@ -379,15 +379,21 @@ export function KanshanChatTab() {
             portrait but opening the chat dropped to the old '山' glyph —
             brand inconsistency, "fox disappears once you open the chat".
             Mirror the bubble's CSS-sprite crop of the 四视图 sheet. */}
-        <div
+        {/* Mirror the chat-bubble's icon source (KanshanChatBubble.tsx) so the
+            in-window header matches the main-page trigger — the previous
+            four-view crop fell out of sync after the icon swap. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/icons/Favicon.png"
+          alt=""
           aria-hidden
+          width={28}
+          height={28}
           style={{
-            width: 28, height: 28, borderRadius: 14,
+            display: 'block',
+            objectFit: 'contain',
+            borderRadius: 14,
             background: '#FAF8F3',
-            backgroundImage: 'url(/foxes/shan-fourview.png)',
-            backgroundSize: '400% 100%',
-            backgroundPosition: 'left center',
-            backgroundRepeat: 'no-repeat',
             border: '1px solid rgba(168,155,126,0.6)',
             boxShadow: '0 0 8px rgba(168,155,126,0.5)',
             flexShrink: 0,

@@ -211,12 +211,12 @@ export function WritingSurface({
         <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 12px' }} />
         {/* 2026-05-11 phase #15.5: 文件 cluster — 导入/导出 sits with the other
             tab-strip chrome controls instead of crowding the tabs list. */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingRight: 4 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingRight: 4, flexShrink: 0, whiteSpace: 'nowrap' }}>
           <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>文件</span>
           <FileMenuButtons />
         </div>
-        <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 8px' }} />
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12 }}>
+        <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 8px', flexShrink: 0 }} />
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#7A6655', fontSize: 12, paddingRight: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
           {/* R3 fix (user 2026-05-12): top-bar = daily 4 foxes only
               (shi/dian/mo/shui). The advanced 5 (wen persona+debate / wen2
               custom-mask / jing stats / xin compliance / 看山 chat) live in

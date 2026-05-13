@@ -10,9 +10,31 @@ import {
 import { FOX_BY_ID } from '@/lib/foxes/registry';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useZhihuBudgetStore } from '@/lib/zhihu/budget';
-import { getHotList, getFollowingFeed, getStoryList } from '@/lib/zhihu';
 import { hotListToTrendSeed, type TrendSeed } from '@/lib/zhihu/__mappers';
-import type { FeedItem, Story } from '@/lib/zhihu/types';
+import type { FeedItem, Story, HotListItem, HotListScope } from '@/lib/zhihu/types';
+
+// Server-proxy fetchers — replace direct adapter calls because the secret
+// (ZHIHU_ACCESS_SECRET) lives server-side and `process.env.ZHIHU_API_MODE`
+// isn't inlined into client bundles unless prefixed `NEXT_PUBLIC_*`. The
+// route handlers in `app/api/zhihu/*` run server-side and forward.
+async function fetchHotList(scope: HotListScope): Promise<HotListItem[]> {
+  const res = await fetch(`/api/zhihu/hot-list?scope=${scope}`);
+  if (!res.ok) throw new Error(`hot-list ${res.status}`);
+  const data = (await res.json()) as { items: HotListItem[] };
+  return data.items;
+}
+async function fetchFollowingFeed(): Promise<{ items: FeedItem[] }> {
+  const res = await fetch('/api/zhihu/feed');
+  if (!res.ok) throw new Error(`feed ${res.status}`);
+  const data = (await res.json()) as { page: { items: FeedItem[] } };
+  return data.page;
+}
+async function fetchStoryList(): Promise<Story[]> {
+  const res = await fetch('/api/zhihu/stories');
+  if (!res.ok) throw new Error(`stories ${res.status}`);
+  const data = (await res.json()) as { items: Story[] };
+  return data.items;
+}
 import { useCorkboardStore } from '@/lib/store/corkboard';
 import relevantData from '@/content/seed/trends-relevant.json';
 import allData from '@/content/seed/trends-all.json';
@@ -51,25 +73,21 @@ export function TrendsTab() {
     // useRef-guarded against React 19 strict-mode double-invoke.
     if (didFetch.current) return;
     didFetch.current = true;
-    Promise.all([getHotList('relevant'), getHotList('all')])
+    Promise.all([fetchHotList('relevant'), fetchHotList('all')])
       .then(([rel, allItems]) => {
         setRelevant(hotListToTrendSeed(rel, RELEVANT_SEED));
         setAll(hotListToTrendSeed(allItems, ALL_SEED));
       })
       .catch(() => {
-        // Adapter rejected (e.g., real-mode without token). Initial seed-state
+        // Proxy rejected (e.g., 知乎 API down, missing token). Initial seed
         // remains in place — degraded gracefully without UI regression.
       });
-    getFollowingFeed()
+    fetchFollowingFeed()
       .then((page) => setFeedItems(page.items.slice(0, 5)))
-      .catch(() => {
-        // Following feed silently absent — section just doesn't render.
-      });
-    getStoryList()
+      .catch(() => { /* silent — section just doesn't render */ });
+    fetchStoryList()
       .then((items) => setStories(items.slice(0, 6)))
-      .catch(() => {
-        // Story list silently absent — section just doesn't render.
-      });
+      .catch(() => { /* silent — section just doesn't render */ });
   }, []);
 
   const pinFeedItem = (item: FeedItem) => {

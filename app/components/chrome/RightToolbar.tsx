@@ -4,6 +4,9 @@ import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useDailyFoxPulseStore } from '@/lib/store/daily-fox-pulse';
 import { FoxGuideCard } from '@/components/atoms/FoxGuideCard';
+import { detectClaims } from '@/lib/compliance/xin-detect';
+import { useProvenanceStore } from '@/lib/store/provenance';
+import { useAiErrorStore } from '@/lib/store/ai-error';
 
 export interface RightToolbarProps {
   selection: { text: string; rect: DOMRect } | null;
@@ -12,6 +15,9 @@ export interface RightToolbarProps {
 interface AiItem {
   id: string;
   foxId: FoxId;
+  /** Optional override for the hover-guide lookup so foxes with multiple
+   *  right-rail actions (wen: 召集读者 vs 请看辩开场) show distinct copy. */
+  guideId?: string;
   icon: ReactNode;
   label: string;
   shortcut?: string;
@@ -30,11 +36,12 @@ export function RightToolbar({ selection }: RightToolbarProps) {
 
   // mo + wen each have 2 actions in this rail; `glyph` disambiguates so the
   // strip doesn't read "墨 墨 文 文" as a bug.
-  const aiTool = (foxId: FoxId, label: string, shortcut: string | undefined, needsSelection: boolean, onClick: () => void, glyph?: string): AiItem => {
+  const aiTool = (foxId: FoxId, label: string, shortcut: string | undefined, needsSelection: boolean, onClick: () => void, glyph?: string, guideId?: string): AiItem => {
     const fox = FOX_BY_ID[foxId];
     return {
       id: `ai-${foxId}-${label}`,
       foxId,
+      guideId,
       icon: (
         <span style={{
           width: 18, height: 18, borderRadius: 9,
@@ -58,11 +65,24 @@ export function RightToolbar({ selection }: RightToolbarProps) {
   // Right rail now: wen×2 (persona + debate), wen2 (custom-mask), jing (stats),
   // xin (compliance) = 5 actions across 4 advanced foxes.
   const AI_TOOLS: AiItem[] = [
-    aiTool('wen', '召集读者团', 'Ctrl+Shift+R', true, () => selection && dispatchAi('persona', '看文 · 读者团', { mode: 'auto', selection }), '文读'),
-    aiTool('wen', '请看辩开场', undefined, true, () => selection && dispatchAi('debate', '看辩席 · 正反对论', { selection }), '文辩'),
+    aiTool('wen', '召集读者团', 'Ctrl+Shift+R', true, () => selection && dispatchAi('persona', '看文 · 读者团', { mode: 'auto', selection }), '文读', 'wen'),
+    aiTool('wen', '请看辩开场', undefined, true, () => selection && dispatchAi('debate', '看辩席 · 正反对论', { selection }), '文辩', 'wen-debate'),
     aiTool('wen2', '让看纹剪一张脸', undefined, true, () => selection && dispatchAi('debate', '看纹 · 自定读者', { selection, mode: 'custom-mask' }), '纹'),
     aiTool('jing', '问看镜看看', undefined, false, () => dispatchAi('stats', '看镜 · 数据', {})),
-    aiTool('xin', '让看心审一审', undefined, true, () => selection && console.log('[看心] compliance review:', selection.text)),
+    aiTool('xin', '让看心审一审', undefined, true, () => {
+      if (!selection) return;
+      const flags = detectClaims(selection.text);
+      const excerpt = selection.text.slice(0, 80);
+      const add = useProvenanceStore.getState().add;
+      const found: string[] = [];
+      if (flags.medical)    { add({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'medical-claim' });    found.push('医学强声明'); }
+      if (flags.financial)  { add({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'financial-claim' });  found.push('财务强声明'); }
+      if (flags.cherryPick) { add({ kind: 'hedge',   excerpt, fox: 'xin', relatedAction: 'cherry-pick' });      found.push('个例外推'); }
+      const msg = found.length
+        ? `看心已标 ${found.length} 处：${found.join(' / ')} — 看底栏审计明细。`
+        : '看心审过 — 未发现医学/财务强声明，可发布。';
+      useAiErrorStore.getState().push({ message: msg });
+    }),
   ];
 
   return (
@@ -154,7 +174,7 @@ function AiButton({ tool, hasSelection, selection }: { tool: AiItem; hasSelectio
         {tool.icon}
       </button>
       {guideOpen && anchorRect && !disabled && (
-        <FoxGuideCard foxId={tool.foxId} anchorRect={anchorRect} onClose={() => setGuideOpen(false)} />
+        <FoxGuideCard foxId={tool.foxId} guideId={tool.guideId} anchorRect={anchorRect} onClose={() => setGuideOpen(false)} />
       )}
     </div>
   );

@@ -371,6 +371,11 @@ export function BudgetChip() {
         padding: '2px 6px', fontSize: 10, letterSpacing: 0.6,
         color: 'rgba(192,178,148,0.92)',
         fontFamily: '"Noto Sans SC", sans-serif',
+        // Without these, opening a second editor tab makes the tab strip
+        // overflow and the chip's spans wrap into three vertical lines.
+        // Keep the chip rigid; the tab strip can scroll horizontally instead.
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
       title="今日剩余额度 — 选题灵感 (看势热榜) / 考据检索 / 直答问答"
     >
