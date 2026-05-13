@@ -133,14 +133,9 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
   const onZhihuLogin = () => {
     window.location.href = '/api/auth/zhihu/start';
   };
-
-  const onZhihuSkip = () => {
-    // Fallback path: user can't / won't OAuth. We still need them to get
-    // through the gate so they can try the workspace. Drop them into
-    // run-mode with a per-browser guest identity (kanshan-guest-id) — same
-    // as before, just no cross-device sync.
-    setStep('run-mode');
-  };
+  // Skip path was removed 2026-05-13: OAuth is now mandatory — matches 深流's
+  // hard gate. Without login the workspace can't offer cross-device storage,
+  // and judges who never connect their account get a less-useful demo.
 
   const submitByoKey = () => {
     const err = validateKey(apiKey);
@@ -469,14 +464,6 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
               onClick={onZhihuLogin}
             >
               使用知乎账号登录
-            </button>
-            <button
-              type="button"
-              data-testid="onboarding-zhihu-skip"
-              style={guestButtonStyle}
-              onClick={onZhihuSkip}
-            >
-              不登录 · 仅本浏览器体验
             </button>
           </div>
         </div>

@@ -7,7 +7,8 @@ export interface CurrentUser {
 }
 
 interface ZhihuSessionPayload {
-  uid: number;
+  // String — zhihu UIDs are 19-digit snowflakes that overflow Number precision.
+  uid: string;
   fullname: string;
   avatarPath: string | null;
   exp?: number;
@@ -48,7 +49,7 @@ function readZhihuSession(req: Request | { headers: Headers }): ZhihuSessionPayl
  */
 export function getAccountId(req: Request | { headers: Headers }): string {
   const session = readZhihuSession(req);
-  if (session && typeof session.uid === 'number') {
+  if (session && typeof session.uid === 'string' && session.uid.length > 0) {
     return `zhihu-${session.uid}`;
   }
   return readCookie(req, 'kanshan-guest-id') ?? 'anon';
@@ -57,7 +58,7 @@ export function getAccountId(req: Request | { headers: Headers }): string {
 export function getCurrentUser(req?: Request): CurrentUser {
   if (!req) return { id: 'anon', displayName: '访客', bio: '本浏览器专属访客身份' };
   const session = readZhihuSession(req);
-  if (session && typeof session.uid === 'number' && typeof session.fullname === 'string') {
+  if (session && typeof session.uid === 'string' && session.uid.length > 0 && typeof session.fullname === 'string') {
     return {
       id: `zhihu-${session.uid}`,
       displayName: session.fullname,

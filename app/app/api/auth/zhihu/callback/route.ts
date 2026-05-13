@@ -4,8 +4,8 @@
 // several places (confirmed via network capture 2026-05-13):
 //   • Redirect query param is `authorization_code`, not `code`.
 //   • `state` we sent on /authorize is NOT echoed back — can't do RFC state-match.
-//   • Token exchange + userinfo response shapes are not yet captured live;
-//     we accept both snake_case and PascalCase / wrapped forms.
+//   • UID is a 19-digit snowflake (>2^53). JSON.parse rounds it. We extract it
+//     as a string from the raw response text before any number coercion.
 //
 // This handler is intentionally over-defensive: every parsing branch logs the
 // observed response back into the error redirect URL (base64-encoded body
@@ -23,7 +23,8 @@ const SESSION_COOKIE = 'kanshan-zhihu-session';
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 3600;
 
 interface SessionPayload {
-  uid: number;
+  // String — 知乎 UIDs are 19-digit snowflakes that overflow Number precision.
+  uid: string;
   fullname: string;
   avatarPath: string | null;
   exp: number;
@@ -31,9 +32,6 @@ interface SessionPayload {
 
 function clipForUrl(s: string, maxLen = 280): string {
   const clipped = s.slice(0, maxLen);
-  // base64url so the body survives URLSearchParams round-trip without
-  // collisions on `+ / =`. Falls back to a plain encodeURIComponent if
-  // the buffer-encode itself ever throws.
   try {
     return Buffer.from(clipped, 'utf8')
       .toString('base64')
@@ -50,8 +48,6 @@ function redirectWithError(req: NextRequest, code: string, detail?: string): Nex
   if (detail) params.set('auth_detail', clipForUrl(detail));
   const target = new URL(`/?${params.toString()}`, req.url);
   const res = NextResponse.redirect(target);
-  // Always clear the state cookie on error so a stale value can't lock the
-  // user out of subsequent attempts.
   res.cookies.set(STATE_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
@@ -62,28 +58,15 @@ function redirectWithError(req: NextRequest, code: string, detail?: string): Nex
   return res;
 }
 
-/**
- * Unwraps the layered response shapes 知乎 uses, in priority order:
- *   1. Top-level snake_case (`{access_token, ...}`) — RFC 6749 style.
- *   2. Top-level PascalCase (`{AccessToken, ...}`) — observed on /api/v1/content/*.
- *   3. Wrapped `{Code: 0, Data: {...}}` — observed on /api/v1/content/*.
- *   4. Wrapped `{code: 0, data: {...}}` — observed on /community/*.
- *   5. Wrapped `{status: 0, data: {...}}` — observed on /community/*.
- * Returns the unwrapped inner object (or the top-level object as fallback).
- */
 function unwrapPayload(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object') return {};
   const obj = raw as Record<string, unknown>;
-  // Error envelope first — bail with the message.
   if (obj.error && typeof obj.error === 'object') {
     return obj.error as Record<string, unknown>;
   }
-  // Wrapped {Code, Data} / {code, data} / {status, data}
   for (const dataKey of ['Data', 'data']) {
     if (obj[dataKey] && typeof obj[dataKey] === 'object') {
       const inner = obj[dataKey] as Record<string, unknown>;
-      // Only unwrap if the outer envelope looks like a status wrapper —
-      // otherwise we'd lose meaningful top-level data fields.
       if ('Code' in obj || 'code' in obj || 'status' in obj || 'msg' in obj || 'message' in obj || 'Message' in obj) {
         return inner;
       }
@@ -92,7 +75,6 @@ function unwrapPayload(raw: unknown): Record<string, unknown> {
   return obj;
 }
 
-/** First defined string-value among a list of candidate keys (case-permissive). */
 function pickString(obj: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {
     const v = obj[k];
@@ -101,18 +83,30 @@ function pickString(obj: Record<string, unknown>, ...keys: string[]): string | n
   return null;
 }
 
-function pickNumber(obj: Record<string, unknown>, ...keys: string[]): number | null {
+/**
+ * Extracts a digits-only field from a raw JSON text body before JSON.parse
+ * can coerce it to a Number (and round 19-digit snowflakes). Falls back to
+ * pulling from the parsed object if the regex misses (e.g. nested).
+ *
+ * `keys` are tried in order — first hit wins.
+ */
+function pickBigIntString(rawText: string, parsed: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {
-    const v = obj[k];
-    if (typeof v === 'number' && Number.isFinite(v)) return v;
-    if (typeof v === 'string' && /^\d+$/.test(v)) return Number(v);
+    // Match `"key": 12345...` (number form) or `"key": "12345..."` (string form).
+    const re = new RegExp(`"${k}"\\s*:\\s*"?(\\d+)"?`);
+    const m = rawText.match(re);
+    if (m && m[1]) return m[1];
+  }
+  // Fallback: parsed value (loses precision for big numbers but better than null).
+  for (const k of keys) {
+    const v = parsed[k];
+    if (typeof v === 'string' && /^\d+$/.test(v)) return v;
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v);
   }
   return null;
 }
 
-interface TokenResult {
-  accessToken: string;
-}
+interface TokenResult { accessToken: string; }
 
 async function exchangeCodeForToken(
   appId: string,
@@ -120,23 +114,17 @@ async function exchangeCodeForToken(
   redirectUri: string,
   code: string,
 ): Promise<{ ok: true; result: TokenResult } | { ok: false; detail: string }> {
-  // 知乎 returned the code under the field name `authorization_code` in the
-  // redirect. They may expect the same name in the exchange body — send both
-  // (the unused one is ignored). Form-encoded per RFC 6749.
   const body = new URLSearchParams({
     app_id: appId,
-    client_id: appId, // RFC 6749 standard name — defensive
+    client_id: appId,
     app_key: appKey,
-    client_secret: appKey, // RFC 6749 standard name — defensive
+    client_secret: appKey,
     grant_type: 'authorization_code',
     code,
-    authorization_code: code, // 知乎-specific naming, mirroring redirect param
+    authorization_code: code,
     redirect_uri: redirectUri,
   });
 
-  // Try a small list of plausible endpoints; first one that returns a
-  // parseable access_token wins. The captured spec hasn't been re-verified
-  // for OAuth so we cover the most common variants.
   const endpoints = [
     'https://openapi.zhihu.com/access_token',
     'https://openapi.zhihu.com/oauth/access_token',
@@ -157,14 +145,9 @@ async function exchangeCodeForToken(
       });
       const text = await res.text();
       let parsed: unknown = null;
-      try { parsed = JSON.parse(text); } catch { /* keep parsed as null */ }
+      try { parsed = JSON.parse(text); } catch { /* keep null */ }
       const inner = parsed ? unwrapPayload(parsed) : {};
-      const accessToken = pickString(
-        inner,
-        'access_token',
-        'AccessToken',
-        'accessToken',
-      );
+      const accessToken = pickString(inner, 'access_token', 'AccessToken', 'accessToken');
       if (res.ok && accessToken) {
         return { ok: true, result: { accessToken } };
       }
@@ -177,7 +160,7 @@ async function exchangeCodeForToken(
 }
 
 interface UserResult {
-  uid: number;
+  uid: string;
   fullname: string;
   avatarPath: string | null;
 }
@@ -185,8 +168,6 @@ interface UserResult {
 async function fetchUserInfo(
   accessToken: string,
 ): Promise<{ ok: true; result: UserResult } | { ok: false; detail: string }> {
-  // 知乎's userinfo endpoint hasn't been captured live; try the documented
-  // forms. First successful parse wins.
   const endpoints = [
     'https://openapi.zhihu.com/user',
     'https://openapi.zhihu.com/me',
@@ -206,15 +187,16 @@ async function fetchUserInfo(
       });
       const text = await res.text();
       let parsed: unknown = null;
-      try { parsed = JSON.parse(text); } catch { /* keep parsed as null */ }
+      try { parsed = JSON.parse(text); } catch { /* keep null */ }
       const inner = parsed ? unwrapPayload(parsed) : {};
-      const uid = pickNumber(inner, 'uid', 'UID', 'user_id', 'UserID', 'id');
+      // UID is a 19-digit snowflake — extract from raw text to keep precision.
+      const uid = pickBigIntString(text, inner, 'uid', 'UID', 'user_id', 'UserID', 'id');
       const fullname = pickString(inner, 'fullname', 'Fullname', 'name', 'Name', 'nick', 'Nickname', 'username');
       const avatarPath = pickString(
         inner,
         'avatar_path', 'AvatarPath', 'avatar', 'Avatar', 'avatar_url', 'AvatarURL', 'headimg',
       );
-      if (res.ok && uid !== null && fullname) {
+      if (res.ok && uid && fullname) {
         return { ok: true, result: { uid, fullname, avatarPath } };
       }
       lastDetail = `${new URL(url).pathname} → ${res.status} ${text.slice(0, 200)}`;

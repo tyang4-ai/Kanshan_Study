@@ -12,7 +12,8 @@
 import { create } from 'zustand';
 
 export interface ZhihuSessionPayload {
-  uid: number;
+  // String — zhihu UIDs are 19-digit snowflakes that overflow Number precision.
+  uid: string;
   fullname: string;
   avatarPath: string | null;
   // ms since epoch — matches the server's `exp: Date.now() + N * 1000`.
@@ -20,7 +21,7 @@ export interface ZhihuSessionPayload {
 }
 
 interface ZhihuSessionState {
-  uid: number | null;
+  uid: string | null;
   fullname: string | null;
   avatarPath: string | null;
   exp: number | null;

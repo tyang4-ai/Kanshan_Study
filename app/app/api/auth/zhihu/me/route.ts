@@ -8,7 +8,8 @@ import { verifySession } from '@/lib/auth/cookie-sign';
 export const runtime = 'nodejs';
 
 interface SessionPayload {
-  uid: number;
+  // String — zhihu UIDs are 19-digit snowflakes that overflow Number precision.
+  uid: string;
   fullname: string;
   avatarPath: string | null;
   exp: number;
