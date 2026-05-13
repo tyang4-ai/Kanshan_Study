@@ -170,7 +170,10 @@ export function Corkboard({
     top: 32,
     left: 0,
     right: 0,
-    bottom: 280,
+    // Bottom 9-fox dock was removed Y8-P2b (2026-05-11, see LeftRail.tsx
+    // header); the previous `bottom: 280` left the lower 280px of the cork
+    // unreachable by drop/move handlers. Now stretches to the full surface.
+    bottom: 0,
     overflowY: scrollEnabled ? 'auto' : 'hidden',
     overflowX: 'hidden',
   };
