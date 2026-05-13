@@ -347,27 +347,21 @@ export async function chatWithZhida(prompt: string): Promise<ZhidaAnswer> {
 }
 
 /**
- * 关注流 — content from people the OAuth'd user follows. Requires the user's
- * access_token (obtained at /api/auth/zhihu/callback and stored in the signed
- * session cookie). When the token is missing we fall through to the mock
- * fixture so the UI still has something to render.
+ * 关注动态 — content from people the OAuth'd user follows. Per the captured
+ * spec (Documents/zhihu-api/04-api-spec-endpoints-2026-05-10.md §13) the
+ * endpoint is `GET /user/moments`, response shape:
+ *   { data: [{ actor: { name }, action_text, action_time, target: { title, excerpt, author: { name } } }] }
  *
- * The endpoint path isn't documented in the captured hackathon spec; we try
- * a list of plausible candidates and accept the first that returns parseable
- * JSON. Response is then coerced into our internal `FeedPage` shape via best
- * effort. Items that don't match are dropped, not thrown.
+ * Falls back to the mock fixture when the user isn't logged in (no token),
+ * or when 知乎 returns an unexpected envelope.
  */
 export async function getFollowingFeed(accessToken?: string): Promise<FeedPage> {
   if (MODE === 'mock' || !accessToken) {
     return followingFeed as FeedPage;
   }
-  const candidates = [
-    '/user/following_feed',
-    '/user/follow_feed',
-    '/user/feeds',
-    '/feed/following',
-    '/api/v1/user/following_feed',
-  ];
+  // Primary path: spec-documented endpoint. The fallback list catches any
+  // future drift without code change.
+  const candidates = ['/user/moments'];
   const result = await realFetchOAuthBearer(candidates, accessToken);
   if (!result) return followingFeed as FeedPage;
   return coerceFeedPage(result.raw);
@@ -406,26 +400,74 @@ const ALLOWED_FEED_TYPES = new Set(['answer', 'article', 'pin', 'question']);
 function coerceFeedItem(raw: unknown): FeedItem | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
-  const id = pickStr(o, 'id', 'ID', 'feed_id', 'target_id', 'content_id', 'url', 'URL');
+
+  // Documented /user/moments shape (Documents/zhihu-api/04 §13):
+  //   { actor: {name}, action_text, action_time: <number>, target: {title, excerpt, author: {name}} }
+  // Walk into `target` if present so the title/excerpt/url get extracted from
+  // the right object, and use `actor.name` as the author (the person the
+  // OAuth'd user follows, who performed the action — not the target author).
+  const target = (o.target && typeof o.target === 'object') ? (o.target as Record<string, unknown>) : null;
+  const actor = (o.actor && typeof o.actor === 'object') ? (o.actor as Record<string, unknown>) : null;
+  const targetAuthor = target?.author && typeof target.author === 'object' ? (target.author as Record<string, unknown>) : null;
+
+  const id =
+    pickStr(o, 'id', 'ID', 'feed_id', 'target_id', 'content_id') ??
+    (target ? pickStr(target, 'id', 'ID', 'target_id', 'url', 'URL') : null) ??
+    pickStr(o, 'url', 'URL');
   if (!id) return null;
-  const rawType = (pickStr(o, 'type', 'Type', 'content_type', 'kind') ?? 'article').toLowerCase();
+
+  const rawType = (
+    pickStr(o, 'type', 'Type', 'content_type', 'kind') ??
+    (target ? pickStr(target, 'type', 'Type', 'content_type') : null) ??
+    'article'
+  ).toLowerCase();
   if (!ALLOWED_FEED_TYPES.has(rawType)) return null;
-  const authorName = pickStr(o, 'author_name', 'AuthorName', 'authorName') ?? '知乎用户';
-  const authorId = pickStr(o, 'author_id', 'AuthorID', 'authorId', 'author_url_token', 'url_token') ?? authorName;
-  const createdAtRaw = pickStr(o, 'published_at', 'PublishedAt', 'created_at', 'CreatedAt', 'updated_at', 'UpdatedAt');
-  // FeedItem.createdAt is required as a string — synthesise an ISO `now`
-  // when the upstream record didn't supply one rather than dropping the item.
-  const createdAt = createdAtRaw && /\d/.test(createdAtRaw)
-    ? createdAtRaw
-    : new Date().toISOString();
+
+  // Author preference order:
+  //   1. Actor (the person you follow, per /user/moments semantics)
+  //   2. target.author (the original author of the target content)
+  //   3. flat fields on the item itself (legacy / generic shape)
+  const authorName =
+    (actor ? pickStr(actor, 'name', 'Name', 'fullname', 'Fullname') : null) ??
+    (targetAuthor ? pickStr(targetAuthor, 'name', 'Name', 'fullname', 'Fullname') : null) ??
+    pickStr(o, 'author_name', 'AuthorName', 'authorName') ??
+    '知乎用户';
+  const authorId =
+    (actor ? pickStr(actor, 'id', 'ID', 'url_token', 'hash_id') : null) ??
+    (targetAuthor ? pickStr(targetAuthor, 'id', 'ID', 'url_token', 'hash_id') : null) ??
+    pickStr(o, 'author_id', 'AuthorID', 'authorId', 'author_url_token', 'url_token') ??
+    authorName;
+
+  // action_time is unix seconds per spec; created_at fallback is ISO string.
+  let createdAt: string;
+  const actionTime = typeof o.action_time === 'number' ? o.action_time : null;
+  if (actionTime !== null) {
+    createdAt = new Date(actionTime * 1000).toISOString();
+  } else {
+    const createdAtRaw = pickStr(o, 'published_at', 'PublishedAt', 'created_at', 'CreatedAt', 'updated_at', 'UpdatedAt');
+    createdAt = createdAtRaw && /\d/.test(createdAtRaw)
+      ? createdAtRaw
+      : new Date().toISOString();
+  }
+
+  const title =
+    (target ? pickStr(target, 'title', 'Title') : null) ??
+    pickStr(o, 'title', 'Title');
+  const excerpt =
+    (target ? pickStr(target, 'excerpt', 'Excerpt', 'summary', 'Summary') : null) ??
+    pickStr(o, 'excerpt', 'Excerpt', 'summary', 'Summary', 'content_text');
+  const url =
+    (target ? pickStr(target, 'url', 'URL', 'target_url') : null) ??
+    pickStr(o, 'url', 'URL', 'target_url');
+
   return {
     id: String(id),
     type: rawType as FeedItem['type'],
     authorId,
     authorName,
-    title: pickStr(o, 'title', 'Title'),
-    excerpt: pickStr(o, 'excerpt', 'Excerpt', 'summary', 'Summary', 'content_text'),
-    url: pickStr(o, 'url', 'URL', 'target_url'),
+    title,
+    excerpt,
+    url,
     createdAt,
   };
 }
