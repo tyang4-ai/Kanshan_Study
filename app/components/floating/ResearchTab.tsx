@@ -122,12 +122,6 @@ interface ResearchTabProps {
   sourceUrl?: string;
 }
 
-const SCOPES: Array<{ id: ResearchScope; label: string }> = [
-  { id: 'quick', label: '快查' },
-  { id: 'deep', label: '深考' },
-  { id: 'thorough', label: '尽考' },
-];
-
 function H({ children }: { children: ReactNode }) {
   return (
     <div
@@ -143,14 +137,6 @@ function H({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
-const scopeButtonStyle = (active: boolean): CSSProperties => ({
-  padding: '3px 10px', fontSize: 11, borderRadius: 3,
-  border: `1px solid ${active ? '#1772F6' : 'rgba(23,114,246,0.25)'}`,
-  background: active ? '#1772F6' : 'transparent',
-  color: active ? '#fff' : '#1A1F2A',
-  cursor: 'pointer', fontFamily: '"Noto Sans SC", sans-serif',
-});
 
 export function ResearchTab({ selection, preloadQuery, preloadScope, origin = 'manual', sourceUrl }: ResearchTabProps) {
   // Default quick (per user request 2026-05-13): the bulk of look-ups are
@@ -356,54 +342,26 @@ export function ResearchTab({ selection, preloadQuery, preloadScope, origin = 'm
       color: '#1A1F2A',
       overflow: 'hidden',
     }}>
-      {/* Scope selector + status */}
-      <div style={{
-        flexShrink: 0,
-        padding: '8px 14px',
-        borderBottom: '1px solid rgba(23,114,246,0.18)',
-        background: '#F4F7FB',
-        display: 'flex', alignItems: 'center', gap: 10,
-      }}>
-        <span style={{ fontSize: 10, color: '#7A8B9F', letterSpacing: 0.5,
-          fontFamily: 'JetBrains Mono, monospace' }}>SCOPE</span>
-        {SCOPES.map((s) => (
-          <button
-            key={s.id}
-            data-testid={`research-scope-${s.id}`}
-            data-active={scope === s.id}
-            onClick={() => setScope(s.id)}
-            style={scopeButtonStyle(scope === s.id)}
-          >
-            {s.label}
-          </button>
-        ))}
-        <div style={{ flex: 1 }}/>
-        <span style={{
-          display: 'flex', alignItems: 'center', gap: 4,
-          fontSize: 10, color: '#1772F6',
-          fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.4,
-        }}>
-          <span style={{
-            width: 6, height: 6, borderRadius: 3, background: '#1772F6',
-            animation: 'pulse 1.4s ease-in-out infinite',
-          }}/>
-          已就位
-        </span>
-      </div>
-
-      {/* Manual query input — visible when there's no selection AND no
-          search has been run yet. Gives the user a way to invoke 看水 from
-          the daily-icon (no editor selection required). */}
-      {!selection?.text && !searchInfo && (
-        <ManualQueryInput
-          value={manualQuery}
-          onChange={setManualQuery}
-          onSubmit={() => {
-            const q = manualQuery.trim();
-            if (q.length >= 2) setManualSubmittedQuery(q);
-          }}
-        />
-      )}
+      {/* Persistent search bar. Always visible — pre-fills with the active
+          query so the user can edit + re-run without hunting for a hidden
+          input. Initial-state copy below the input changes after a search
+          has been done. */}
+      <ManualQueryInput
+        value={manualQuery || (searchInfo ? searchInfo.query : '')}
+        hasRun={!!searchInfo}
+        scope={scope}
+        onScopeChange={setScope}
+        onChange={setManualQuery}
+        onSubmit={() => {
+          const q = (manualQuery || (searchInfo ? searchInfo.query : '')).trim();
+          if (q.length < 2) return;
+          // Reset the dedup ref so we re-run even on identical text (e.g. the
+          // user changed scope but kept the same query).
+          didFetchRef.current = null;
+          setManualQuery(q);
+          setManualSubmittedQuery(q);
+        }}
+      />
 
       {searchInfo && (
         <ResearchProgressPanel
@@ -838,64 +796,107 @@ function ResearchSummaryCard({ summary, loading }: { summary?: string; loading?:
   );
 }
 
-function ManualQueryInput({ value, onChange, onSubmit }: { value: string; onChange: (v: string) => void; onSubmit: () => void }) {
+function ManualQueryInput({
+  value,
+  hasRun,
+  scope,
+  onChange,
+  onScopeChange,
+  onSubmit,
+}: {
+  value: string;
+  hasRun: boolean;
+  scope: ResearchScope;
+  onChange: (v: string) => void;
+  onScopeChange: (s: ResearchScope) => void;
+  onSubmit: () => void;
+}) {
+  // Local edit buffer — lets the user edit the value field without each
+  // keystroke instantly clobbering the parent state.
+  const [draft, setDraft] = useState(value);
+  // Keep draft in sync when the external value changes (e.g. orchestrator
+  // handoff or a new selection).
+  useEffect(() => { setDraft(value); }, [value]);
+  const submit = () => {
+    onChange(draft);
+    onSubmit();
+  };
   return (
     <div
+      data-testid="research-search-bar"
       style={{
         flexShrink: 0,
-        padding: '10px 14px',
+        padding: '8px 14px',
         background: '#F4F7FB',
         borderBottom: '1px solid rgba(23,114,246,0.18)',
         fontFamily: '"Noto Sans SC", sans-serif',
+        display: 'flex',
+        gap: 6,
+        alignItems: 'stretch',
       }}
     >
-      <div style={{ fontSize: 10.5, color: '#5A6B85', marginBottom: 6 }}>
-        没选中段落？直接输入要查的话题 — 看水会现查知乎全网
-      </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
-        <input
-          data-testid="research-manual-query"
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && value.trim().length >= 2) {
-              e.preventDefault();
-              onSubmit();
-            }
-          }}
-          placeholder="比如：影像组学外部验证 / AI 写作工具语风 / 量化交易回测"
-          style={{
-            flex: 1,
-            padding: '6px 10px',
-            border: '1px solid rgba(23,114,246,0.20)',
-            background: '#fff',
-            borderRadius: 3,
-            fontSize: 12,
-            fontFamily: '"Noto Sans SC", sans-serif',
-            color: '#1A1F2A',
-            outline: 'none',
-          }}
-        />
-        <button
-          type="button"
-          data-testid="research-manual-submit"
-          onClick={onSubmit}
-          disabled={value.trim().length < 2}
-          style={{
-            padding: '0 14px',
-            border: 'none',
-            borderRadius: 3,
-            background: value.trim().length < 2 ? '#D1CDB7' : '#1772F6',
-            color: '#fff',
-            fontSize: 11,
-            cursor: value.trim().length < 2 ? 'not-allowed' : 'pointer',
-            fontFamily: '"Noto Sans SC", sans-serif',
-          }}
-        >
-          让看水查
-        </button>
-      </div>
+      <input
+        data-testid="research-manual-query"
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && draft.trim().length >= 2) {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        placeholder={hasRun ? '编辑后回车重新查' : '输入要查的话题 — 比如「影像组学外部验证」'}
+        style={{
+          flex: 1,
+          padding: '6px 10px',
+          border: '1px solid rgba(23,114,246,0.20)',
+          background: '#fff',
+          borderRadius: 3,
+          fontSize: 12,
+          fontFamily: '"Noto Sans SC", sans-serif',
+          color: '#1A1F2A',
+          outline: 'none',
+        }}
+      />
+      <select
+        data-testid="research-scope-select"
+        value={scope}
+        onChange={(e) => onScopeChange(e.target.value as ResearchScope)}
+        title="查多少 — 快查最便宜，尽考最全"
+        style={{
+          padding: '0 8px',
+          border: '1px solid rgba(23,114,246,0.20)',
+          background: '#fff',
+          borderRadius: 3,
+          fontSize: 11,
+          fontFamily: '"Noto Sans SC", sans-serif',
+          color: '#1A1F2A',
+          cursor: 'pointer',
+        }}
+      >
+        <option value="quick">快查</option>
+        <option value="deep">深考</option>
+        <option value="thorough">尽考</option>
+      </select>
+      <button
+        type="button"
+        data-testid="research-manual-submit"
+        onClick={submit}
+        disabled={draft.trim().length < 2}
+        style={{
+          padding: '0 14px',
+          border: 'none',
+          borderRadius: 3,
+          background: draft.trim().length < 2 ? '#D1CDB7' : '#1772F6',
+          color: '#fff',
+          fontSize: 11,
+          cursor: draft.trim().length < 2 ? 'not-allowed' : 'pointer',
+          fontFamily: '"Noto Sans SC", sans-serif',
+        }}
+      >
+        让看水查
+      </button>
     </div>
   );
 }
