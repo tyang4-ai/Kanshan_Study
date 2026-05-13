@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
 import { requireRateLimitOk } from '@/lib/ratelimit/check';
-import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 import meSeed from '@/content/seed/vault-me.json';
+import { getAccountId } from '@/lib/account';
 
 export const runtime = 'nodejs';
 
@@ -30,31 +30,15 @@ interface ExportArticle {
 
 interface ExportResponse {
   exportedAt: string;
-  account: 'me' | 'guwanxi';
+  account: string;
   totalArticles: number;
   totalChunks: number;
   articles: ExportArticle[];
   inMemoryFallback?: boolean;
 }
 
-function pickUserId(req: NextRequest): 'me' | 'guwanxi' {
-  return req.headers.get('x-kanshan-account') === 'guwanxi' ? 'guwanxi' : 'me';
-}
-
-function isValidAccountHeader(req: NextRequest): boolean {
-  const v = req.headers.get('x-kanshan-account');
-  // No header → defaults to 'me' (mirrors search/ingest pattern). If header
-  // present, only allowlisted values are valid.
-  if (v === null) return true;
-  return v === 'me' || v === 'guwanxi';
-}
-
-function seedFor(userId: 'me' | 'guwanxi'): SeedEntry[] {
-  return userId === 'guwanxi' ? (guwanxiSeed as SeedEntry[]) : (meSeed as SeedEntry[]);
-}
-
-function fromSeed(userId: 'me' | 'guwanxi'): ExportResponse {
-  const all = seedFor(userId);
+function fromSeed(userId: string): ExportResponse {
+  const all = meSeed as SeedEntry[];
   const articles: ExportArticle[] = all.map((e) => ({
     id: e.id,
     title: e.title,
@@ -78,10 +62,7 @@ export async function GET(req: NextRequest) {
   const limited = await requireRateLimitOk(req);
   if (limited) return limited;
 
-  if (!isValidAccountHeader(req)) {
-    return NextResponse.json({ error: 'invalid x-kanshan-account header' }, { status: 400 });
-  }
-  const userId = pickUserId(req);
+  const userId = getAccountId(req);
 
   if (!process.env.SUPABASE_DB_URL) {
     return NextResponse.json(fromSeed(userId));

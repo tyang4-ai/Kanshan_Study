@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
+import { getAccountId } from '@/lib/account';
 
 export const runtime = 'nodejs';
-
-function pickUserId(req: NextRequest): string {
-  return req.headers.get('x-kanshan-account') === 'guwanxi' ? 'guwanxi' : 'me';
-}
 
 export async function DELETE(
   req: NextRequest,
@@ -17,7 +14,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'article id required' }, { status: 400 });
   }
 
-  const userId = pickUserId(req);
+  const userId = getAccountId(req);
 
   // Mock-mode: no DB configured → treat as a no-op success so the client UI
   // (which optimistically removes the entry) stays consistent with the demo.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 import meSeed from '@/content/seed/vault-me.json';
 import { chunkMarkdown } from '@/lib/vault/chunker';
+import { getAccountId } from '@/lib/account';
 
 export const runtime = 'nodejs';
 
@@ -25,14 +25,6 @@ interface ChunkPreview {
   text: string;
   charCount: number;
   position: number;
-}
-
-function pickUserId(req: NextRequest): string {
-  return req.headers.get('x-kanshan-account') === 'guwanxi' ? 'guwanxi' : 'me';
-}
-
-function seedFor(userId: string): SeedEntry[] {
-  return userId === 'guwanxi' ? (guwanxiSeed as SeedEntry[]) : (meSeed as SeedEntry[]);
 }
 
 function seedChunks(entry: SeedEntry): string[] {
@@ -61,7 +53,7 @@ export async function GET(
       ? await (ctx.params as Promise<{ id: string }>)
       : (ctx.params as { id: string });
   const articleId = params.id;
-  const userId = pickUserId(req);
+  const userId = getAccountId(req);
 
   if (!articleId) {
     return NextResponse.json({ error: 'article id required' }, { status: 400 });
@@ -69,7 +61,7 @@ export async function GET(
 
   // Seed/in-memory path: when DB env not configured, look up the seed
   if (!process.env.SUPABASE_DB_URL || !process.env.SILICONFLOW_API_KEY) {
-    const seed = seedFor(userId);
+    const seed = meSeed as SeedEntry[];
     const entry = seed.find((e) => e.id === articleId);
     if (!entry) {
       return NextResponse.json({ error: 'article not found' }, { status: 404 });
@@ -119,7 +111,7 @@ export async function GET(
     });
   } catch {
     // DB error → fall through to seed lookup
-    const seed = seedFor(userId);
+    const seed = meSeed as SeedEntry[];
     const entry = seed.find((e) => e.id === articleId);
     if (!entry) {
       return NextResponse.json({ error: 'article not found' }, { status: 404 });

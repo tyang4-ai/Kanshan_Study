@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { chunkMarkdown } from '@/lib/vault/chunker';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
 import { requireRateLimitOk } from '@/lib/ratelimit/check';
+import { getAccountId } from '@/lib/account';
 
 export const runtime = 'nodejs';
 
@@ -15,10 +16,6 @@ interface IngestBody {
   draft?: boolean;
 }
 
-function pickUserId(req: NextRequest): string {
-  return req.headers.get('x-kanshan-account') === 'guwanxi' ? 'guwanxi' : 'me';
-}
-
 export async function POST(req: NextRequest) {
   // Embedding + DB write fan-out path — rate-limit before parsing body so a
   // bogus consent header can't waste the embedder quota.
@@ -30,12 +27,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '文件过大 (>1MB)，请拆分后再传' }, { status: 413 });
   }
 
-  // Vault data-handling consent gate. The showcase `guwanxi` account is
-  // exempted (auto-accepted in the consent store). Every other account must
-  // send `x-kanshan-vault-consent: 1`.
-  const accountHeader = req.headers.get('x-kanshan-account');
+  // Vault data-handling consent gate.
   const consentHeader = req.headers.get('x-kanshan-vault-consent');
-  if (accountHeader !== 'guwanxi' && consentHeader !== '1') {
+  if (consentHeader !== '1') {
     return NextResponse.json(
       { error: '档案库未开通 — 请在设置中同意条款' },
       { status: 403 },
@@ -58,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '文件过大 (>1MB)，请拆分后再传' }, { status: 413 });
   }
 
-  const userId = pickUserId(req);
+  const userId = getAccountId(req);
 
   // Mock-mode fallback: no DB / embedder configured → accept the request,
   // return a synthetic entry. Lets the demo flow work without Supabase.
@@ -80,8 +74,8 @@ export async function POST(req: NextRequest) {
     const db = getDb();
     await db.insert(users).values({
       id: userId,
-      displayName: userId === 'guwanxi' ? '顾婉昔' : '我',
-      bio: userId === 'guwanxi' ? '放射肿瘤学 · 知乎答主 · 演示账号 (虚构)' : 'SCU 生物工程',
+      displayName: '访客',
+      bio: '本浏览器专属访客身份',
     }).onConflictDoNothing();
 
     const articleId = `${userId}-upload-${Date.now()}`;

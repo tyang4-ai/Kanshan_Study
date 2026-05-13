@@ -547,6 +547,23 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
         <div style={titleRow}>
           <div style={titleText}>欢迎来到 看山书房</div>
           <div style={subtitleText}>第一步 · 选择运行方式</div>
+          <div
+            data-testid="onboarding-guest-privacy"
+            style={{
+              fontSize: 11,
+              color: '#5A4E33',
+              fontFamily: '"Noto Serif SC", serif',
+              marginTop: 10,
+              padding: '6px 12px',
+              background: 'rgba(168,155,126,0.12)',
+              border: '1px solid rgba(168,155,126,0.25)',
+              borderRadius: 2,
+              display: 'inline-block',
+              letterSpacing: 0.5,
+            }}
+          >
+            本浏览器已分配独立访客身份 · 你的档案、笔记、写作进度仅本浏览器可见 · 无法被其他用户读取
+          </div>
         </div>
         <div style={columnsRow}>
           {/* Left column: BYO key */}

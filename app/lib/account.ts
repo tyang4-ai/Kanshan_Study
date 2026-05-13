@@ -1,13 +1,12 @@
 export interface CurrentUser {
-  id: 'me' | 'guwanxi';
+  id: string;
   displayName: string;
   bio: string;
 }
 
-const ME: CurrentUser = { id: 'me', displayName: '我', bio: 'SCU 生物工程' };
-const GU: CurrentUser = { id: 'guwanxi', displayName: '顾婉昔', bio: '放射肿瘤学 · 知乎答主 · 演示账号 (虚构)' };
+const GUEST_BIO = '本浏览器专属访客身份 · 与其他浏览器完全隔离';
 
-function readCookie(req: Request, name: string): string | null {
+function readCookie(req: Request | { headers: Headers }, name: string): string | null {
   const raw = req.headers.get('cookie');
   if (!raw) return null;
   for (const part of raw.split(';')) {
@@ -17,15 +16,19 @@ function readCookie(req: Request, name: string): string | null {
   return null;
 }
 
+/**
+ * Returns the per-browser guest account ID issued by `middleware.ts`. Every
+ * vault / visit-state / write path uses this as the `user_id` so no two
+ * browsers can see each other's rows. Falls back to a literal `'anon'`
+ * sentinel when the cookie is missing (should never happen post-middleware,
+ * but keeps the type honest).
+ */
+export function getAccountId(req: Request | { headers: Headers }): string {
+  return readCookie(req, 'kanshan-guest-id') ?? 'anon';
+}
+
 export function getCurrentUser(req?: Request): CurrentUser {
-  if (!req) return ME;
-  // Header takes precedence (explicit client opt-in via VaultTab fetch).
-  const header = req.headers.get('x-kanshan-account');
-  if (header === 'guwanxi') return GU;
-  if (header === 'me') return ME;
-  // Fall back to the kanshan-account cookie set by OnboardingGate guest path,
-  // so a fresh guest visitor sees guwanxi's corpus instead of empty 'me'.
-  const cookie = readCookie(req, 'kanshan-account');
-  if (cookie === 'guwanxi') return GU;
-  return ME;
+  if (!req) return { id: 'anon', displayName: '访客', bio: GUEST_BIO };
+  const id = getAccountId(req);
+  return { id, displayName: '访客', bio: GUEST_BIO };
 }

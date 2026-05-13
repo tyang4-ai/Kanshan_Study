@@ -1,27 +1,15 @@
-// R3 fix (李笛 / 徐诗 P1 2026-05-12): cross-device visit-state mirror.
-// Client pushes a debounced snapshot every ~30s; pulls on mount if server
-// state is newer. Auth-gated by the existing cookie-sign session (zhihu OAuth,
-// shipped in R2 fix-pass) so anonymous users can't trample each other's data.
+// Cross-device visit-state mirror. Scoped by the per-browser guest cookie
+// (`kanshan-guest-id`, set by middleware.ts), so each browser owns one row
+// and can never see another browser's row.
 //
 // Falls back gracefully:
-// - 401 if no session cookie — client keeps localStorage-only.
-// - 503 if SUPABASE_DB_URL is missing — same fallback (degraded == working).
+// - 503 if SUPABASE_DB_URL is missing — client keeps localStorage-only.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
 import { visitState } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { verifySession } from '@/lib/auth/cookie-sign';
-import { cookies } from 'next/headers';
-
-// Must match the cookie set in /api/auth/zhihu/callback (dash, not underscore).
-const SESSION_COOKIE = 'kanshan-zhihu-session';
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
-
-interface SessionPayload {
-  uid: string;
-  exp?: number;
-}
+import { getAccountId } from '@/lib/account';
 
 interface VisitStateBody {
   lastVisits: Array<{ filename: string; topicSnippet: string; at: number }>;
@@ -30,25 +18,13 @@ interface VisitStateBody {
   trendOutboundClicks: number;
 }
 
-async function getAccountId(): Promise<string | null> {
-  // Must match the signing env used by the OAuth callback.
-  const secret = process.env.KANSHAN_SESSION_SECRET;
-  if (!secret) return null;
-  const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const payload = verifySession<SessionPayload>(token, secret, { maxAgeSeconds: MAX_AGE_SECONDS });
-  return payload?.uid ?? null;
-}
-
 function hasDb(): boolean {
   return Boolean(process.env.SUPABASE_DB_URL);
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!hasDb()) return NextResponse.json({ error: 'db-not-configured' }, { status: 503 });
-  const accountId = await getAccountId();
-  if (!accountId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const accountId = getAccountId(req);
   try {
     const rows = await db.select().from(visitState).where(eq(visitState.accountId, accountId)).limit(1);
     if (rows.length === 0) {
@@ -75,15 +51,13 @@ export async function GET(): Promise<NextResponse> {
 
 export async function PUT(req: NextRequest): Promise<NextResponse> {
   if (!hasDb()) return NextResponse.json({ error: 'db-not-configured' }, { status: 503 });
-  const accountId = await getAccountId();
-  if (!accountId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const accountId = getAccountId(req);
   let body: VisitStateBody;
   try {
     body = (await req.json()) as VisitStateBody;
   } catch {
     return NextResponse.json({ error: 'invalid-json' }, { status: 400 });
   }
-  // Soft validation — the schema is small, no Zod for the MVP path.
   if (!Array.isArray(body.lastVisits)) {
     return NextResponse.json({ error: 'lastVisits-must-be-array' }, { status: 400 });
   }

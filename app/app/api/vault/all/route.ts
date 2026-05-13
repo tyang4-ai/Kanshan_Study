@@ -1,28 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
 import { requireRateLimitOk } from '@/lib/ratelimit/check';
+import { getAccountId } from '@/lib/account';
 
 export const runtime = 'nodejs';
 
-function pickUserId(req: NextRequest): 'me' | 'guwanxi' {
-  return req.headers.get('x-kanshan-account') === 'guwanxi' ? 'guwanxi' : 'me';
-}
-
-function isValidAccountHeader(req: NextRequest): boolean {
-  const v = req.headers.get('x-kanshan-account');
-  if (v === null) return true;
-  return v === 'me' || v === 'guwanxi';
-}
-
 export async function DELETE(req: NextRequest) {
-  // Destructive op against demo seed accounts — rate-limit fan-out wipes.
+  // Destructive op — rate-limit fan-out wipes.
   const limited = await requireRateLimitOk(req);
   if (limited) return limited;
 
-  if (!isValidAccountHeader(req)) {
-    return NextResponse.json({ error: 'invalid x-kanshan-account header' }, { status: 400 });
-  }
-  const userId = pickUserId(req);
+  const userId = getAccountId(req);
 
   if (!process.env.SUPABASE_DB_URL) {
     return NextResponse.json({
