@@ -21,6 +21,7 @@ import { useEditorTabsStore } from '@/lib/store/editor-tabs';
 import { useAccountStore } from '@/lib/store/account';
 import { useLastVisitStore } from '@/lib/store/last-visit';
 import { reflowBlockAt, blockStartFromSelection } from './markdown-reflow';
+import { LivePreview } from './LivePreview';
 import { buildCitationOnClick } from '@/lib/citation/click-router';
 import type { Citation } from '@/lib/citation/types';
 import type { MarginSealSeed } from './margin-seal-from-seeds';
@@ -162,6 +163,10 @@ export function TipTapEditor({
         transformPastedText: true,
         transformCopiedText: true,
       }),
+      // Live Preview: show markdown source as dim widgets when caret is in
+      // the block. Must come AFTER all node/mark extensions so it sees the
+      // final schema.
+      LivePreview,
     ],
     content,
     immediatelyRender: false,
