@@ -227,6 +227,12 @@ export function OnboardingGate({ guestModeAvailable = true, publicMode = false, 
     maxWidth: 920,
     width: 'calc(100% - 48px)',
     boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
+    // Lift above the bgLayer's z=1 darken div. Without this, the card is
+    // position:static (no stacking context) and the positioned darken layer
+    // paints over it, leaving the user staring at the village background
+    // with no welcome card.
+    position: 'relative',
+    zIndex: 2,
   };
 
   const titleRow: CSSProperties = {
