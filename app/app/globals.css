@@ -354,3 +354,116 @@
     padding: 4px 2px !important;
   }
 }
+
+/* ==== Obsidian-style live markdown rendering (2026-05-13) ==== */
+/* Per-element rules that make rendered nodes visually distinct from raw text.
+   Input rules in StarterKit convert typed markdown to these nodes; this CSS
+   layer is what makes the user *feel* the rendering. Scoped under .ProseMirror
+   so it doesn't leak to vault / lore / chat surfaces. Font family inherits
+   from the documentColumnStyle inline style (Noto Serif SC). */
+@layer utilities {
+  .ProseMirror h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 28px 0 12px;
+    line-height: 1.35;
+    color: #0F1117;
+  }
+  .ProseMirror h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 22px 0 10px;
+    line-height: 1.4;
+    color: #0F1117;
+  }
+  .ProseMirror h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 18px 0 8px;
+    line-height: 1.45;
+    color: #1A1F2A;
+  }
+  .ProseMirror h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 14px 0 6px;
+    color: #1A1F2A;
+  }
+  .ProseMirror h5, .ProseMirror h6 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 12px 0 4px;
+    color: #3A2E20;
+  }
+  .ProseMirror strong { font-weight: 600; color: #0F1117; }
+  .ProseMirror em     { font-style: italic; }
+  .ProseMirror s      { text-decoration: line-through; opacity: 0.7; }
+
+  .ProseMirror ul { margin: 6px 0 6px 24px; padding-left: 8px; list-style: disc outside; }
+  .ProseMirror ol { margin: 6px 0 6px 24px; padding-left: 8px; list-style: decimal outside; }
+  .ProseMirror li { margin: 4px 0; }
+  .ProseMirror li > p { margin: 0; }
+
+  .ProseMirror blockquote {
+    border-left: 3px solid #A89B7E;
+    padding: 4px 0 4px 14px;
+    margin: 12px 0;
+    color: #5A4B3E;
+    font-style: italic;
+  }
+
+  .ProseMirror code {
+    background: #F4ECD8;
+    color: #3A2E20;
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+    font-size: 0.9em;
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .ProseMirror pre {
+    background: #F4ECD8;
+    color: #1A1F2A;
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 12px 14px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+  .ProseMirror pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+  }
+
+  .ProseMirror hr {
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    margin: 28px 0;
+  }
+
+  .ProseMirror a.kanshan-md-link,
+  .ProseMirror a {
+    color: #1772F6;
+    text-decoration: none;
+    border-bottom: 1px dotted rgba(23, 114, 246, 0.4);
+  }
+  .ProseMirror a:hover {
+    text-decoration: none;
+    border-bottom-color: #1772F6;
+  }
+}
+
+/* Live Preview decoration widget — Part 7 (cursor-in-block source visibility).
+   Dim, monospace, non-selectable so the cursor doesn't get stuck inside. */
+.ProseMirror .kanshan-md-token {
+  color: rgba(122, 102, 85, 0.45);
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-size: 0.85em;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  margin-right: 2px;
+}

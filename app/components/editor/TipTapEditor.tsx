@@ -8,6 +8,7 @@ import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import { FontFamily } from '@tiptap/extension-font-family';
+import Link from '@tiptap/extension-link';
 import { InlineMark } from './InlineMark';
 import { MarginSeal } from './MarginSeal';
 import { buildMatches } from './margin-seal-from-seeds';
@@ -19,6 +20,7 @@ import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useEditorTabsStore } from '@/lib/store/editor-tabs';
 import { useAccountStore } from '@/lib/store/account';
 import { useLastVisitStore } from '@/lib/store/last-visit';
+import { reflowBlockAt, blockStartFromSelection } from './markdown-reflow';
 import { buildCitationOnClick } from '@/lib/citation/click-router';
 import type { Citation } from '@/lib/citation/types';
 import type { MarginSealSeed } from './margin-seal-from-seeds';
@@ -108,6 +110,10 @@ export function TipTapEditor({
   // Coalesces a burst of keystrokes into a single localStorage write every
   // ~3s; avoids hammering the persist middleware on every onUpdate.
   const lastVisitTimerRef = useRef<number | null>(null);
+  // Obsidian-style live markdown: track the block-position the caret was in
+  // on the previous tick. When it changes (caret moved to a different block),
+  // reflow the previous block — that's the "click away → render" trigger.
+  const lastBlockPosRef = useRef<number | null>(null);
 
   // Hydrate the tab store for the current account on mount + on account swap.
   useEffect(() => {
@@ -131,6 +137,18 @@ export function TipTapEditor({
       Color,
       FontFamily,
       FontSize,
+      // Obsidian-style markdown: typing `[text](url)` produces an <a> via input
+      // rule; pasted bare URLs auto-link. openOnClick: false keeps the cursor
+      // free to edit; links open via Ctrl+click or the export path.
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        HTMLAttributes: {
+          class: 'kanshan-md-link',
+          rel: 'noopener noreferrer',
+          target: '_blank',
+        },
+      }),
       InlineMark,
       MarginSeal.configure({
         matchesFor: (doc) => buildMatches(doc, marginSeeds),
@@ -139,8 +157,10 @@ export function TipTapEditor({
       Markdown.configure({
         html: true,
         breaks: false,
-        transformPastedText: false,
-        transformCopiedText: false,
+        // Obsidian-style: pasting raw markdown converts to nodes; copying from
+        // the editor produces markdown text for paste-into-公众号/小红书/etc.
+        transformPastedText: true,
+        transformCopiedText: true,
       }),
     ],
     content,
@@ -195,6 +215,17 @@ export function TipTapEditor({
       },
     },
     onSelectionUpdate({ editor: e }) {
+      // Obsidian-style click-away reflow: when the active block changes
+      // (caret moved to a different paragraph/heading/list/etc), reflow the
+      // PREVIOUS block. Captures the "I typed `# foo` but never hit space"
+      // case + paste-mid-line cases.
+      const currentBlockPos = blockStartFromSelection(e as Editor);
+      const prev = lastBlockPosRef.current;
+      if (prev != null && prev !== currentBlockPos) {
+        try { reflowBlockAt(e as Editor, prev); } catch { /* defensive */ }
+      }
+      lastBlockPosRef.current = currentBlockPos;
+
       if (!onSelectionChange) return;
       const { from, to, empty } = e.state.selection;
       if (empty) {
@@ -227,6 +258,19 @@ export function TipTapEditor({
     setEditor(editor as Editor | null);
     return () => setEditor(null);
   }, [editor, setEditor]);
+
+  // Obsidian-style: when the editor loses focus, reflow whatever block the
+  // caret was last in. Catches clicks into the rail / toolbar / floating tab.
+  useEffect(() => {
+    if (!editor) return;
+    const onBlur = (): void => {
+      const pos = lastBlockPosRef.current;
+      if (pos == null) return;
+      try { reflowBlockAt(editor as Editor, pos); } catch { /* defensive */ }
+    };
+    editor.on('blur', onBlur);
+    return () => { editor.off('blur', onBlur); };
+  }, [editor]);
 
   // Sync editor content with the active tab.
   //
