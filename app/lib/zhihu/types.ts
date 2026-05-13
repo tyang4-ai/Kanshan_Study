@@ -114,8 +114,15 @@ export const PinPublishRequest = z.object({
 });
 export type PinPublishRequest = z.infer<typeof PinPublishRequest>;
 
+// 知乎's /openapi/publish/pin actually returns `{content_token}` (verified
+// 2026-05-13 live audit), not `pin_id`. The mock fixture still uses pin_id
+// for back-compat with code that consumes the field. Accept either; the
+// caller can read whichever one comes back. Both optional so an empty data
+// envelope (status:0 with no body) doesn't 502 us — the operation succeeded
+// on the server side, we just don't have an id to surface.
 export const PinPublishResponse = z.object({
-  pin_id: z.string(),
+  pin_id: z.string().optional(),
+  content_token: z.string().optional(),
   created_at: z.union([z.string(), z.number()]).optional(),
 });
 export type PinPublishResponse = z.infer<typeof PinPublishResponse>;
