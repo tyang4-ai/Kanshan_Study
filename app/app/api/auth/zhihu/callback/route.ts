@@ -27,6 +27,10 @@ interface SessionPayload {
   uid: string;
   fullname: string;
   avatarPath: string | null;
+  // Stored in the signed cookie so OAuth-bearer endpoints (following feed,
+  // future "publish to your homepage" surfaces) can call 知乎 on the user's
+  // behalf. Never returned by /api/auth/zhihu/me — server-only.
+  accessToken: string;
   exp: number;
 }
 
@@ -247,6 +251,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     uid: userResult.result.uid,
     fullname: userResult.result.fullname,
     avatarPath: userResult.result.avatarPath,
+    accessToken: tokenResult.result.accessToken,
     exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
   };
   const signed = signSession(payload, sessionSecret);

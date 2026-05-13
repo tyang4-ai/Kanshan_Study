@@ -12,6 +12,9 @@ interface SessionPayload {
   uid: string;
   fullname: string;
   avatarPath: string | null;
+  // Server-only: present in the signed cookie so OAuth-bearer routes can use
+  // it; explicitly stripped before returning to the client below.
+  accessToken?: string;
   exp: number;
 }
 
@@ -29,5 +32,10 @@ export async function GET(): Promise<Response> {
     return NextResponse.json({ error: 'not_authenticated' }, { status: 401 });
   }
 
-  return NextResponse.json(payload);
+  // Strip the access_token before returning — clients have no reason to see it
+  // and exposing it would let any in-browser script post to 知乎 on the user's
+  // behalf without going through our rate-limited routes.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { accessToken: _drop, ...safe } = payload;
+  return NextResponse.json(safe);
 }

@@ -6,6 +6,7 @@ import {
   Story,
   PinPublishResponse,
   type HotListScope,
+  type FeedItem,
 } from './zhihu/types';
 import hotListRelevant from '@/content/zhihu-fixtures/hot-list-relevant.json';
 import hotListAll from '@/content/zhihu-fixtures/hot-list-all.json';
@@ -194,14 +195,33 @@ async function realFetchDataPlatform(
   return json;
 }
 
-// OAuth endpoints (`/user*` on openapi.zhihu.com) require Bearer access_token
-// from the OAuth flow. Per A9 mentor reply, OAuth is post-MVP; this stub
-// exists so getFollowingFeed has a typed call site.
-async function realFetchOAuth(): Promise<unknown> {
-  throw new Error(
-    'OAuth endpoints post-MVP per mentor A9. ' +
-      'See plans/2026-05-12-zhihu-api-integration.md Task 6.',
-  );
+// OAuth-bearer endpoints (need user access_token from the OAuth callback).
+// Tries a small list of plausible endpoint URLs; first that returns a
+// parseable list wins. We don't have the captured spec for the following-feed
+// endpoint — 知乎's docs are spread across a few internal pages — so we
+// pattern-match what works at runtime.
+async function realFetchOAuthBearer(
+  paths: string[],
+  accessToken: string,
+): Promise<{ raw: unknown; pathUsed: string } | null> {
+  for (const path of paths) {
+    try {
+      const res = await fetch(new URL(path, 'https://openapi.zhihu.com'), {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+      const raw = await res.json().catch(() => null);
+      if (raw) return { raw, pathUsed: path };
+    } catch {
+      // try next endpoint
+    }
+  }
+  return null;
 }
 
 // Response shape from developer.zhihu.com (PascalCase). Internal types use
@@ -326,11 +346,96 @@ export async function chatWithZhida(prompt: string): Promise<ZhidaAnswer> {
   return ZhidaAnswer.parse({ text, citations: [] });
 }
 
-export async function getFollowingFeed(): Promise<FeedPage> {
-  if (MODE === 'mock') return followingFeed as FeedPage;
-  // 关注流 = OAuth endpoint (Bearer access_token), post-MVP per A9.
-  const raw = await realFetchOAuth();
-  return FeedPage.parse(raw);
+/**
+ * 关注流 — content from people the OAuth'd user follows. Requires the user's
+ * access_token (obtained at /api/auth/zhihu/callback and stored in the signed
+ * session cookie). When the token is missing we fall through to the mock
+ * fixture so the UI still has something to render.
+ *
+ * The endpoint path isn't documented in the captured hackathon spec; we try
+ * a list of plausible candidates and accept the first that returns parseable
+ * JSON. Response is then coerced into our internal `FeedPage` shape via best
+ * effort. Items that don't match are dropped, not thrown.
+ */
+export async function getFollowingFeed(accessToken?: string): Promise<FeedPage> {
+  if (MODE === 'mock' || !accessToken) {
+    return followingFeed as FeedPage;
+  }
+  const candidates = [
+    '/user/following_feed',
+    '/user/follow_feed',
+    '/user/feeds',
+    '/feed/following',
+    '/api/v1/user/following_feed',
+  ];
+  const result = await realFetchOAuthBearer(candidates, accessToken);
+  if (!result) return followingFeed as FeedPage;
+  return coerceFeedPage(result.raw);
+}
+
+/** Best-effort normaliser: walk plausible shapes and pull out feed items
+ *  matching our internal FeedItem zod schema (id/type/authorId/authorName/
+ *  createdAt required). Items that can't be coerced are dropped, not thrown. */
+function coerceFeedPage(raw: unknown): FeedPage {
+  if (!raw || typeof raw !== 'object') return followingFeed as FeedPage;
+  const obj = raw as Record<string, unknown>;
+  let inner: Record<string, unknown> = obj;
+  for (const k of ['Data', 'data']) {
+    const v = obj[k];
+    if (v && typeof v === 'object') { inner = v as Record<string, unknown>; break; }
+  }
+  let items: unknown[] = [];
+  for (const k of ['items', 'Items', 'feed', 'data', 'list', 'Feeds']) {
+    const v = inner[k];
+    if (Array.isArray(v)) { items = v; break; }
+  }
+  if (items.length === 0) return followingFeed as FeedPage;
+  const mapped = items
+    .map(coerceFeedItem)
+    .filter((it): it is FeedItem => it !== null);
+  const cursorVal = pickStr(inner, 'cursor', 'Cursor', 'next_cursor', 'NextCursor');
+  try {
+    return FeedPage.parse({ items: mapped, cursor: cursorVal ?? null });
+  } catch {
+    return followingFeed as FeedPage;
+  }
+}
+
+const ALLOWED_FEED_TYPES = new Set(['answer', 'article', 'pin', 'question']);
+
+function coerceFeedItem(raw: unknown): FeedItem | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = pickStr(o, 'id', 'ID', 'feed_id', 'target_id', 'content_id', 'url', 'URL');
+  if (!id) return null;
+  const rawType = (pickStr(o, 'type', 'Type', 'content_type', 'kind') ?? 'article').toLowerCase();
+  if (!ALLOWED_FEED_TYPES.has(rawType)) return null;
+  const authorName = pickStr(o, 'author_name', 'AuthorName', 'authorName') ?? '知乎用户';
+  const authorId = pickStr(o, 'author_id', 'AuthorID', 'authorId', 'author_url_token', 'url_token') ?? authorName;
+  const createdAtRaw = pickStr(o, 'published_at', 'PublishedAt', 'created_at', 'CreatedAt', 'updated_at', 'UpdatedAt');
+  // FeedItem.createdAt is required as a string — synthesise an ISO `now`
+  // when the upstream record didn't supply one rather than dropping the item.
+  const createdAt = createdAtRaw && /\d/.test(createdAtRaw)
+    ? createdAtRaw
+    : new Date().toISOString();
+  return {
+    id: String(id),
+    type: rawType as FeedItem['type'],
+    authorId,
+    authorName,
+    title: pickStr(o, 'title', 'Title'),
+    excerpt: pickStr(o, 'excerpt', 'Excerpt', 'summary', 'Summary', 'content_text'),
+    url: pickStr(o, 'url', 'URL', 'target_url'),
+    createdAt,
+  };
+}
+
+function pickStr(obj: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return undefined;
 }
 
 /**
