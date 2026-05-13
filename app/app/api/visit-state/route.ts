@@ -45,7 +45,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       updatedAt: r.updatedAt instanceof Date ? r.updatedAt.getTime() : 0,
     });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    // Most likely: visit_state table not migrated to this Supabase instance.
+    // Surface as 503 so the client's hydrateFromServer treats it as a soft
+    // miss and silently keeps using localStorage — never blocks the UI.
+    return NextResponse.json({ error: (err as Error).message }, { status: 503 });
   }
 }
 
@@ -84,6 +87,6 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 503 });
   }
 }
