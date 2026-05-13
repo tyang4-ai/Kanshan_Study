@@ -6,7 +6,7 @@ import type { VoiceFillEvent } from '@/lib/voice/rewriter';
 import { loadBaseline } from '@/lib/voice/baseline';
 import { writeCache } from '@/lib/cache/store';
 import { voiceFillKey } from '@/lib/cache/keys';
-import { DEMO_USER_ID, VOICE_BULLETS, DEMO_PARAGRAPH } from './demo-content';
+import { DEMO_USER_ID, VOICE_BULLETS, DEMO_PARAGRAPH, CLIMACTIC_PARAGRAPH } from './demo-content';
 
 export async function seedVoice(): Promise<number> {
   let count = 0;
@@ -22,10 +22,25 @@ export async function seedVoice(): Promise<number> {
     );
     count += 1;
   }
-  // (2) Voice diff — polish 现有段落
+  // (2) Voice diff — polish 现有段落 (Stupp 第二段 — clean text, no 看心 flag)
   {
     const bullets = '';
     const selection = DEMO_PARAGRAPH;
+    const events = await collectVoiceFill(DEMO_USER_ID, bullets, 'polish', selection);
+    await writeCache(
+      'voice-fill',
+      voiceFillKey({ userId: DEMO_USER_ID, mode: 'polish', bullets, selection }),
+      events,
+    );
+    count += 1;
+  }
+  // (3) Voice diff — polish the 看心-flagged absolutist paragraph. Same
+  //     code path as (2); the runtime side-effect (relatedAction='avoided'
+  //     provenance entry) fires regardless because the selection text
+  //     contains the flag's excerpt. This is the Step 7 demo target.
+  {
+    const bullets = '';
+    const selection = CLIMACTIC_PARAGRAPH;
     const events = await collectVoiceFill(DEMO_USER_ID, bullets, 'polish', selection);
     await writeCache(
       'voice-fill',

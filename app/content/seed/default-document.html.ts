@@ -140,10 +140,10 @@ export const DEFAULT_DOC_HTML = `
 <li>期望返回："这段写得太教科书, 病人家属看不懂。把 OS 翻译成'平均能多活多少个月', 把 mMGMT+ 翻译成'有一个基因变化的患者'。"</li>
 </ul>
 <hr>
-<h2>Step 7 — 看墨：声纹一致的改写</h2>
+<h2>Step 7 — 看墨：声纹一致的改写（并联看心）</h2>
 <p><strong>做什么</strong>：</p>
 <ol>
-<li>选中第三段（"对 MGMT 启动子甲基化阳性…" 整段）</li>
+<li>选中 Step 5 里被看心<strong>红色波浪线</strong>标记的那一句（即"对 MGMT 甲基化阳性的患者，替莫唑胺一定能根治胶质母细胞瘤，5 年存活率 100%。"）</li>
 <li>按顶栏 <strong>看墨</strong> 图标（顶栏第一个 · 砚台 + 毛笔尖样式）</li>
 <li>等约 1 秒 → 弹出 diff 视图：左侧原文，右侧改写</li>
 </ol>
@@ -151,10 +151,16 @@ export const DEFAULT_DOC_HTML = `
 <ul>
 <li>改写采用了<strong>顾婉昔自己的写作声纹</strong>（来自看典里的 5 篇个人笔记 BGE-M3 embedding）</li>
 <li>风格特征：用 "·" 作为停顿、医学术语后加白括号注释、句末避免感叹号</li>
-<li>例如 "mMGMT+ 患者 2 年 OS 可达 46%" → "MGMT 甲基化阳性的患者 · 大约一半人能活过两年（46%）"</li>
+<li>看墨自动<strong>软化了绝对化声明</strong> —— "一定能根治"/"100%" 被替换为带概率/范围的表述</li>
+<li>右下角弹出 <strong>notice 提示条</strong>："已绕开 看心 标记的 1 处需出处片段" —— 这就是九只狐狸第一次在同一段稿子上互相留痕的瞬间</li>
 <li>底部分数：style 0.89 · termFidelity 0.94 · iter 2/3</li>
 </ul>
-<p><strong>做什么续</strong>：点 "采纳" 按钮，diff 应用到编辑器。</p>
+<p><strong>做什么续</strong>：</p>
+<ol>
+<li>点 "采纳" 按钮，diff 应用到编辑器</li>
+<li>采纳后<strong>把鼠标移到原句左侧</strong>页边栏出现的红色 印章（看心标记的 chit）—— 点击它弹出 popover</li>
+<li>popover 底部有一行绿底文字：<strong>"看墨 已在重写时绕开此段"</strong> —— 看心和看墨在同一段稿子上完成了一次跨狐协作</li>
+</ol>
 <hr>
 <h2>Step 8 — 发布到知乎</h2>
 <p><strong>做什么</strong>：点击左下角 <strong>发布到知乎 →</strong> 按钮（左下角圆形 · "↗" 箭头样式）</p>

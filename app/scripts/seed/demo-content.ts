@@ -9,7 +9,12 @@
 
 export const DEMO_PARAGRAPH = `目前公认的一线方案仍然是 Stupp 方案：术后放疗 60 Gy 同步 + 辅助替莫唑胺 (TMZ) 6 个周期。这套方案来自 2005 年 NEJM 那篇里程碑论文,中位总生存 (OS) 从单纯放疗的 12.1 个月提高到 14.6 个月,2 年 OS 从 10.4% 提高到 26.5%。`;
 
-export const CLIMACTIC_PARAGRAPH = `对 MGMT 启动子甲基化阳性 (mMGMT+) 的患者,TMZ 的获益更明显 —— Hegi 等同期发表的 NEJM 文章显示,mMGMT+ 患者 2 年 OS 可达 46%。这是目前临床上最稳定的疗效预测因子,所有患者术后都应送检 MGMT。`;
+// CLIMACTIC_PARAGRAPH is the absolutist sentence deliberately planted in the
+// walkthrough's Step 4 paste block. 看心 flags it (red wavy underline) in
+// Step 5; Step 7 then asks the judge to run 看墨 ON THIS SAME paragraph so
+// the cross-fox arrow fires: 看墨 records relatedAction='avoided' linking
+// to 看心's flag, and the MarginSealPopover shows "看墨 已在重写时绕开此段".
+export const CLIMACTIC_PARAGRAPH = `对 MGMT 甲基化阳性的患者，替莫唑胺一定能根治胶质母细胞瘤，5 年存活率 100%。`;
 
 export const VOICE_BULLETS = `想写一段：胶质母细胞瘤一线治疗 2025
 - Stupp 方案仍是标准
