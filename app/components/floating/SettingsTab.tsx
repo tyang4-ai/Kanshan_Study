@@ -324,13 +324,22 @@ function ZhihuAccountSection(): React.ReactElement {
   };
 
   const onDisconnect = async (): Promise<void> => {
+    if (!window.confirm('退出登录后会回到登录引导，未同步到云端的本地数据不会丢失，但会换一个独立访客身份。确定继续？')) return;
     try {
       await fetch('/api/auth/zhihu/logout', { method: 'POST', credentials: 'same-origin' });
     } catch {
       // best-effort
     }
     clear();
-    useAiErrorStore.getState().push({ message: '已退出知乎账号' });
+    try {
+      // Wipe the onboarding-completed flag so OnboardingGate re-mounts at
+      // the zhihu-login step on next paint. Without this the user is left
+      // in a half-state: logged out at the server but still inside the
+      // workspace, with no path back to the login wall.
+      window.localStorage.removeItem('kanshan-onboarding');
+    } catch { /* localStorage unavailable — non-fatal */ }
+    useAiErrorStore.getState().push({ message: '已退出知乎账号 · 即将刷新' });
+    window.setTimeout(() => window.location.reload(), 600);
   };
 
   return (
@@ -405,7 +414,7 @@ function ZhihuAccountSection(): React.ReactElement {
               flexShrink: 0,
             }}
           >
-            断开连接
+            退出登录
           </button>
         </div>
       )}
