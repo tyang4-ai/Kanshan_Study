@@ -379,14 +379,14 @@ export function BudgetChip() {
       }}
       title="今日剩余额度 — 选题灵感 (看势热榜) / 考据检索 / 直答问答"
     >
-      {/* R2 judge fix (张荣乐 P2 2026-05-12): 答主-facing phrasing instead of
-          API-shape "看势 100/100". The quota names match the workflow stages,
-          not the underlying endpoint names. */}
-      <span>选题灵感剩 {shi} 次</span>
+      {/* Compact 答主-facing phrasing — drops 「剩」/「次」 suffix because the
+          full text wrapped to 3 lines when the chrome strip got wide. Tooltip
+          on the outer chip carries the long form so meaning is preserved. */}
+      <span>灵感 {shi}</span>
       <span style={{ opacity: 0.4 }}>·</span>
-      <span>考据检索剩 {sou} 次</span>
+      <span>查证 {sou}</span>
       <span style={{ opacity: 0.4 }}>·</span>
-      <span>直答剩 {da} 次</span>
+      <span>直答 {da}</span>
     </div>
   );
 }

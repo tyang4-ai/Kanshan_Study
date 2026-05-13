@@ -183,36 +183,47 @@ export function WritingSurface({
         <span>灵感激发 · 思路梳理 · 内容精加工</span>
       </div>
       <div style={tabStripStyle}>
-        {tabList.map((t) => (
-          <Tab
-            key={t.id}
-            filename={t.filename}
-            active={t.id === activeId}
-            dirty={t.dirty}
-            onClick={() => switchTo(t.id)}
-            onClose={() => handleCloseRequest(t.id)}
-          />
-        ))}
-        <button
-          type="button"
-          data-testid="tab-new"
-          onClick={handleNewTab}
-          style={newTabButtonStyle}
-          title="新建文稿"
+        {/* Tabs + new-tab live inside an inner scrollable flex region so the
+            chrome cluster on the right (autosave / file / daily / budget /
+            profile) stays pinned to the viewport edge even when many docs
+            are open. Without this split the outer strip just kept growing
+            past the viewport and the budget chip got clipped. */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'flex-end',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            scrollbarWidth: 'none',
+          }}
         >
-          + 新建
-        </button>
-        {/* Demo-flow + presentation persona-review 2026-05-11 R2 P0: the
-            locked tagline 「灵感激发 · 思路梳理 · 内容精加工」 was previously
-            only inside the orphan <TitleBar /> component (never mounted).
-            Anchored here in the tab strip where chrome already lives. */}
-        <div style={{ flex: 1, minWidth: 16 }} />
+          {tabList.map((t) => (
+            <Tab
+              key={t.id}
+              filename={t.filename}
+              active={t.id === activeId}
+              dirty={t.dirty}
+              onClick={() => switchTo(t.id)}
+              onClose={() => handleCloseRequest(t.id)}
+            />
+          ))}
+          <button
+            type="button"
+            data-testid="tab-new"
+            onClick={handleNewTab}
+            style={newTabButtonStyle}
+            title="新建文稿"
+          >
+            + 新建
+          </button>
+        </div>
         <AutosaveIndicator />
         <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 12px' }} />
         {/* 2026-05-11 phase #15.5: 文件 cluster — 导入/导出 sits with the other
             tab-strip chrome controls instead of crowding the tabs list. */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingRight: 4, flexShrink: 0, whiteSpace: 'nowrap' }}>
-          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>文件</span>
           <FileMenuButtons />
         </div>
         <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.18)', margin: '0 8px', flexShrink: 0 }} />
@@ -223,7 +234,6 @@ export function WritingSurface({
               the right toolbar as selection-driven dispatchers. Removes the
               persona / debate / stats redundancy that judges flagged in R2/R3
               (same fox in two places doing the same thing). */}
-          <span aria-hidden style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(122,102,85,0.6)', fontFamily: 'JetBrains Mono, monospace' }}>日常</span>
           <ToolbarIcon kind="trends" onClick={openers.onOpenTrends} title="看势 · 热榜雷达 — 选题灵感" />
           <ToolbarIcon kind="vault" onClick={openers.onOpenVault} title="看典 · 档案库 — 旧稿再用" />
           <ToolbarIcon kind="voice-diff" onClick={openers.onOpenVoiceDiff} title="看墨 · 润色 — 按你的语风重写" />

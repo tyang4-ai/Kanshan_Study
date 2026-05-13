@@ -21,12 +21,12 @@ export function AutosaveIndicator() {
   const label = formatRelative(lastSavedAt, now);
 
   const outerStyle: CSSProperties = {
-    padding: '0 14px',
+    padding: '0 10px',
     fontSize: 11,
     color: '#7A6655',
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flexShrink: 0,
     whiteSpace: 'nowrap',
   };
@@ -38,10 +38,13 @@ export function AutosaveIndicator() {
     background: lastSavedAt > 0 ? '#2ECC71' : 'rgba(122,102,85,0.3)',
   };
 
+  // Compact label: drop the verbose 「已自动保存 · 」prefix from the visible
+  // text — the dot + tooltip carry that meaning. Saves ~80px of horizontal
+  // real estate in the tab strip.
   return (
-    <div data-testid="autosave-indicator" style={outerStyle}>
+    <div data-testid="autosave-indicator" style={outerStyle} title={`已自动保存 · ${label}`}>
       <span aria-hidden style={dotStyle} />
-      <span>已自动保存 · {label}</span>
+      <span>{label}</span>
     </div>
   );
 }

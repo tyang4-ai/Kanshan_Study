@@ -17,8 +17,12 @@ export function Tab({ filename, active, dirty, onClick, onClose }: TabProps) {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    padding: '0 14px',
+    padding: '0 12px',
     height: 30,
+    // Cap visual width so a long-titled doc doesn't push the chrome cluster
+    // off the right edge of the viewport. Full title visible on hover via
+    // the `title` attribute below.
+    maxWidth: 180,
     background: active ? '#FAF8F3' : 'transparent',
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
@@ -33,6 +37,13 @@ export function Tab({ filename, active, dirty, onClick, onClose }: TabProps) {
     top: 1,
     flexShrink: 0,
     whiteSpace: 'nowrap',
+  };
+
+  const labelStyle: CSSProperties = {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    minWidth: 0,
   };
 
   const dotStyle: CSSProperties = {
@@ -66,10 +77,11 @@ export function Tab({ filename, active, dirty, onClick, onClose }: TabProps) {
       data-testid="tab"
       data-active={active}
       onClick={onClick}
+      title={filename}
       style={outerStyle}
     >
       <span data-testid="tab-dirty-dot" style={dotStyle} />
-      {filename}
+      <span style={labelStyle}>{filename}</span>
       <button
         type="button"
         data-testid="tab-close"
