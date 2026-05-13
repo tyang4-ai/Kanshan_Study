@@ -195,6 +195,22 @@
   outline-offset: 1px;
 }
 
+/* 看心 live-flag highlight (rendered via XinFlag.ts ProseMirror decoration).
+   Wavy underline in the warm-red 警示 hue used elsewhere for compliance
+   chits, plus a translucent background so the offending sentence is
+   readable on the warm-paper background. Tooltip on hover shows the reason. */
+.kanshan-xin-flag {
+  background: rgba(184, 85, 67, 0.10);
+  border-bottom: 1px solid transparent;
+  text-decoration: underline wavy rgba(184, 85, 67, 0.75);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.kanshan-xin-flag:hover {
+  background: rgba(184, 85, 67, 0.18);
+}
+
 /* TipTap Placeholder extension — attaches data-placeholder to empty <p>.
    Wrapped in @layer utilities to win Tailwind v4 cascade specificity, and
    uses an attribute selector instead of :first-child because TipTap's DOM
