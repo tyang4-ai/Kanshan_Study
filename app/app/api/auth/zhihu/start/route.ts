@@ -4,7 +4,6 @@
 // working. Authorize URL not in the captured spec; default to the public
 // 知乎 OAuth page, env-overridable via ZHIHU_OAUTH_AUTHORIZE_URL.
 import { NextResponse, type NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
 import { randomBytes } from 'node:crypto';
 
 export const runtime = 'nodejs';
@@ -51,18 +50,22 @@ export async function GET(req: NextRequest): Promise<Response> {
     `&response_type=code` +
     `&state=${state}`;
 
-  const cookieStore = await cookies();
-  cookieStore.set(STATE_COOKIE, state, {
+  if (req.nextUrl.searchParams.get('debug') === '1') {
+    return NextResponse.json({ authorizeUrl: url, state });
+  }
+
+  // Attach the state cookie to the redirect response directly. The previous
+  // pattern (cookies().set() via next/headers) silently dropped the Set-Cookie
+  // header on production builds when paired with NextResponse.redirect() —
+  // verified by `state_mismatch` error every time. Setting on the response
+  // object guarantees the header rides with the 302.
+  const res = NextResponse.redirect(url, 302);
+  res.cookies.set(STATE_COOKIE, state, {
     httpOnly: true,
     sameSite: 'lax',
     maxAge: STATE_MAX_AGE_SECONDS,
     secure: process.env.NODE_ENV === 'production',
     path: '/',
   });
-
-  if (req.nextUrl.searchParams.get('debug') === '1') {
-    return NextResponse.json({ authorizeUrl: url, state });
-  }
-
-  return NextResponse.redirect(url, 302);
+  return res;
 }
