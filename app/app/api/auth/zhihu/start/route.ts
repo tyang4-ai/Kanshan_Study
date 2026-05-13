@@ -25,6 +25,18 @@ export async function GET(req: NextRequest): Promise<Response> {
   const authorizeUrl =
     process.env.ZHIHU_OAUTH_AUTHORIZE_URL || 'https://www.zhihu.com/oauth/authorize';
 
+  // Defence-in-depth: even with a compromised env we will not redirect users
+  // off the zhihu.com domain. Stops a poisoned ZHIHU_OAUTH_AUTHORIZE_URL from
+  // becoming an open-redirect / credential-phishing vector.
+  try {
+    const host = new URL(authorizeUrl).hostname;
+    if (host !== 'zhihu.com' && !host.endsWith('.zhihu.com')) {
+      return NextResponse.json({ error: 'invalid authorize host' }, { status: 503 });
+    }
+  } catch {
+    return NextResponse.json({ error: 'malformed authorize URL' }, { status: 503 });
+  }
+
   const state = randomBytes(16).toString('hex');
   const url =
     `${authorizeUrl}` +
@@ -32,10 +44,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code` +
     `&state=${state}`;
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[oauth] authorize URL:', url);
-  }
 
   const cookieStore = await cookies();
   cookieStore.set(STATE_COOKIE, state, {

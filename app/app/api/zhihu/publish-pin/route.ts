@@ -5,6 +5,7 @@
 // response (perfect for the demo screen-share — no real post lands on 知乎).
 import { publishPin, DEFAULT_RING_ID, SUPPORTED_RING_IDS } from '@/lib/zhihu';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
+import { requireRateLimitOk } from '@/lib/ratelimit/check';
 
 type SupportedRingId = (typeof SUPPORTED_RING_IDS)[number]['id'];
 
@@ -25,6 +26,12 @@ const GB45438_TRAILER = '\n\n———\n本文由看山书房 AI 辅助生成 ·
 const GB45438_SUFFIX = 'GB 45438';
 
 export async function POST(req: Request): Promise<Response> {
+  // Write surface to 知乎 OpenAPI on the project's app credentials. Without a
+  // gate here, anonymous fan-out burns the app quota and risks 「滥用接口」
+  // abuse-policy enforcement. Cookie-based rate limit at minimum.
+  const limited = await requireRateLimitOk(req);
+  if (limited) return limited;
+
   let body: PublishBody;
   try {
     body = (await req.json()) as PublishBody;

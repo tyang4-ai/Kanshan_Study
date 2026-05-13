@@ -13,6 +13,7 @@ export async function middleware(req: NextRequest) {
     res.cookies.set('kanshan-guest-id', id, {
       httpOnly: true,
       sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24 * 365,
       path: '/',
     });

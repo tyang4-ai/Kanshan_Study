@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chunkMarkdown } from '@/lib/vault/chunker';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
+import { requireRateLimitOk } from '@/lib/ratelimit/check';
 
 export const runtime = 'nodejs';
 
@@ -19,6 +20,11 @@ function pickUserId(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Embedding + DB write fan-out path — rate-limit before parsing body so a
+  // bogus consent header can't waste the embedder quota.
+  const limited = await requireRateLimitOk(req);
+  if (limited) return limited;
+
   const cl = req.headers.get('content-length');
   if (cl && Number(cl) > MAX_BODY_BYTES) {
     return NextResponse.json({ error: '文件过大 (>1MB)，请拆分后再传' }, { status: 413 });

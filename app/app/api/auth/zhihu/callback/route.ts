@@ -78,6 +78,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: tokenBody,
+      signal: AbortSignal.timeout(5000),
     });
     if (!tokenRes.ok) return redirectWithError(req, 'token_exchange_failed');
     const tokenJson = (await tokenRes.json()) as TokenResponse;
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const userRes = await fetch('https://openapi.zhihu.com/user', {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(5000),
     });
     if (!userRes.ok) return redirectWithError(req, 'userinfo_failed');
     const userJson = (await userRes.json()) as UserResponse;

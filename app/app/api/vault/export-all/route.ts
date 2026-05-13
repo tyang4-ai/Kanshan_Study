@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
+import { requireRateLimitOk } from '@/lib/ratelimit/check';
 import guwanxiSeed from '@/content/seed/vault-guwanxi.json';
 import meSeed from '@/content/seed/vault-me.json';
 
@@ -73,6 +74,10 @@ function fromSeed(userId: 'me' | 'guwanxi'): ExportResponse {
 }
 
 export async function GET(req: NextRequest) {
+  // Bulk exfiltration vector — rate-limit so a scrape can't fan out cheaply.
+  const limited = await requireRateLimitOk(req);
+  if (limited) return limited;
+
   if (!isValidAccountHeader(req)) {
     return NextResponse.json({ error: 'invalid x-kanshan-account header' }, { status: 400 });
   }

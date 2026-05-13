@@ -38,8 +38,9 @@ export async function requireRateLimitOk(req: Request): Promise<Response | null>
   const hasByoKey = !!auth && auth.toLowerCase().startsWith('bearer sk-');
   const guestId = await resolveGuestId(req);
   // BYO key holders get a higher cap (multiplied at the store level) but still
-  // metered so a fan-out with bogus keys can't starve us.
-  const result = await checkAndIncrement(guestId, hasByoKey ? { multiplier: 8 } : undefined);
+  // metered so a fan-out with bogus keys can't starve us. Multiplier kept low
+  // (3×) because the Bearer prefix is not validated — an attacker can fake it.
+  const result = await checkAndIncrement(guestId, hasByoKey ? { multiplier: 3 } : undefined);
   if (result.ok) return null;
   return new Response(
     JSON.stringify({ error: 'rate-limit', mode: result.mode, resetAt: result.resetAt }),

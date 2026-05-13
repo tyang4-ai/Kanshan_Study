@@ -14,7 +14,8 @@ import { eq } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth/cookie-sign';
 import { cookies } from 'next/headers';
 
-const SESSION_COOKIE = 'kanshan_zhihu_session';
+// Must match the cookie set in /api/auth/zhihu/callback (dash, not underscore).
+const SESSION_COOKIE = 'kanshan-zhihu-session';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 interface SessionPayload {
@@ -30,7 +31,8 @@ interface VisitStateBody {
 }
 
 async function getAccountId(): Promise<string | null> {
-  const secret = process.env.SESSION_SIGNING_SECRET;
+  // Must match the signing env used by the OAuth callback.
+  const secret = process.env.KANSHAN_SESSION_SECRET;
   if (!secret) return null;
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;

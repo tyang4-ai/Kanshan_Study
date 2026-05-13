@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrubErrorForClient } from '@/lib/errors/scrub';
+import { requireRateLimitOk } from '@/lib/ratelimit/check';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,10 @@ function isValidAccountHeader(req: NextRequest): boolean {
 }
 
 export async function DELETE(req: NextRequest) {
+  // Destructive op against demo seed accounts — rate-limit fan-out wipes.
+  const limited = await requireRateLimitOk(req);
+  if (limited) return limited;
+
   if (!isValidAccountHeader(req)) {
     return NextResponse.json({ error: 'invalid x-kanshan-account header' }, { status: 400 });
   }
