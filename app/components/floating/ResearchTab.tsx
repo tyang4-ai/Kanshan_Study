@@ -1,6 +1,6 @@
 'use client';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ComplianceLine } from '@/components/compliance/ComplianceLine';
 import { SourceRow } from '@/components/research/SourceRow';
 import {
@@ -112,23 +112,35 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
   const [scope, setScope] = useState<ResearchScope>(researchData.scope);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [xinGateOpen, setXinGateOpen] = useState(false);
-  // R3 fix (吴伟 P1 2026-05-12): wire trend-derived research to the live Zhihu
-  // search endpoint instead of always rendering the radiogenomics fixture.
-  // When `selection.text` is present, call `searchZhihu(query)`. Falls back to
-  // the fixture on reject (Bearer missing, mock-mode, or network error).
   const [liveHits, setLiveHits] = useState<SearchResult[] | null>(null);
   const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'live' | 'fallback'>('idle');
+  // Detailed progress tracking so the user can SEE what 看水 actually did,
+  // not just a vague "loading" spinner. Captured for both in-flight and
+  // completed states; the panel below renders both.
+  const [searchInfo, setSearchInfo] = useState<{
+    query: string;
+    startedAt: number;
+    finishedAt?: number;
+    error?: string;
+  } | null>(null);
+  // Manual-query input: when the panel opens without a selection, the user
+  // can type a query directly here. Drives the same fetch path as selection-
+  // initiated lookups.
+  const [manualQuery, setManualQuery] = useState('');
+  const [manualSubmittedQuery, setManualSubmittedQuery] = useState<string | null>(null);
   const didFetchRef = useRef<string | null>(null);
-  const queryText = selection?.text || researchData.query;
+  const effectiveQuery = selection?.text || manualSubmittedQuery || '';
+  const queryText = effectiveQuery || researchData.query;
   const isFromTrend = origin === 'trend';
 
-  useEffect(() => {
-    if (!selection?.text) return;
-    if (didFetchRef.current === selection.text) return;
-    didFetchRef.current = selection.text;
+  const runSearch = useCallback((query: string) => {
+    if (didFetchRef.current === query) return;
+    didFetchRef.current = query;
     setSearchStatus('loading');
-    fetchZhihuSearch(selection.text)
+    setSearchInfo({ query, startedAt: Date.now() });
+    fetchZhihuSearch(query)
       .then(({ results, isLive }) => {
+        setSearchInfo((prev) => prev ? { ...prev, finishedAt: Date.now() } : prev);
         if (results.length === 0) {
           setSearchStatus('fallback');
           setLiveHits(null);
@@ -139,11 +151,21 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
         // returns the same fixture and would otherwise display LIVE misleadingly.
         setSearchStatus(isLive ? 'live' : 'fallback');
       })
-      .catch(() => {
+      .catch((err: Error) => {
+        setSearchInfo((prev) => prev ? { ...prev, finishedAt: Date.now(), error: err.message } : prev);
         setSearchStatus('fallback');
         setLiveHits(null);
       });
-  }, [selection?.text]);
+  }, []);
+
+  useEffect(() => {
+    if (!selection?.text) return;
+    runSearch(selection.text);
+  }, [selection?.text, runSearch]);
+  useEffect(() => {
+    if (!manualSubmittedQuery) return;
+    runSearch(manualSubmittedQuery);
+  }, [manualSubmittedQuery, runSearch]);
 
   // When live hits are available, derive outline + sections + sources from
   // them; otherwise keep the fixture so the demo never shows an empty panel.
@@ -308,44 +330,36 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
         </span>
       </div>
 
-      {/* Live progress banner — visible whenever a real network call is in
-          flight. The previous tiny "实时检索中…" tag inside the query line
-          was easy to miss; this banner makes the orchestration moment
-          obvious so the user knows 看水 is actually working. */}
-      {searchStatus === 'loading' && (
-        <div
-          data-testid="research-progress-banner"
-          style={{
-            flexShrink: 0,
-            padding: '10px 14px',
-            background: 'linear-gradient(90deg, rgba(23,114,246,0.12) 0%, rgba(23,114,246,0.02) 100%)',
-            borderBottom: '1px solid rgba(23,114,246,0.30)',
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-            fontSize: 12,
-            color: '#1A4480',
-            fontFamily: '"Noto Sans SC", sans-serif',
+      {/* Manual query input — visible when there's no selection AND no
+          search has been run yet. Gives the user a way to invoke 看水 from
+          the daily-icon (no editor selection required). */}
+      {!selection?.text && !searchInfo && (
+        <ManualQueryInput
+          value={manualQuery}
+          onChange={setManualQuery}
+          onSubmit={() => {
+            const q = manualQuery.trim();
+            if (q.length >= 2) setManualSubmittedQuery(q);
           }}
-        >
-          <span
-            aria-hidden
-            style={{
-              width: 10, height: 10, borderRadius: 5,
-              background: '#1772F6',
-              animation: 'pulse 1.2s ease-in-out infinite',
-              flexShrink: 0,
-            }}
-          />
-          <span style={{ fontWeight: 600 }}>看水正在检索：</span>
-          <span style={{ fontFamily: '"Noto Serif SC", serif', color: '#1772F6' }}>
-            「{queryText.slice(0, 40)}{queryText.length > 40 ? '…' : ''}」
-          </span>
-          <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 10, color: '#5A6B85', fontFamily: 'JetBrains Mono, monospace' }}>
-            知乎 API · 实时
-          </span>
-        </div>
+        />
+      )}
+
+      {/* Progress / process panel. Visible while loading AND after completion
+          so the user can see what 看水 actually did (query, source, count,
+          duration). Replaces the previous single-line spinner that was easy
+          to miss. */}
+      {searchInfo && (
+        <ResearchProgressPanel
+          info={searchInfo}
+          status={searchStatus}
+          hits={liveHits}
+          onRerun={() => {
+            didFetchRef.current = null;
+            setLiveHits(null);
+            setSearchStatus('idle');
+            setSearchInfo(null);
+          }}
+        />
       )}
 
       {/* R2 judge fix (周源 / 吴伟 P1 2026-05-12): trend-origin banner. Makes
@@ -624,6 +638,229 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Visible 看水 工作面板 — drives the "what is it doing / what did it fetch"
+// question the user repeatedly asked. Always visible after a search has
+// started; transitions from in-flight (animated dots + step list) → done
+// (timing + breakdown card). Click "重新检索" to reset.
+function ResearchProgressPanel({
+  info,
+  status,
+  hits,
+  onRerun,
+}: {
+  info: { query: string; startedAt: number; finishedAt?: number; error?: string };
+  status: 'idle' | 'loading' | 'live' | 'fallback';
+  hits: SearchResult[] | null;
+  onRerun: () => void;
+}) {
+  const isLoading = status === 'loading';
+  const isLive = status === 'live';
+  const isFallback = status === 'fallback';
+  const elapsed = info.finishedAt ? info.finishedAt - info.startedAt : Date.now() - info.startedAt;
+  // Step definitions — fixed labels, dynamic state. The actual upstream call
+  // is one round-trip but conceptually does these four things.
+  const steps: { id: string; label: string; detail: string; done: boolean; active: boolean }[] = [
+    {
+      id: 'plan',
+      label: '准备检索词',
+      detail: `「${info.query.slice(0, 60)}${info.query.length > 60 ? '…' : ''}」`,
+      done: true,
+      active: false,
+    },
+    {
+      id: 'call',
+      label: '调用知乎搜索',
+      detail: 'GET /api/v1/content/zhihu_search',
+      done: !!info.finishedAt,
+      active: isLoading,
+    },
+    {
+      id: 'extract',
+      label: '提取摘要 + 作者',
+      detail: hits ? `${hits.length} 条来源` : '等待响应',
+      done: !!hits,
+      active: !!info.finishedAt && !hits && !info.error,
+    },
+    {
+      id: 'attach',
+      label: '挂可溯出处',
+      detail: hits ? `每条挂 [n] 上标，点击跳转原帖` : '等待要点',
+      done: !!hits && !!info.finishedAt,
+      active: false,
+    },
+  ];
+
+  const withSummary = hits ? hits.filter((h) => (h.abstract ?? '').length > 0).length : 0;
+  const withAuthor = hits ? hits.filter((h) => h.author?.displayName).length : 0;
+
+  return (
+    <div
+      data-testid="research-progress-panel"
+      style={{
+        flexShrink: 0,
+        padding: '12px 14px',
+        background: isLoading
+          ? 'linear-gradient(90deg, rgba(23,114,246,0.10) 0%, rgba(23,114,246,0.02) 100%)'
+          : isLive
+            ? 'linear-gradient(90deg, rgba(31,139,102,0.08) 0%, rgba(31,139,102,0.01) 100%)'
+            : '#FFF8EC',
+        borderBottom: `1px solid ${isLoading ? 'rgba(23,114,246,0.25)' : isLive ? 'rgba(31,139,102,0.30)' : 'rgba(168,123,42,0.40)'}`,
+        fontFamily: '"Noto Sans SC", sans-serif',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span
+          aria-hidden
+          style={{
+            width: 8, height: 8, borderRadius: 4,
+            background: isLoading ? '#1772F6' : isLive ? '#1F8B66' : '#A87B2A',
+            animation: isLoading ? 'pulse 1.2s ease-in-out infinite' : undefined,
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ fontSize: 12, fontWeight: 600, color: isLoading ? '#1A4480' : isLive ? '#0E4D38' : '#5A4A1F' }}>
+          {isLoading ? '看水 正在工作' : isLive ? `看水 查完了 · ${(elapsed / 1000).toFixed(1)}s · ${hits?.length ?? 0} 条来源` : '看水 走兜底数据 (不是实时知乎)'}
+        </span>
+        <div style={{ flex: 1 }} />
+        {info.finishedAt && (
+          <button
+            type="button"
+            onClick={onRerun}
+            data-testid="research-rerun"
+            style={{
+              fontSize: 10, padding: '3px 8px', borderRadius: 2,
+              border: '1px solid rgba(0,0,0,0.15)', background: 'rgba(255,255,255,0.6)',
+              color: '#3A4452', cursor: 'pointer',
+              fontFamily: '"Noto Sans SC", sans-serif',
+            }}
+          >
+            重新检索
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {steps.map((s) => (
+          <div
+            key={s.id}
+            data-testid={`research-step-${s.id}`}
+            data-state={s.done ? 'done' : s.active ? 'active' : 'pending'}
+            style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 11 }}
+          >
+            <span
+              aria-hidden
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 14, height: 14,
+                fontSize: 9.5,
+                color: s.done ? '#1F8B66' : s.active ? '#1772F6' : 'rgba(0,0,0,0.30)',
+                flexShrink: 0,
+              }}
+            >
+              {s.done ? '✓' : s.active ? '◐' : '○'}
+            </span>
+            <span style={{
+              fontWeight: s.active ? 600 : 500,
+              color: s.done ? '#0E4D38' : s.active ? '#1A4480' : '#5A6B85',
+              minWidth: 110,
+            }}>
+              {s.label}
+            </span>
+            <span style={{ color: '#5A6B85', fontFamily: 'JetBrains Mono, monospace', fontSize: 10 }}>
+              {s.detail}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {hits && hits.length > 0 && (
+        <div
+          data-testid="research-fetch-summary"
+          style={{
+            marginTop: 10, paddingTop: 8,
+            borderTop: '1px dashed rgba(0,0,0,0.10)',
+            fontSize: 10.5, color: '#3A4452', lineHeight: 1.65,
+          }}
+        >
+          <div style={{ marginBottom: 2, fontWeight: 600, color: '#1A1F2A' }}>拉到了什么：</div>
+          <div>· {hits.length} 条来源，全部来自 zhihu.com</div>
+          <div>· {withSummary} 条带摘要 · {withAuthor} 条带作者署名</div>
+          <div>· 全部可点击溯源：正文里的 [1][2][3] 上标 → 原帖</div>
+        </div>
+      )}
+      {isFallback && hits === null && (
+        <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px dashed rgba(168,123,42,0.30)', fontSize: 10.5, color: '#5A4A1F', lineHeight: 1.65 }}>
+          {info.error
+            ? `失败原因：${info.error}`
+            : '知乎搜索没返回结果，已切换到本地兜底数据（不可点击溯源）。'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManualQueryInput({ value, onChange, onSubmit }: { value: string; onChange: (v: string) => void; onSubmit: () => void }) {
+  return (
+    <div
+      style={{
+        flexShrink: 0,
+        padding: '10px 14px',
+        background: '#F4F7FB',
+        borderBottom: '1px solid rgba(23,114,246,0.18)',
+        fontFamily: '"Noto Sans SC", sans-serif',
+      }}
+    >
+      <div style={{ fontSize: 10.5, color: '#5A6B85', marginBottom: 6 }}>
+        没选中段落？直接输入要查的话题 — 看水会现查知乎全网
+      </div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+        <input
+          data-testid="research-manual-query"
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && value.trim().length >= 2) {
+              e.preventDefault();
+              onSubmit();
+            }
+          }}
+          placeholder="比如：影像组学外部验证 / AI 写作工具语风 / 量化交易回测"
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            border: '1px solid rgba(23,114,246,0.20)',
+            background: '#fff',
+            borderRadius: 3,
+            fontSize: 12,
+            fontFamily: '"Noto Sans SC", sans-serif',
+            color: '#1A1F2A',
+            outline: 'none',
+          }}
+        />
+        <button
+          type="button"
+          data-testid="research-manual-submit"
+          onClick={onSubmit}
+          disabled={value.trim().length < 2}
+          style={{
+            padding: '0 14px',
+            border: 'none',
+            borderRadius: 3,
+            background: value.trim().length < 2 ? '#D1CDB7' : '#1772F6',
+            color: '#fff',
+            fontSize: 11,
+            cursor: value.trim().length < 2 ? 'not-allowed' : 'pointer',
+            fontFamily: '"Noto Sans SC", sans-serif',
+          }}
+        >
+          让看水查
+        </button>
+      </div>
     </div>
   );
 }
