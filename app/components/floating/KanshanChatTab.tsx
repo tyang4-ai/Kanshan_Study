@@ -183,6 +183,11 @@ export function KanshanChatTab() {
       const args = toolCall.args ?? {};
       const props: Record<string, unknown> = {};
       if (typeof args.query === 'string') props.preloadQuery = args.query;
+      // Scope hint for research / vault — lets the orchestrator say
+      // 「认真查一下」 → 'deep' / 'thorough' instead of always defaulting.
+      if (typeof args.scope === 'string' && (args.scope === 'quick' || args.scope === 'deep' || args.scope === 'thorough')) {
+        props.preloadScope = args.scope;
+      }
       openTab(target.kind, target.title, props);
       return;
     }

@@ -83,9 +83,12 @@ function normalizeHit(hit: ApiHit): VaultEntryData | null {
 
 interface VaultTabProps {
   scrollToArticleId?: string;
+  /** 看山 orchestrator hands a query in via tool_call args; we pre-fill
+   *  the search box and trigger the same code path as user-typed search. */
+  preloadQuery?: string;
 }
 
-export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
+export function VaultTab({ scrollToArticleId, preloadQuery }: VaultTabProps = {}) {
   const account = useAccountStore((s) => s.active);
   const consented = useVaultConsentStore((s) => s.consented);
   const hydrateConsent = useVaultConsentStore((s) => s.hydrate);
@@ -184,7 +187,15 @@ export function VaultTab({ scrollToArticleId }: VaultTabProps = {}) {
     [account]
   );
 
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(preloadQuery ?? '');
+  // 看山 orchestrator: when opened via tool_call with args.query, drop the
+  // query into the search box AND immediately trigger the search effect
+  // below (it watches `query` already). Re-fires if 看山 sends a different
+  // query later in the same chat.
+  useEffect(() => {
+    if (preloadQuery && preloadQuery !== query) setQuery(preloadQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preloadQuery]);
   const [filter, setFilter] = useState('all');
   // searchResults overrides initialEntries when search has run; account change drops back to seed
   // (handled by derived `entries` below — the search effect re-fires on account change).

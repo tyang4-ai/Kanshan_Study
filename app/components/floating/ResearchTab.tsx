@@ -15,14 +15,50 @@ import researchDataJson from '@/content/seed/research-radiogenomics.json';
 import { renderResearchBody } from '@/lib/research/sanitize';
 import type { SearchResult } from '@/lib/zhihu/types';
 
-// Server-proxy: hits `/api/zhihu/search?q=...` instead of the in-process
-// adapter so the secret + mode flag stay server-side. Response shape:
-// `{ results: SearchResult[], source: 'live' | 'mock' }`.
-async function fetchZhihuSearch(q: string): Promise<{ results: SearchResult[]; isLive: boolean }> {
-  const res = await fetch(`/api/zhihu/search?q=${encodeURIComponent(q)}`);
+// Server-proxy: hits `/api/zhihu/search?q=...&scope=...` instead of the
+// in-process adapter so the secret + mode flag stay server-side. Scope
+// controls fan-out: quick = 1 zhihu_search call (~8 results), deep adds
+// zhihu_global_search (~16-24 results), thorough adds chatWithZhida +
+// additional pages (~40+ results). Response shape:
+// `{ results: SearchResult[], source: 'live'|'mock', breakdown? }`.
+async function fetchZhihuSearch(
+  q: string,
+  scope: 'quick' | 'deep' | 'thorough' = 'quick',
+): Promise<{ results: SearchResult[]; isLive: boolean }> {
+  const res = await fetch(`/api/zhihu/search?q=${encodeURIComponent(q)}&scope=${scope}`);
   if (!res.ok) throw new Error(`search ${res.status}`);
   const data = (await res.json()) as { results: SearchResult[]; source?: string };
   return { results: data.results, isLive: data.source === 'live' };
+}
+
+// LLM-generated prose summary from the search hits. Sent to the kanshan-chat
+// route which already proxies an LLM call. Fail-soft: if the LLM is down the
+// caller renders the stats-only breakdown instead.
+async function fetchResearchSummary(
+  query: string,
+  hits: SearchResult[],
+): Promise<string> {
+  const body = hits
+    .slice(0, 12)
+    .map((h, i) => `[${i + 1}] ${h.title}${h.abstract ? ' — ' + h.abstract.slice(0, 240) : ''}`)
+    .join('\n');
+  const userMessage =
+    `用户问的是「${query}」。下面是我查到的 ${hits.length} 条知乎来源摘要：\n${body}\n\n` +
+    '请用 80-140 字给出一个综合性的看法 — 不要复述每条，而是告诉用户：' +
+    '这些来源整体说了什么 / 有没有分歧 / 用户应该重点看哪几条。不要列表，写成两三句话的段落。';
+  const r = await fetch('/api/agents/kanshan/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userMessage, history: [] }),
+  });
+  if (!r.ok) throw new Error('summary llm failed');
+  // /api/agents/kanshan/chat returns an SSE stream — parse the reply event.
+  const text = await r.text();
+  const m = text.match(/event:\s*reply\s*\n\s*data:\s*(\{[^\n]+\})/);
+  if (!m) throw new Error('no reply event');
+  const payload = JSON.parse(m[1]) as { text?: string };
+  if (!payload.text) throw new Error('empty reply');
+  return payload.text;
 }
 
 type ResearchScope = 'quick' | 'deep' | 'thorough';
@@ -70,6 +106,14 @@ function escapeHtml(s: string): string {
 
 interface ResearchTabProps {
   selection?: { text: string; rect?: DOMRect } | null;
+  /** Query handed in by 看山 orchestrator via tool_call args. Triggers an
+   *  automatic search on mount — no second action required from the user.
+   *  Without this hook, "open_research" was a window-opener but not an
+   *  actual orchestration. */
+  preloadQuery?: string;
+  /** Scope chosen by 看山 (or trend bulletin). Lets the orchestrator say
+   *  e.g. 「这条新闻得查得深一点」 → 'thorough'. */
+  preloadScope?: ResearchScope;
   // R2 judge fix (周源 / 吴伟 P1 2026-05-12): trend-origin signals that the
   // insert path must always re-confirm via 看心 审议. The session-ack flag
   // (`isTrendsAcknowledged`) bypasses the modal once accepted; trend-origin
@@ -108,8 +152,10 @@ const scopeButtonStyle = (active: boolean): CSSProperties => ({
   cursor: 'pointer', fontFamily: '"Noto Sans SC", sans-serif',
 });
 
-export function ResearchTab({ selection, origin = 'manual', sourceUrl }: ResearchTabProps) {
-  const [scope, setScope] = useState<ResearchScope>(researchData.scope);
+export function ResearchTab({ selection, preloadQuery, preloadScope, origin = 'manual', sourceUrl }: ResearchTabProps) {
+  // Default quick (per user request 2026-05-13): the bulk of look-ups are
+  // single-claim sanity checks; deep/thorough are 看山 / power-user choices.
+  const [scope, setScope] = useState<ResearchScope>(preloadScope ?? 'quick');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [xinGateOpen, setXinGateOpen] = useState(false);
   const [liveHits, setLiveHits] = useState<SearchResult[] | null>(null);
@@ -119,37 +165,43 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
   // completed states; the panel below renders both.
   const [searchInfo, setSearchInfo] = useState<{
     query: string;
+    scope: ResearchScope;
     startedAt: number;
     finishedAt?: number;
     error?: string;
+    summary?: string; // LLM-generated prose summary
+    summaryLoading?: boolean;
   } | null>(null);
-  // Manual-query input: when the panel opens without a selection, the user
-  // can type a query directly here. Drives the same fetch path as selection-
-  // initiated lookups.
   const [manualQuery, setManualQuery] = useState('');
   const [manualSubmittedQuery, setManualSubmittedQuery] = useState<string | null>(null);
   const didFetchRef = useRef<string | null>(null);
-  const effectiveQuery = selection?.text || manualSubmittedQuery || '';
+  const effectiveQuery = selection?.text || preloadQuery || manualSubmittedQuery || '';
   const queryText = effectiveQuery || researchData.query;
   const isFromTrend = origin === 'trend';
 
-  const runSearch = useCallback((query: string) => {
-    if (didFetchRef.current === query) return;
-    didFetchRef.current = query;
+  const runSearch = useCallback((query: string, scopeArg: ResearchScope) => {
+    const key = `${query}|${scopeArg}`;
+    if (didFetchRef.current === key) return;
+    didFetchRef.current = key;
     setSearchStatus('loading');
-    setSearchInfo({ query, startedAt: Date.now() });
-    fetchZhihuSearch(query)
+    setSearchInfo({ query, scope: scopeArg, startedAt: Date.now() });
+    fetchZhihuSearch(query, scopeArg)
       .then(({ results, isLive }) => {
-        setSearchInfo((prev) => prev ? { ...prev, finishedAt: Date.now() } : prev);
+        setSearchInfo((prev) => prev ? { ...prev, finishedAt: Date.now(), summaryLoading: results.length > 0 } : prev);
         if (results.length === 0) {
           setSearchStatus('fallback');
           setLiveHits(null);
           return;
         }
-        setLiveHits(results.slice(0, 8));
-        // Only claim LIVE when the server reported `source: 'live'` — mock-mode
-        // returns the same fixture and would otherwise display LIVE misleadingly.
+        const cap = scopeArg === 'quick' ? 8 : scopeArg === 'deep' ? 16 : 24;
+        const trimmed = results.slice(0, cap);
+        setLiveHits(trimmed);
         setSearchStatus(isLive ? 'live' : 'fallback');
+        // Fire LLM summary in the background — non-blocking; the cards/sources
+        // are already rendered while the prose synthesis arrives.
+        void fetchResearchSummary(query, trimmed)
+          .then((summary) => setSearchInfo((prev) => prev ? { ...prev, summary, summaryLoading: false } : prev))
+          .catch(() => setSearchInfo((prev) => prev ? { ...prev, summaryLoading: false } : prev));
       })
       .catch((err: Error) => {
         setSearchInfo((prev) => prev ? { ...prev, finishedAt: Date.now(), error: err.message } : prev);
@@ -158,14 +210,23 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
       });
   }, []);
 
+  // Selection-initiated lookups
   useEffect(() => {
     if (!selection?.text) return;
-    runSearch(selection.text);
-  }, [selection?.text, runSearch]);
+    runSearch(selection.text, scope);
+  }, [selection?.text, scope, runSearch]);
+  // Manual-input lookups
   useEffect(() => {
     if (!manualSubmittedQuery) return;
-    runSearch(manualSubmittedQuery);
-  }, [manualSubmittedQuery, runSearch]);
+    runSearch(manualSubmittedQuery, scope);
+  }, [manualSubmittedQuery, scope, runSearch]);
+  // 看山 orchestrator handoff: when opened via `open_research` with args.query,
+  // start the search immediately. This is what makes 看山 an actual
+  // orchestrator and not just a tab-launcher.
+  useEffect(() => {
+    if (!preloadQuery) return;
+    runSearch(preloadQuery, preloadScope ?? scope);
+  }, [preloadQuery, preloadScope, scope, runSearch]);
 
   // When live hits are available, derive outline + sections + sources from
   // them; otherwise keep the fixture so the demo never shows an empty panel.
@@ -344,10 +405,6 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
         />
       )}
 
-      {/* Progress / process panel. Visible while loading AND after completion
-          so the user can see what 看水 actually did (query, source, count,
-          duration). Replaces the previous single-line spinner that was easy
-          to miss. */}
       {searchInfo && (
         <ResearchProgressPanel
           info={searchInfo}
@@ -359,6 +416,12 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
             setSearchStatus('idle');
             setSearchInfo(null);
           }}
+        />
+      )}
+      {searchInfo && (searchInfo.summary || searchInfo.summaryLoading) && (
+        <ResearchSummaryCard
+          summary={searchInfo.summary}
+          loading={searchInfo.summaryLoading}
         />
       )}
 
@@ -642,162 +705,134 @@ export function ResearchTab({ selection, origin = 'manual', sourceUrl }: Researc
   );
 }
 
-// Visible 看水 工作面板 — drives the "what is it doing / what did it fetch"
-// question the user repeatedly asked. Always visible after a search has
-// started; transitions from in-flight (animated dots + step list) → done
-// (timing + breakdown card). Click "重新检索" to reset.
+// One-line progress strip + a short prose summary card. The previous version
+// (steps + breakdown card) was too dense per user feedback 2026-05-13.
 function ResearchProgressPanel({
   info,
   status,
   hits,
   onRerun,
 }: {
-  info: { query: string; startedAt: number; finishedAt?: number; error?: string };
+  info: {
+    query: string;
+    scope: ResearchScope;
+    startedAt: number;
+    finishedAt?: number;
+    error?: string;
+    summary?: string;
+    summaryLoading?: boolean;
+  };
   status: 'idle' | 'loading' | 'live' | 'fallback';
   hits: SearchResult[] | null;
   onRerun: () => void;
 }) {
   const isLoading = status === 'loading';
   const isLive = status === 'live';
-  const isFallback = status === 'fallback';
   const elapsed = info.finishedAt ? info.finishedAt - info.startedAt : Date.now() - info.startedAt;
-  // Step definitions — fixed labels, dynamic state. The actual upstream call
-  // is one round-trip but conceptually does these four things.
-  const steps: { id: string; label: string; detail: string; done: boolean; active: boolean }[] = [
-    {
-      id: 'plan',
-      label: '准备检索词',
-      detail: `「${info.query.slice(0, 60)}${info.query.length > 60 ? '…' : ''}」`,
-      done: true,
-      active: false,
-    },
-    {
-      id: 'call',
-      label: '调用知乎搜索',
-      detail: 'GET /api/v1/content/zhihu_search',
-      done: !!info.finishedAt,
-      active: isLoading,
-    },
-    {
-      id: 'extract',
-      label: '提取摘要 + 作者',
-      detail: hits ? `${hits.length} 条来源` : '等待响应',
-      done: !!hits,
-      active: !!info.finishedAt && !hits && !info.error,
-    },
-    {
-      id: 'attach',
-      label: '挂可溯出处',
-      detail: hits ? `每条挂 [n] 上标，点击跳转原帖` : '等待要点',
-      done: !!hits && !!info.finishedAt,
-      active: false,
-    },
-  ];
+  const scopeLabel = info.scope === 'quick' ? '快查' : info.scope === 'deep' ? '深考' : '尽考';
 
-  const withSummary = hits ? hits.filter((h) => (h.abstract ?? '').length > 0).length : 0;
-  const withAuthor = hits ? hits.filter((h) => h.author?.displayName).length : 0;
+  // Single-line status text
+  const statusLine = isLoading
+    ? `看水 ${scopeLabel} 中 · 「${info.query.slice(0, 32)}${info.query.length > 32 ? '…' : ''}」`
+    : isLive
+      ? `看水 ${scopeLabel} 完成 · ${hits?.length ?? 0} 条来源 · ${(elapsed / 1000).toFixed(1)}s`
+      : `看水 走兜底数据${info.error ? ` · ${info.error.slice(0, 40)}` : ''}`;
 
   return (
     <div
       data-testid="research-progress-panel"
       style={{
         flexShrink: 0,
-        padding: '12px 14px',
+        padding: '7px 14px',
         background: isLoading
-          ? 'linear-gradient(90deg, rgba(23,114,246,0.10) 0%, rgba(23,114,246,0.02) 100%)'
+          ? 'rgba(23,114,246,0.08)'
           : isLive
-            ? 'linear-gradient(90deg, rgba(31,139,102,0.08) 0%, rgba(31,139,102,0.01) 100%)'
+            ? 'rgba(31,139,102,0.07)'
             : '#FFF8EC',
-        borderBottom: `1px solid ${isLoading ? 'rgba(23,114,246,0.25)' : isLive ? 'rgba(31,139,102,0.30)' : 'rgba(168,123,42,0.40)'}`,
+        borderBottom: `1px solid ${isLoading ? 'rgba(23,114,246,0.22)' : isLive ? 'rgba(31,139,102,0.28)' : 'rgba(168,123,42,0.35)'}`,
         fontFamily: '"Noto Sans SC", sans-serif',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span
-          aria-hidden
+      <span
+        aria-hidden
+        style={{
+          width: 7, height: 7, borderRadius: 4,
+          background: isLoading ? '#1772F6' : isLive ? '#1F8B66' : '#A87B2A',
+          animation: isLoading ? 'pulse 1.2s ease-in-out infinite' : undefined,
+          flexShrink: 0,
+        }}
+      />
+      <span
+        data-testid="research-status-line"
+        style={{
+          fontSize: 11.5,
+          fontWeight: 500,
+          color: isLoading ? '#1A4480' : isLive ? '#0E4D38' : '#5A4A1F',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          flex: 1,
+        }}
+      >
+        {statusLine}
+      </span>
+      {info.finishedAt && (
+        <button
+          type="button"
+          onClick={onRerun}
+          data-testid="research-rerun"
           style={{
-            width: 8, height: 8, borderRadius: 4,
-            background: isLoading ? '#1772F6' : isLive ? '#1F8B66' : '#A87B2A',
-            animation: isLoading ? 'pulse 1.2s ease-in-out infinite' : undefined,
+            fontSize: 10, padding: '2px 8px', borderRadius: 2,
+            border: '1px solid rgba(0,0,0,0.15)', background: 'rgba(255,255,255,0.7)',
+            color: '#3A4452', cursor: 'pointer',
+            fontFamily: '"Noto Sans SC", sans-serif',
             flexShrink: 0,
           }}
-        />
-        <span style={{ fontSize: 12, fontWeight: 600, color: isLoading ? '#1A4480' : isLive ? '#0E4D38' : '#5A4A1F' }}>
-          {isLoading ? '看水 正在工作' : isLive ? `看水 查完了 · ${(elapsed / 1000).toFixed(1)}s · ${hits?.length ?? 0} 条来源` : '看水 走兜底数据 (不是实时知乎)'}
-        </span>
-        <div style={{ flex: 1 }} />
-        {info.finishedAt && (
-          <button
-            type="button"
-            onClick={onRerun}
-            data-testid="research-rerun"
-            style={{
-              fontSize: 10, padding: '3px 8px', borderRadius: 2,
-              border: '1px solid rgba(0,0,0,0.15)', background: 'rgba(255,255,255,0.6)',
-              color: '#3A4452', cursor: 'pointer',
-              fontFamily: '"Noto Sans SC", sans-serif',
-            }}
-          >
-            重新检索
-          </button>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {steps.map((s) => (
-          <div
-            key={s.id}
-            data-testid={`research-step-${s.id}`}
-            data-state={s.done ? 'done' : s.active ? 'active' : 'pending'}
-            style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 11 }}
-          >
-            <span
-              aria-hidden
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: 14, height: 14,
-                fontSize: 9.5,
-                color: s.done ? '#1F8B66' : s.active ? '#1772F6' : 'rgba(0,0,0,0.30)',
-                flexShrink: 0,
-              }}
-            >
-              {s.done ? '✓' : s.active ? '◐' : '○'}
-            </span>
-            <span style={{
-              fontWeight: s.active ? 600 : 500,
-              color: s.done ? '#0E4D38' : s.active ? '#1A4480' : '#5A6B85',
-              minWidth: 110,
-            }}>
-              {s.label}
-            </span>
-            <span style={{ color: '#5A6B85', fontFamily: 'JetBrains Mono, monospace', fontSize: 10 }}>
-              {s.detail}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {hits && hits.length > 0 && (
-        <div
-          data-testid="research-fetch-summary"
-          style={{
-            marginTop: 10, paddingTop: 8,
-            borderTop: '1px dashed rgba(0,0,0,0.10)',
-            fontSize: 10.5, color: '#3A4452', lineHeight: 1.65,
-          }}
         >
-          <div style={{ marginBottom: 2, fontWeight: 600, color: '#1A1F2A' }}>拉到了什么：</div>
-          <div>· {hits.length} 条来源，全部来自 zhihu.com</div>
-          <div>· {withSummary} 条带摘要 · {withAuthor} 条带作者署名</div>
-          <div>· 全部可点击溯源：正文里的 [1][2][3] 上标 → 原帖</div>
-        </div>
+          重新检索
+        </button>
       )}
-      {isFallback && hits === null && (
-        <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px dashed rgba(168,123,42,0.30)', fontSize: 10.5, color: '#5A4A1F', lineHeight: 1.65 }}>
-          {info.error
-            ? `失败原因：${info.error}`
-            : '知乎搜索没返回结果，已切换到本地兜底数据（不可点击溯源）。'}
-        </div>
+    </div>
+  );
+}
+
+/** LLM-prose summary card; renders below the progress strip when ready. */
+function ResearchSummaryCard({ summary, loading }: { summary?: string; loading?: boolean }) {
+  if (!summary && !loading) return null;
+  return (
+    <div
+      data-testid="research-summary-card"
+      style={{
+        flexShrink: 0,
+        margin: '8px 14px 0',
+        padding: '10px 12px',
+        background: '#FFFDF5',
+        border: '1px solid rgba(168,155,126,0.30)',
+        borderRadius: 4,
+        fontFamily: '"Noto Serif SC", serif',
+        fontSize: 12.5,
+        color: '#3A2E20',
+        lineHeight: 1.7,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          letterSpacing: 1.2,
+          color: '#9A8A75',
+          fontFamily: 'JetBrains Mono, monospace',
+          marginBottom: 4,
+        }}
+      >
+        看水 的整体看法
+      </div>
+      {loading && !summary ? (
+        <span style={{ fontStyle: 'italic', color: '#9A8A75' }}>整合中…</span>
+      ) : (
+        summary
       )}
     </div>
   );
