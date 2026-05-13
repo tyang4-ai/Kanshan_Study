@@ -2,6 +2,7 @@ import { extractFeatures, createJieba, type VoiceFeatures, type Jieba } from './
 import { extractKeyTerms, nounJaccard, extractCitations, citationRecall } from './terms';
 import { chatJson } from '@/lib/llm';
 import { embed } from '@/lib/embeddings';
+import { SCORER_JUDGE_SYSTEM_PROMPT } from '@/lib/foxes/prompts/mo';
 
 const W_HARD = 0.4;
 const W_LLM = 0.4;
@@ -134,8 +135,7 @@ async function scoreLLMJudge(
       [
         {
           role: 'system',
-          content:
-            '你是一位严格的中文文风+事实评判。给定作者样本、源段、待评稿，给出两个分数：(a) style — 待评稿读起来像同一作者的概率 0..1，看语气节奏与措辞；(b) termFidelity — 待评稿是否完整保留【必须保留的术语】中的每一项的写法（任意一项被改写或删除则降分）0..1。源段没提供时 termFidelity 默认 1。',
+          content: SCORER_JUDGE_SYSTEM_PROMPT,
         },
         {
           role: 'user',

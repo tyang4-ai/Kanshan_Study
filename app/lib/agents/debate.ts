@@ -1,5 +1,7 @@
 import { chat, type Provider } from '@/lib/llm';
 import { DEBATE_PAIR } from '@/lib/personas';
+import { DEBATE_PRO_STYLE } from '@/lib/foxes/prompts/wen';
+import { DEBATE_CON_STYLE } from '@/lib/foxes/prompts/wen2';
 
 export interface DebateTurn {
   id: string;
@@ -41,19 +43,9 @@ export const DEBATE_FALLBACK: DebateTurn[] = [
 // method, distinct sentence-shape, and distinct anti-pattern (content-quality
 // persona-review 2026-05-11 flagged the original prompt as "argument volley
 // vs real debate" — same voice on both sides).
-const PRO_STYLE = [
-  '【你的立论方法】先承认对方可能成立的弱版本，再立刻提出一个对手没想到的具体场景，把保留这一句的代价亮出来。从"如果删了会失去什么"这一边切入，不要从"为什么应该保留"这一边切入。',
-  '【你的句式】短切句开头，紧跟一个有具体细节的长句。一段话不超过 3 个分句。绝不使用并排比、绝不"首先...其次"、绝不"我们必须承认"。',
-  '【你的禁忌】不得说「这一句感人/有温度/打动人」一类空话——你只谈结构性后果（"删了之后，第二段的转折就没了铺垫"）。',
-].join('\n');
-const CON_STYLE = [
-  '【你的立论方法】用一个反例直接打掉对方论点。先复述对方关键 claim 的最有力版本（steel-man），然后用一个具体替代写法证明它的功能可以转移。不要说"删掉"——要说"换成什么"。',
-  '【你的句式】用问句切入开篇。第二句给出具体替代。第三句承认这个替代有什么代价。三句话内闭合。',
-  '【你的禁忌】不得说「这种写法不专业/有 AI 味/太情绪化」——这些是品味词。你只用"功能可被替代"或"读者会卡在哪里"这种结构论证。',
-].join('\n');
-
+// Style briefs live with their fox: `lib/foxes/prompts/{wen,wen2}.ts`.
 function styleFor(position: 'pro' | 'con'): string {
-  return position === 'pro' ? PRO_STYLE : CON_STYLE;
+  return position === 'pro' ? DEBATE_PRO_STYLE : DEBATE_CON_STYLE;
 }
 
 export async function* debateStream(

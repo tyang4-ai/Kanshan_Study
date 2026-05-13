@@ -5,6 +5,7 @@ import {
   buildCustomMaskPrompt,
   isCustomMask,
 } from '@/lib/personas';
+import { PERSONA_ROUND1_JSON_TAIL } from '@/lib/foxes/prompts/wen';
 
 export type SelectedMask = MaskMeta | CustomMask;
 
@@ -38,8 +39,7 @@ interface RoutingJson {
   why: string;
 }
 
-const JSON_TAIL_R1 =
-  '同时给出 1–3 个标签。返回严格 JSON {"text": "...", "tags": ["...", "..."]}';
+// JSON-tail moved to lib/foxes/prompts/wen.ts (颜鑫 R3 P1 2026-05-12).
 
 function maskFoxId(m: SelectedMask): string {
   return isCustomMask(m) ? 'wen2' : m.fox;
@@ -47,9 +47,9 @@ function maskFoxId(m: SelectedMask): string {
 
 function round1System(m: SelectedMask): string {
   if (isCustomMask(m)) {
-    return `${buildCustomMaskPrompt(m)} 请用第一人称，60–120 字，给出对所给段落最直接的反应（情绪 + 判断 + 行动）。${JSON_TAIL_R1}`;
+    return `${buildCustomMaskPrompt(m)} 请用第一人称，60–120 字，给出对所给段落最直接的反应（情绪 + 判断 + 行动）。${PERSONA_ROUND1_JSON_TAIL}`;
   }
-  return `你是一位「${m.label}」读者：${m.hint}。请用第一人称，60–120 字，给出对所给段落最直接的反应（情绪 + 判断 + 行动）。${JSON_TAIL_R1}`;
+  return `你是一位「${m.label}」读者：${m.hint}。请用第一人称，60–120 字，给出对所给段落最直接的反应（情绪 + 判断 + 行动）。${PERSONA_ROUND1_JSON_TAIL}`;
 }
 
 function roundNSystem(m: SelectedMask, history: PersonaMessage[]): string {

@@ -1,4 +1,5 @@
 import type { FoxId } from '@/lib/foxes/registry';
+import { buildCustomMaskPreamble } from '@/lib/foxes/prompts/wen2';
 
 export interface MaskMeta {
   id: string;
@@ -51,8 +52,10 @@ export interface CustomMask {
   fox: 'wen2';
 }
 
+// buildCustomMaskPrompt delegates to `lib/foxes/prompts/wen2.ts` so all of
+// 看纹's prompt material lives in one place (颜鑫 R3 P1 2026-05-12).
 export function buildCustomMaskPrompt(m: CustomMask): string {
-  return `你是一位读者，描述如下：「${m.description}」。请以这个读者的视角点评本段。`;
+  return buildCustomMaskPreamble(m.description);
 }
 
 // Debate-mode fixed pair (used by plan #8 — pre-loaded here so plan #8 doesn't touch this file).
