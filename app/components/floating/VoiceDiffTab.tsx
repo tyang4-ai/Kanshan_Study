@@ -44,41 +44,23 @@ export function VoiceDiffTab({ selection, bullets, mode }: VoiceDiffTabProps = {
       rangeRef.current = { from, to };
       return;
     }
-    // Selection already collapsed — find first occurrence of fallbackText in
-    // the doc and use that range.
-    const docText = editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n', '￼');
-    const idx = docText.indexOf(fallbackText);
-    if (idx < 0) return;
-    // Walk the doc to map string offset → PM position. textBetween uses
-    // '\n' as block separator (1 char each); PM positions count one per
-    // node boundary too, so we walk descendants and track both cursors.
-    let pmPos = 0;
-    let strPos = 0;
-    let rangeStart: number | null = null;
-    let rangeEnd: number | null = null;
+    // Selection collapsed (focus left the editor when 看墨 opened) — search
+    // each text node for fallbackText. The absolutist sentence is a single
+    // paragraph child, so it lives inside one text node and indexOf works.
     editor.state.doc.descendants((node, pos) => {
-      if (rangeEnd !== null) return false;
-      if (node.isText) {
-        const len = node.text?.length ?? 0;
-        const localStart = idx - strPos;
-        if (rangeStart === null && localStart >= 0 && localStart < len) {
-          rangeStart = pos + localStart;
+      if (rangeRef.current) return false;
+      if (node.isText && node.text) {
+        const localIdx = node.text.indexOf(fallbackText);
+        if (localIdx >= 0) {
+          rangeRef.current = {
+            from: pos + localIdx,
+            to: pos + localIdx + fallbackText.length,
+          };
+          return false;
         }
-        const localEnd = idx + fallbackText.length - strPos;
-        if (rangeStart !== null && rangeEnd === null && localEnd <= len) {
-          rangeEnd = pos + localEnd;
-        }
-        strPos += len;
-        pmPos = pos + len;
-        return false;
       }
-      if (node.isBlock && pmPos > 0) strPos += 1; // '\n' separator
-      pmPos = pos;
       return true;
     });
-    if (rangeStart !== null && rangeEnd !== null) {
-      rangeRef.current = { from: rangeStart, to: rangeEnd };
-    }
   }, [editor, fallbackText]);
 
   const handleAccept = (text: string) => {
