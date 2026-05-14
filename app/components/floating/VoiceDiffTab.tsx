@@ -1,5 +1,6 @@
 'use client';
 import { VoiceDiffPanel } from '@/components/voice/VoiceDiffPanel';
+import { useEditorStore } from '@/lib/store/editor';
 
 // ContextMenu passes selection as { text, rect } from the editor; other callers (e.g. tests)
 // may pass a plain string. Normalize at the boundary.
@@ -18,11 +19,24 @@ function toText(s: SelectionInput): string {
 }
 
 export function VoiceDiffTab({ selection, bullets, mode }: VoiceDiffTabProps = {}) {
-  const selectionText = toText(selection);
+  const propText = toText(selection);
+  // r6 demo-day (2026-05-14): when the panel is opened from TitleBar's
+  // daily-4 看墨 button (no selection passed), or any other entry-point
+  // that doesn't thread the selection, read the editor's CURRENT selection
+  // directly so the panel + its canonical-fallback detection both see the
+  // text the user actually has selected.
+  const editor = useEditorStore((s) => s.editor);
+  const fallbackText = (() => {
+    if (propText) return propText;
+    if (!editor) return '';
+    const { from, to } = editor.state.selection;
+    if (from === to) return '';
+    return editor.state.doc.textBetween(from, to, ' ').trim();
+  })();
   return (
     <VoiceDiffPanel
-      selection={selectionText}
-      bullets={bullets ?? selectionText ?? '— 这一段需要例子'}
+      selection={fallbackText}
+      bullets={bullets ?? fallbackText ?? '— 这一段需要例子'}
       mode={mode ?? 'polish'}
     />
   );
