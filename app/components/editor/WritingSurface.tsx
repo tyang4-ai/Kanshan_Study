@@ -16,6 +16,7 @@ import { exportMarkdown } from '@/lib/io/exporters';
 import { triggerDownload, safeFilename } from '@/lib/io/download';
 import { MarginSealPopover } from '@/components/compliance/MarginSealPopover';
 import { ToolbarIcon, BudgetChip, DemoPersonaBadge, useToolbarOpeners, type AccountAvatarUrls } from '@/components/chrome/TitleBar';
+import { OrchestrationStrip } from '@/components/chrome/OrchestrationStrip';
 import { RightToolbar } from '@/components/chrome/RightToolbar';
 import marginSeedsJson from '@/content/seed/margin-seals-demo.json';
 import type { MarginSealSeed } from './margin-seal-from-seeds';
@@ -246,6 +247,8 @@ export function WritingSurface({
       </div>
 
       <FormatRibbon />
+
+      <OrchestrationStrip />
 
       <div data-testid="editor-body" style={scrollRegionStyle}>
         <TipTapEditor

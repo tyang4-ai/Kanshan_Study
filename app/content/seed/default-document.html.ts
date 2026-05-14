@@ -42,6 +42,15 @@ export const DEFAULT_DOC_HTML = `
 </li>
 <li>你可以看到两个浮窗同时弹出并各自加载</li>
 </ul>
+<blockquote><p><strong>您也可以继续问 看山（每一条都已预生成缓存，复制粘贴即可命中）：</strong></p>
+<ul>
+<li>「再帮我多找几条最近的临床试验」</li>
+<li>「这一段对家属来说还是太专业了 · 怎么改」</li>
+<li>「有没有中文知乎答主写过这块」</li>
+<li>「帮我把 Stupp 方案那段口语化一点」</li>
+<li>「看心标出来那句怎么改」</li>
+<li>「看势上有什么相关问题在涨」</li>
+</ul></blockquote>
 <hr>
 <h2>Step 1 — 看水 + 看典 并行运行</h2>
 <p><strong>看什么</strong>：</p>

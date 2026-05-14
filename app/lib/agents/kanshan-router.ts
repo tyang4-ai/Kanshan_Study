@@ -13,8 +13,25 @@ export type KanshanTool =
   | 'open_vault'
   | 'open_persona'
   | 'open_debate'
+  | 'open_voice_diff'
   | 'pin_to_corkboard'
-  | 'run_compliance_check';
+  | 'run_compliance_check'
+  | 'orchestrate';
+
+// Multi-fox dispatch — emit one entry per sub-tool so the client opens each in
+// sequence. Used when 看山 wants to fire 看水 AND 看典 (or any pair) on a
+// single turn. R5 (周源 / emmett P0 2026-05-13): the cached demo path uses
+// this so Step 1 promises (parallel 看水+看典) actually fire.
+export interface KanshanOrchestrationCall {
+  tool: 'orchestrate';
+  args: {
+    open: Array<{
+      kind: 'research' | 'vault' | 'trends' | 'persona' | 'debate' | 'voice-diff';
+      query?: string;
+      scope?: 'quick' | 'deep' | 'thorough';
+    }>;
+  };
+}
 
 export interface KanshanToolCall {
   tool: KanshanTool;
@@ -37,9 +54,26 @@ const VALID_TOOLS: ReadonlySet<KanshanTool> = new Set([
   'open_vault',
   'open_persona',
   'open_debate',
+  'open_voice_diff',
   'pin_to_corkboard',
   'run_compliance_check',
+  'orchestrate',
 ]);
+
+const VALID_ORCHESTRATE_KINDS: ReadonlySet<string> = new Set([
+  'research', 'vault', 'trends', 'persona', 'debate', 'voice-diff',
+]);
+
+function isValidOrchestrate(args: unknown): args is KanshanOrchestrationCall['args'] {
+  if (!args || typeof args !== 'object') return false;
+  const a = args as { open?: unknown };
+  if (!Array.isArray(a.open) || a.open.length === 0) return false;
+  return a.open.every((item) => {
+    if (!item || typeof item !== 'object') return false;
+    const it = item as { kind?: unknown };
+    return typeof it.kind === 'string' && VALID_ORCHESTRATE_KINDS.has(it.kind);
+  });
+}
 
 function buildMessages(
   history: KanshanChatTurn[],
@@ -80,6 +114,11 @@ export async function runKanshanTurn(
     if (raw.toolCall) {
       // Validate tool name; drop the toolCall if unknown to avoid client crash.
       if (!VALID_TOOLS.has(raw.toolCall.tool)) {
+        return { reply: raw.reply, toolCall: undefined };
+      }
+      // Orchestrate is the multi-tool path — args must contain a non-empty
+      // `open[]` array of supported kinds, otherwise drop the dispatch.
+      if (raw.toolCall.tool === 'orchestrate' && !isValidOrchestrate(raw.toolCall.args)) {
         return { reply: raw.reply, toolCall: undefined };
       }
     }

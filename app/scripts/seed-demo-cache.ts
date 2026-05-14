@@ -9,6 +9,7 @@ import { seedVoice } from './seed/voice';
 import { seedPersona } from './seed/persona';
 import { seedDebate } from './seed/debate';
 import { seedKanshanChat } from './seed/kanshan-chat';
+import { seedKanshanFollowups } from './seed/kanshan-followups';
 import { countCache } from '../lib/cache/store';
 
 interface SeedReport {
@@ -30,6 +31,7 @@ async function main(): Promise<void> {
   console.log('Seeding demo cache (run with real DeepSeek + Supabase env vars)…');
   const reports: SeedReport[] = [];
   reports.push(await timed('kanshan-chat', seedKanshanChat));
+  reports.push(await timed('kanshan-followups', seedKanshanFollowups));
   reports.push(await timed('voice', seedVoice));
   reports.push(await timed('persona', seedPersona));
   reports.push(await timed('debate', seedDebate));

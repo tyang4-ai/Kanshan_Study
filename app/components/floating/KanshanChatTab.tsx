@@ -39,8 +39,10 @@ const TOOL_LABEL: Record<KanshanTool, string> = {
   open_vault: '打开看典 · 档案库',
   open_persona: '召集看文 · 读者反应',
   open_debate: '召集看文/看纹 · 辩论',
+  open_voice_diff: '打开看墨 · 语风重写',
   pin_to_corkboard: '钉到便签板',
   run_compliance_check: '让看心审一遍',
+  orchestrate: '调度多狐并联',
 };
 
 const TOOL_TAB: Record<KanshanTool, { kind: TabKind; title: string } | null> = {
@@ -49,8 +51,22 @@ const TOOL_TAB: Record<KanshanTool, { kind: TabKind; title: string } | null> = {
   open_vault: { kind: 'vault', title: '看典 · 档案库' },
   open_persona: { kind: 'persona', title: '看文 · 读者反应' },
   open_debate: { kind: 'debate', title: '看文 · 看纹辩论' },
+  open_voice_diff: { kind: 'voice-diff', title: '看墨 · 语风重写' },
   pin_to_corkboard: null,
   run_compliance_check: null,
+  orchestrate: null,
+};
+
+// R5 (2026-05-13): same mapping but keyed by the orchestrate `open[].kind`
+// (panel kind, not tool name) so the orchestration branch in dispatchTool can
+// open each sub-fox in sequence.
+const KIND_TAB: Record<string, { kind: TabKind; title: string }> = {
+  research: { kind: 'research', title: '看水 · 深度研究' },
+  vault: { kind: 'vault', title: '看典 · 档案库' },
+  trends: { kind: 'trends', title: '看势 · 热榜雷达' },
+  persona: { kind: 'persona', title: '看文 · 读者反应' },
+  debate: { kind: 'debate', title: '看文 · 看纹辩论' },
+  'voice-diff': { kind: 'voice-diff', title: '看墨 · 语风重写' },
 };
 
 // S7-B1 (2026-05-11): the orchestrator's multi-agent dispatch was invisible
@@ -62,8 +78,10 @@ const TOOL_FOX: Record<KanshanTool, { label: string; glow: string }> = {
   open_vault: { label: '看典', glow: FOX_BY_ID.dian.glow },
   open_persona: { label: '看文', glow: FOX_BY_ID.wen.glow },
   open_debate: { label: '看文 + 看纹', glow: FOX_BY_ID.wen2.glow },
+  open_voice_diff: { label: '看墨', glow: FOX_BY_ID.mo.glow },
   pin_to_corkboard: { label: '看典', glow: FOX_BY_ID.dian.glow },
   run_compliance_check: { label: '看心', glow: FOX_BY_ID.xin.glow },
+  orchestrate: { label: '多狐协作', glow: FOX_BY_ID.shan.glow },
 };
 
 interface CotState {
@@ -178,6 +196,28 @@ export function KanshanChatTab() {
   }, [turns, activeAccount]);
 
   const dispatchTool = (toolCall: KanshanToolCall, replyText: string) => {
+    // R5 (周源 / emmett P0 2026-05-13): multi-fox dispatch. When the LLM
+    // emits `orchestrate` (or the demo seed does), iterate the open[] array
+    // and stagger calls so 看水 + 看典 visibly fan out one after another.
+    if (toolCall.tool === 'orchestrate') {
+      const args = toolCall.args as
+        | { open?: Array<{ kind?: string; query?: string; scope?: string }> }
+        | undefined;
+      const opens = Array.isArray(args?.open) ? args!.open : [];
+      opens.forEach((spec, i) => {
+        const tab = KIND_TAB[spec.kind ?? ''];
+        if (!tab) return;
+        const props: Record<string, unknown> = {};
+        if (typeof spec.query === 'string') props.preloadQuery = spec.query;
+        if (spec.scope === 'quick' || spec.scope === 'deep' || spec.scope === 'thorough') {
+          props.preloadScope = spec.scope;
+        }
+        // 250ms stagger so the second window doesn't land on top of the first.
+        // Judges visibly see two foxes lighting up sequentially.
+        setTimeout(() => openTab(tab.kind, tab.title, props), i * 250);
+      });
+      return;
+    }
     const target = TOOL_TAB[toolCall.tool];
     if (target) {
       const args = toolCall.args ?? {};
@@ -248,7 +288,11 @@ export function KanshanChatTab() {
       const decoder = new TextDecoder();
       let buffer = '';
       let replyText: string | null = null;
-      let toolCall: KanshanToolCall | undefined;
+      // R5 (周源 / emmett P0 2026-05-13): the SSE handler used to keep only
+      // the LAST tool_call event ("last wins"). The demo seed now emits TWO
+      // sequential tool_call events (open_research + open_vault) so the
+      // judge sees parallel 看水+看典 — accumulate into an array.
+      const toolCalls: KanshanToolCall[] = [];
 
       const processFrame = (frame: string) => {
         const lines = frame.split('\n');
@@ -264,7 +308,7 @@ export function KanshanChatTab() {
           if (event === 'reply' && typeof data.text === 'string') {
             replyText = data.text;
           } else if (event === 'tool_call') {
-            toolCall = data as KanshanToolCall;
+            toolCalls.push(data as KanshanToolCall);
           }
         } catch {
           // ignore malformed frame
@@ -281,30 +325,30 @@ export function KanshanChatTab() {
       }
 
       if (replyText) {
+        // For chat-log display we attach the FIRST tool_call (the headline
+        // action 看山 names in its reply). Subsequent ones in `toolCalls`
+        // are dispatched silently in sequence.
+        const primaryToolCall = toolCalls[0];
         const reply: ChatTurn = {
           role: 'kanshan',
           content: replyText,
-          toolCall,
+          toolCall: primaryToolCall,
           ts: Date.now(),
         };
         setTurns((prev) => [...prev, reply]);
-        if (toolCall) {
-          // S7-B1 (revised after R9-S3, Shi Junhe 2026-05-11): CoT animation
-          // previously fired AFTER the LLM call returned, so judges sat through
-          // 5s of "看山想想…" silence before seeing the fox-routing moment.
-          // Now we set the 'reasoning' phase eagerly when the send button
-          // fires (see send()), and only transition to 'dispatching' here once
-          // we know which fox. The whole moment lands AS the LLM call ends.
-          const fox = TOOL_FOX[toolCall.tool];
-          const target = TOOL_TAB[toolCall.tool];
-          const toolLabel = target?.title ?? TOOL_LABEL[toolCall.tool];
+        if (primaryToolCall) {
+          // S7-B1: CoT animation transition. For multi-tool dispatch
+          // (sequential SSE or orchestrate meta-tool), use the first tool's
+          // fox glow as the CoT pill — judges see the "looking up" beat
+          // before the foxes fan out.
+          const fox = TOOL_FOX[primaryToolCall.tool];
+          const target = TOOL_TAB[primaryToolCall.tool];
+          const toolLabel = target?.title ?? TOOL_LABEL[primaryToolCall.tool];
           setCot({ toolLabel, foxLabel: fox.label, foxGlow: fox.glow, phase: 'dispatching' });
           setTimeout(() => {
-            dispatchTool(toolCall!, replyText!);
-            // L9-1 (Lin Maohua R9, 2026-05-11): "唤起 看水" pill needs to linger
-            // 2s past dispatch so judges on Tencent Meeting screen-share have
-            // time to register the orchestration moment. Without the linger
-            // the panel-open animation steals attention from the CoT label.
+            // R5 (周源 / emmett P0 2026-05-13): dispatch ALL tool_calls so
+            // sequential SSE events (the demo path) fan out parallel foxes.
+            for (const tc of toolCalls) dispatchTool(tc, replyText!);
           }, 400);
           setTimeout(() => setCot(null), 2400);
         } else {
