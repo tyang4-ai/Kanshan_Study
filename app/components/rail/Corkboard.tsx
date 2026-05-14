@@ -63,35 +63,40 @@ export function Corkboard({
   const [composing, setComposing] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // R5 (2026-05-13): per-mount seed guard. The effect previously double-fired
-  // (StrictMode in dev + pins.length oscillation through addPostit calls in
-  // prod), producing 6 pins instead of 3. A ref bound at the module-level
-  // (per component instance) is bulletproof — first run sets it, subsequent
-  // runs short-circuit before any addPostit.
+  // R6 demo-day (2026-05-13): the per-component-instance useRef guard wasn't
+  // bulletproof — Corkboard remounts on rail-width changes / panel toggles,
+  // resetting the ref and triggering re-seed. Final fix: content-aware dedupe.
+  // Before adding any DEMO_SEED entry, check if its exact text already exists
+  // in the store. This is idempotent across any number of remounts.
   const seedingDoneRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (seedingDoneRef.current) return;
     try {
-      // The zustand-persist v1→v2 migration in lib/store/corkboard.ts already
-      // strips radiogenomics-era pins on rehydrate. If v2 SEED_FLAG is set
-      // AND pins is non-empty, nothing to do.
-      const seededV2 = window.localStorage.getItem(SEED_FLAG) === '1';
-      if (seededV2 && pins.length > 0) {
-        seedingDoneRef.current = true;
-        return;
-      }
       // Clear legacy flags so future versions can detect a fresh upgrade.
       for (const k of STALE_SEED_FLAGS) window.localStorage.removeItem(k);
-      if (pins.length === 0) {
-        for (const p of DEMO_SEED) addPostit(p.annotation, p.createdBy);
+      // Build a set of existing annotation/snippet/title text so we can
+      // recognize a seeded entry that's already present (from a prior mount,
+      // a v3 migration that preserved it as a user pin, or anywhere else).
+      const existingTexts = new Set<string>();
+      for (const p of pins) {
+        const txt = (p.content?.annotation ?? p.content?.snippet ?? p.content?.title ?? '').trim();
+        if (txt) existingTexts.add(txt);
+      }
+      for (const p of DEMO_SEED) {
+        if (existingTexts.has(p.annotation.trim())) continue;
+        addPostit(p.annotation, p.createdBy);
+        existingTexts.add(p.annotation.trim());
       }
       window.localStorage.setItem(SEED_FLAG, '1');
       seedingDoneRef.current = true;
     } catch {
       /* localStorage blocked — accept the cold-open hit */
     }
-  }, [pins.length, addPostit]);
+    // Intentionally NOT depending on pins.length — that's what caused the
+    // oscillation that re-fired the seed during the addPostit cascade.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addPostit]);
 
   // Vertical scroll past N=12 — see plan #13.99 Task C "Auto-size strategy".
   const scrollEnabled = pins.length > 12;
@@ -296,7 +301,12 @@ export function Corkboard({
             onDragStart={handlePinDragStart(pin.id)}
             onRemove={() => removePin(pin.id)}
             onAnnotationChange={(text) => updateAnnotation(pin.id, text)}
-            onFocus={() => bringToFront(pin.id)}
+            // r6 demo-day (2026-05-13): disabled — bringToFront mutates the
+            // pins array order, which `withGridPositions` uses to assign grid
+            // slots. So every click reshuffled all cards. Until we ship a
+            // stable layout keyed by pin.id, focus is a no-op (z-stacking
+            // via CSS order on .kind === 'note' is preserved).
+            onFocus={() => { /* no-op — see comment */ }}
           />
         ))}
 
