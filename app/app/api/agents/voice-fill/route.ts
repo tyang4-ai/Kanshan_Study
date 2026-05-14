@@ -73,7 +73,7 @@ export async function POST(req: Request): Promise<Response> {
     // misconfigured on Vercel) still get a fast cache-miss instead of a 60s
     // hung Kimi call. BYO-key path (creds.source === 'user') gets no timeout
     // because authenticated users explicitly chose live mode.
-    const liveTimeoutMs = creds.source === 'app' ? 5000 : undefined;
+    const liveTimeoutMs = creds.source === 'app' ? 2000 : undefined;
     steps = await withCache<ReplayStep[]>('voice-fill', intent, async () => {
       const buffered: ReplayStep[] = [];
       for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline, creds.key, creds.provider)) {

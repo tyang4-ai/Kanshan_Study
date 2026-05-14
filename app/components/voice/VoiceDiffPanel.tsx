@@ -318,7 +318,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           voice: s.voice || hardVoice,
         };
       });
-    }, 7000);
+    }, 3000);
     return () => window.clearTimeout(id);
   }, [state.done, state.error, selection]);
 

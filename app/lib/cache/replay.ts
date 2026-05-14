@@ -41,9 +41,10 @@ export function replayStream(
   });
 }
 
-// Common gap presets — calibrated for the rehearsed demo's screen-share legibility.
+// Common gap presets. Sized so total wall-time per cached demo lands in
+// the ~2-3s "feels fast" range, matching the ticker labels users see.
 export const REPLAY_GAPS = {
-  voiceFillIter: 800,
-  debateTurn: 1200,
-  personaMessage: 600,
+  voiceFillIter: 400,
+  debateTurn: 500,
+  personaMessage: 350,
 } as const;
