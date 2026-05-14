@@ -66,34 +66,22 @@ export function Corkboard({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      if (window.localStorage.getItem(SEED_FLAG)) return;
-      // v2 (2026-05-13): if user has only stale v1 seed pins (radiogenomics
-      // era), clear them so the GBM v2 seed can render. Detect by either
-      // (a) having the legacy flag set without v2, OR (b) any sticky note
-      // text matching the radiogenomics pattern.
+      // The zustand-persist v1→v2 migration in lib/store/corkboard.ts already
+      // strips radiogenomics-era pins on rehydrate, so we don't need to
+      // filter here — just decide whether to seed the GBM pins.
+      // Seed if either: (a) v2 SEED_FLAG isn't set yet, OR (b) v1 was set but
+      // the migration left the board empty (returning user pre-pivot).
+      const seededV2 = window.localStorage.getItem(SEED_FLAG) === '1';
       const hadLegacyFlag = STALE_SEED_FLAGS.some((k) => window.localStorage.getItem(k));
-      const STALE_RE = /影像组学|radiomics|影像 AI/i;
-      const pinAnnotation = (p: CorkboardPin): string =>
-        (p.content?.annotation ?? p.content?.snippet ?? p.content?.title ?? '') as string;
-      const hasStalePin = pins.some((p) => STALE_RE.test(pinAnnotation(p)));
-      if (hadLegacyFlag || hasStalePin) {
-        // Drop pre-existing notes that match the stale pattern; keep anything
-        // the user added themselves.
-        for (const p of pins) {
-          if (STALE_RE.test(pinAnnotation(p))) {
-            removePin(p.id);
-          }
-        }
-        // Clear legacy flags so we re-run the v2 seed below.
-        for (const k of STALE_SEED_FLAGS) window.localStorage.removeItem(k);
+      if (seededV2 && pins.length > 0) return;
+      // Clear legacy flags so future versions can detect a fresh upgrade.
+      for (const k of STALE_SEED_FLAGS) window.localStorage.removeItem(k);
+      if (pins.length === 0) {
+        for (const p of DEMO_SEED) addPostit(p.annotation, p.createdBy);
       }
-      if (pins.filter((p) => !STALE_RE.test(pinAnnotation(p))).length > 0) {
-        // User has non-stale pins → just stamp v2 flag and skip seeding.
-        window.localStorage.setItem(SEED_FLAG, '1');
-        return;
-      }
-      for (const p of DEMO_SEED) addPostit(p.annotation, p.createdBy);
       window.localStorage.setItem(SEED_FLAG, '1');
+      // Suppress unused warning when legacy flag wasn't set yet (fresh visitor).
+      void hadLegacyFlag;
     } catch {
       /* localStorage blocked — accept the cold-open hit */
     }
