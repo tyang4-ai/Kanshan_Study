@@ -268,13 +268,10 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     return () => window.clearInterval(t);
   }, [state.done]);
 
-  // r6 FIX 2 v2 (emmett/史中/吴伟 R6 P0): HARD 8s panel timeout. Earlier
-  // version gated on sawSseEventRef which the 'generic' chunk flipped true
-  // within ~1s — so the timeout suppressed itself while VOICE iterations
-  // hung at 22-33s+. For demo-day reliability we now hard-kill the panel
-  // after 8 seconds of NOT-done state, regardless of SSE traffic. Real BYO-
-  // key users who want full 30s voice iterations can rerun; demo judges
-  // never have to stare at a stalled "通用稿生成中 · 已 5s"。
+  // r6 FIX 2 v3 (2026-05-13 demo-day): HARD 4s panel timeout. Demo cache
+  // hits return in <1s; on miss, route should throw CacheMissError within 5s
+  // server-side. Capping client at 4s gives the panel a snappy "~2s/~3s"
+  // expectation match — judges never see a hung loader.
   useEffect(() => {
     if (state.done) return;
     if (state.error) return;
@@ -289,17 +286,28 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
         return {
           ...s,
           done: true,
-          error: '已 8s · 该选段未在预生成缓存中',
+          error: '已 4s · 该选段未在预生成缓存中',
           fallbackActive: true,
         };
       });
-    }, 8000);
+    }, 4000);
     return () => window.clearTimeout(id);
   }, [state.done, state.error]);
 
   const handleAccept = (kind: 'generic' | 'voice') => {
-    setAccepted(kind);
     const text = kind === 'generic' ? state.generic : state.voice;
+    // r6 demo-day fix (2026-05-13): in fallback state (cache miss + timeout
+    // fired), state.generic / state.voice are still empty strings — clicking
+    // 采用 silently called onAccept('') and the editor inserted nothing,
+    // looking like the button was broken. Surface a notice instead.
+    if (!text || !text.trim()) {
+      useAiErrorStore.getState().push({
+        message: '该稿未生成（缓存未命中或已超时） · 请重试，或换一句编辑器内引导的句子',
+        severity: 'notice',
+      });
+      return;
+    }
+    setAccepted(kind);
     onAccept?.(text, kind);
   };
 
@@ -558,7 +566,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
               · · · 通用稿生成中
               <br />
               <span style={{ fontSize: 10, color: 'rgba(122,102,85,0.7)' }}>
-                {`已 ${elapsed}s · 预计 ~22s · 不必关闭窗口`}
+                {`已 ${elapsed}s · 预计 ~2s · 不必关闭窗口`}
               </span>
             </p>
           )}
@@ -630,7 +638,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
               · · · 据档案库重写中（{state.trace.length} 稿迭代）
               <br />
               <span style={{ fontSize: 10, color: 'rgba(31,139,102,0.7)' }}>
-                {`已 ${elapsed}s · 预计 ~33s · 看墨在重写 3 轮`}
+                {`已 ${elapsed}s · 预计 ~3s · 看墨在重写`}
               </span>
             </p>
           )}
