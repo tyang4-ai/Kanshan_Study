@@ -63,25 +63,31 @@ export function Corkboard({
   const [composing, setComposing] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // R5 (2026-05-13): per-mount seed guard. The effect previously double-fired
+  // (StrictMode in dev + pins.length oscillation through addPostit calls in
+  // prod), producing 6 pins instead of 3. A ref bound at the module-level
+  // (per component instance) is bulletproof — first run sets it, subsequent
+  // runs short-circuit before any addPostit.
+  const seedingDoneRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (seedingDoneRef.current) return;
     try {
       // The zustand-persist v1→v2 migration in lib/store/corkboard.ts already
-      // strips radiogenomics-era pins on rehydrate, so we don't need to
-      // filter here — just decide whether to seed the GBM pins.
-      // Seed if either: (a) v2 SEED_FLAG isn't set yet, OR (b) v1 was set but
-      // the migration left the board empty (returning user pre-pivot).
+      // strips radiogenomics-era pins on rehydrate. If v2 SEED_FLAG is set
+      // AND pins is non-empty, nothing to do.
       const seededV2 = window.localStorage.getItem(SEED_FLAG) === '1';
-      const hadLegacyFlag = STALE_SEED_FLAGS.some((k) => window.localStorage.getItem(k));
-      if (seededV2 && pins.length > 0) return;
+      if (seededV2 && pins.length > 0) {
+        seedingDoneRef.current = true;
+        return;
+      }
       // Clear legacy flags so future versions can detect a fresh upgrade.
       for (const k of STALE_SEED_FLAGS) window.localStorage.removeItem(k);
       if (pins.length === 0) {
         for (const p of DEMO_SEED) addPostit(p.annotation, p.createdBy);
       }
       window.localStorage.setItem(SEED_FLAG, '1');
-      // Suppress unused warning when legacy flag wasn't set yet (fresh visitor).
-      void hadLegacyFlag;
+      seedingDoneRef.current = true;
     } catch {
       /* localStorage blocked — accept the cold-open hit */
     }
