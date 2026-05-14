@@ -86,14 +86,6 @@ export async function POST(req: Request): Promise<Response> {
     const creds = proxyAuth(req);
     const cacheMode = creds.source === 'gated' ? ('cache-only' as const) : undefined;
     const intent = intentKey(body.history, body.userMessage);
-    // DEBUG: probe the cache directly so the result lands in the SSE payload
-    const { db } = await import('@/lib/db/client');
-    const { sql } = await import('drizzle-orm');
-    const probe = await db.execute(sql`select id, intent_text from demo_cache where kind = 'kanshan-chat' and intent_text = ${intent} limit 1`);
-    const probeRows = probe as unknown as Array<{ id: string; intent_text: string }>;
-    const probeAll = await db.execute(sql`select count(*)::int as n from demo_cache where kind = 'kanshan-chat'`);
-    const probeCount = (probeAll as unknown as Array<{ n: number }>)[0]?.n ?? -1;
-    throw new Error(`DEBUG intent.len=${intent.length} probeHits=${probeRows.length} totalKanshanRows=${probeCount} source=${creds.source} mode=${cacheMode ?? 'auto'} intentBytes=${Buffer.byteLength(intent,'utf8')} intentHead=${intent.slice(0,20)}`);
     steps = await withCache<ReplayStep[]>('kanshan-chat', intent, async () => {
       const reply = await runKanshanTurn(
         body.history,
