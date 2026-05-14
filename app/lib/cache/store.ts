@@ -42,10 +42,11 @@ const THRESHOLD_BY_KIND: Record<CacheKind, number> = {
   'account-switch': 0.78,
   'tail-click': 0.78,
   chat: 0.78,
-  // 看山 chat: high-precision matching — exact phrasing matters because the
-  // tool dispatch is sensitive to wording ("找研究" → open_research, but
-  // "查档案" → open_vault, even though embeddings might cluster them).
-  'kanshan-chat': 0.92,
+  // 看山 chat: 0.92 was rejecting identical-text intents on demo day because
+  // BGE-M3 emits tiny non-determinism between seed-time and query-time. Lower
+  // to 0.80 so the canonical kickoff reliably hits its seeded reply. The
+  // substring fallback (lookupCacheSubstring) catches any near-miss.
+  'kanshan-chat': 0.80,
 };
 
 export function thresholdFor(kind: CacheKind | string): number {
