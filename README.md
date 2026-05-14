@@ -1,63 +1,60 @@
 # 看山书房 · Kanshan Shufang
 
-A multi-agent writing workbench for 知乎 answer-authors. Covers the full
-**「灵感激发 → 思路梳理 → 内容精加工」** loop in a single screen, with 9
-named-fox agents collaborating with you instead of replacing you.
+面向知乎答主的多智能体写作工作台。在同一屏内覆盖完整的
+**「灵感激发 → 思路梳理 → 内容精加工」** 流程，由 9 只命名狐狸与你协作，而非替代你。
 
-Built solo for **知乎 Hackathon 2026** · submission 2026-05-14 · demo
-2026-05-16. Live at **https://kanshan.yang9ru.online**.
+个人独立开发，参赛 **知乎 Hackathon 2026** · 提交于 2026-05-14 · 现场展示 2026-05-16。
+线上地址：**https://kanshan.yang9ru.online**。
 
 > 山有九尾，各司其职。看山书房是一个工作台 —— 九只狐狸协助你起草、修订、辩论、并为论点提供出处，但绝不替代你的声音。
 
 ---
 
-## What it does
+## 它能做什么
 
-A writing workspace where 9 foxes each own one workflow verb:
+一个写作工作区，9 只狐狸各自负责一个工作流动词：
 
-| Fox | Verb | Role |
+| 狐狸 | 动词 | 职责 |
 |---|---|---|
-| 看山 | orchestrate | Listens, then dispatches the right fox via SSE `tool_call` |
-| 看墨 | 灵感激发 | Voice-fingerprint rewriter — aligns text to YOUR archive, not a generic style |
-| 看文 | 内容精加工 | 4-persona reader simulation (路人 / 业内 / 社畜 / 边界) |
-| 看纹 | 内容精加工 | Adversarial debate partner — finds the holes in your argument |
-| 看水 | 思路梳理 | Citation grounding · 3-color trail (`web` blue / `vault` brown / `知乎` red) |
-| 看典 | 思路梳理 | Vault — your own past answers, chunked + embedded into pgvector for retrieval |
-| 看势 | 灵感激发 | 知乎 hot-list radar — **inspiration only**, refuses 热榜→正文 (清朗 第二阶段 红线) |
-| 看镜 | 思路梳理 | Stats — what your past answers earned, no editorialization |
-| 看心 | 内容精加工 | ComplianceLine — softens unsourced medical/finance claims, adds `GB 45438` AI-trace label |
+| 看山 | 调度 | 倾听后，通过 SSE `tool_call` 派遣合适的狐狸 |
+| 看墨 | 灵感激发 | 声音指纹改写器 —— 对齐到「你」的档案，而非通用风格 |
+| 看文 | 内容精加工 | 4 类读者画像模拟（路人 / 业内 / 社畜 / 边界） |
+| 看纹 | 内容精加工 | 对抗式辩论伙伴 —— 找出你论证中的漏洞 |
+| 看水 | 思路梳理 | 引用接地 · 三色轨迹（`web` 蓝 / `vault` 棕 / `知乎` 红） |
+| 看典 | 思路梳理 | 私库 —— 你自己过往的回答，切块嵌入到 pgvector 供检索 |
+| 看势 | 灵感激发 | 知乎热榜雷达 —— **仅作灵感**，拒绝 热榜→正文（清朗 第二阶段 红线） |
+| 看镜 | 思路梳理 | 数据 —— 你过往回答获得的反响，不作主观解读 |
+| 看心 | 内容精加工 | 合规线 —— 软化无来源的医疗/金融断言，附加 `GB 45438` AI 可追溯标识 |
 
-Plus: drag-drop `.md / .txt / .docx` into the vault, export drafts as
-`.md / .txt / .html / .docx / .pdf`, publish a pin to a 知乎 圈子 via the
-official HMAC OpenAPI, and a lore portal for the 北极小镇 九重书房 world the
-foxes live in.
+此外还支持：将 `.md / .txt / .docx` 拖入私库；将草稿导出为
+`.md / .txt / .html / .docx / .pdf`；通过官方 HMAC OpenAPI 向知乎圈子发布一条想法；
+以及一个介绍狐狸们栖居的 北极小镇·九重书房 世界观的设定门户。
 
 ---
 
-## Quickstart (≤ 30 minutes)
+## 快速上手（≤ 30 分钟）
 
 ```bash
 git clone https://github.com/tyang4-ai/Kanshan_Study.git
 cd Kanshan_Study/app
 pnpm install
-cp ../.env.example .env.local         # fill in the keys you have
-CACHE_MODE=cache-only pnpm dev        # works without any LLM key
-# open http://localhost:3000
+cp ../.env.example .env.local         # 填入你拥有的密钥
+CACHE_MODE=cache-only pnpm dev        # 无需任何 LLM 密钥也能跑
+# 打开 http://localhost:3000
 ```
 
-`CACHE_MODE=cache-only` runs the entire pre-rehearsed demo flow with **zero
-live LLM calls** — useful if you want to evaluate the UX without provisioning
-keys. With Supabase + Kimi + SiliconFlow configured you get full live AI.
+`CACHE_MODE=cache-only` 模式下，整个预演的演示流程会以**零次实时 LLM 调用**运行 ——
+适合在不配置密钥的前提下评估交互体验。配置好 Supabase + Kimi + SiliconFlow 后即可获得完整的实时 AI。
 
-Tests:
+测试：
 
 ```bash
-pnpm test                              # 1175+ tests, Vitest + RTL
-pnpm tsc --noEmit                      # strict TypeScript
+pnpm test                              # 1175+ 测试用例，Vitest + RTL
+pnpm tsc --noEmit                      # 严格 TypeScript
 pnpm lint                              # ESLint
 ```
 
-DB migrate + corpus seed (optional):
+数据库迁移 + 语料种子（可选）：
 
 ```bash
 pnpm dlx drizzle-kit migrate
@@ -67,90 +64,86 @@ pnpm tsx scripts/seed-demo-cache.ts
 
 ---
 
-## Environment
+## 环境变量
 
-See `.env.example` for the full list. The ones that actually gate behavior:
+完整列表见 `.env.example`。真正会左右行为的几项：
 
-- `KIMI_API_KEY` — default LLM (Moonshot Kimi-K2). Required for live mode.
-- `DEEPSEEK_API_KEY` — optional secondary; only used when a user supplies a
-  DeepSeek key in OnboardingGate.
-- `SILICONFLOW_API_KEY` — embeddings (BGE-M3) + reranker (Qwen3).
+- `KIMI_API_KEY` —— 默认 LLM（Moonshot Kimi-K2）。实时模式必填。
+- `DEEPSEEK_API_KEY` —— 可选的次选模型；仅当用户在 OnboardingGate 提供 DeepSeek 密钥时启用。
+- `SILICONFLOW_API_KEY` —— 嵌入（BGE-M3）+ 重排（Qwen3）。
 - `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` +
-  `SUPABASE_SERVICE_ROLE_KEY` — Drizzle + pgvector storage.
-- `ZHIHU_ACCESS_SECRET` + `ZHIHU_APP_KEY` + `ZHIHU_APP_SECRET` — 知乎 dual-auth
-  (Bearer for `developer.zhihu.com`, HMAC for `openapi.zhihu.com`).
-- `CACHE_MODE` — `auto` (default) · `cache-only` · `live-only`.
-- `KANSHAN_PUBLIC_MODE` — set to `byo-or-cache` for shared deployments.
-  When on, anonymous visitors (no `Authorization: Bearer sk-…` header) are
-  forced to cache-only — the deployment's own LLM keys are never spent on
-  them. Live AI requires a BYO key at the OnboardingGate. **The deployment
-  at `kanshan.yang9ru.online` runs in this mode** through the judging window.
+  `SUPABASE_SERVICE_ROLE_KEY` —— Drizzle + pgvector 存储。
+- `ZHIHU_ACCESS_SECRET` + `ZHIHU_APP_KEY` + `ZHIHU_APP_SECRET` —— 知乎双签名
+  （`developer.zhihu.com` 用 Bearer，`openapi.zhihu.com` 用 HMAC）。
+- `CACHE_MODE` —— `auto`（默认）· `cache-only` · `live-only`。
+- `KANSHAN_PUBLIC_MODE` —— 在共享部署上设为 `byo-or-cache`。
+  开启后，匿名访客（请求头没有 `Authorization: Bearer sk-…`）会被强制走 cache-only ——
+  部署方自己的 LLM 密钥永远不会消耗在他们身上。要使用实时 AI，需要在 OnboardingGate
+  自带（BYO）密钥。**`kanshan.yang9ru.online` 部署在评审窗口期内即运行于此模式。**
 
 ---
 
-## Tech stack
+## 技术栈
 
 - **Next.js 15 App Router** · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui
-- **TipTap** editor with custom `InlineMark` / `MarginSeal` / `CitationMark` extensions
-- **Zustand** state, **Framer Motion** animations
-- **Kimi-K2** (Moonshot) primary LLM · **DeepSeek-V3 / R1** BYO secondary
-- **BGE-M3** (1024-dim) + **Qwen3-Reranker** via SiliconFlow
-- **Drizzle** + **Supabase Postgres** (Singapore region) + **pgvector**
-- **Vitest** + React Testing Library + jsdom — 1175 tests at the time of writing
+- **TipTap** 编辑器，自定义 `InlineMark` / `MarginSeal` / `CitationMark` 扩展
+- **Zustand** 状态管理，**Framer Motion** 动画
+- **Kimi-K2**（Moonshot）作为主 LLM · **DeepSeek-V3 / R1** 作为 BYO 次选
+- 经由 SiliconFlow 调用 **BGE-M3**（1024 维）+ **Qwen3-Reranker**
+- **Drizzle** + **Supabase Postgres**（新加坡区）+ **pgvector**
+- **Vitest** + React Testing Library + jsdom —— 截稿时共 1175 条测试
 
-Full third-party licenses + attribution: [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md).
-
----
-
-## Compliance posture
-
-The project deliberately refuses several patterns the regulatory environment
-treats as risky for AI-augmented writing tools:
-
-- ❌ Does not claim "AI 答主 replaces human 答主"
-- ❌ Does not auto-publish to 知乎 (always requires the user's own click)
-- ❌ Does not fine-tune on author corpora (vault content is retrieval-only)
-- ❌ Does not allow `热榜 → 直接扩写 正文` (清朗 第二阶段 红线 — gated by a confirm dialog)
-- ❌ Does not call US AI providers on the critical path (备案 hygiene — Kimi + DeepSeek only)
-- ❌ Does not ship voice / face synthesis in the MVP (深度合成规定 — deferred to post-submission polish)
-
-`GB 45438` AI-trace labels are attached to any text 看墨 rewrites. Vault
-content is stored in the Singapore Supabase region and never enters
-third-party training sets.
+完整第三方许可证 + 致谢见：[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
 
 ---
 
-## Repo layout
+## 合规姿态
+
+本项目刻意拒绝了若干在监管语境下被视为对 AI 辅助写作工具有风险的模式：
+
+- ❌ 不宣称「AI 答主取代人类答主」
+- ❌ 不自动向知乎发布（始终要求用户亲手点击）
+- ❌ 不在作者语料上做微调（私库内容仅用于检索）
+- ❌ 不允许 `热榜 → 直接扩写 正文`（清朗 第二阶段 红线 —— 由二次确认弹窗拦截）
+- ❌ 关键路径不调用美国 AI 提供商（备案合规 —— 仅 Kimi + DeepSeek）
+- ❌ MVP 不出货语音 / 人脸合成（深度合成规定 —— 推迟到提交后的打磨阶段）
+
+任何由 看墨 改写的文本都会附加 `GB 45438` AI 可追溯标识。私库内容存储在
+Supabase 新加坡区，绝不进入任何第三方训练集。
+
+---
+
+## 仓库结构
 
 ```
-README.md / LICENSE / THIRD_PARTY_NOTICES.md / .env.example   # ← what you see here
-app/                                                          # the entire Next.js app
-  app/                routes (pages + API)
+README.md / LICENSE / THIRD_PARTY_NOTICES.md / .env.example   # ← 你现在看到的层
+app/                                                          # 整个 Next.js 应用
+  app/                路由（页面 + API）
   components/         atoms / chrome / editor / floating / rail / lore / tour
   lib/                store/ · llm/ · zhihu/ · cache/ · io/ · foxes/ · personas/
-  content/            seed JSON · per-account 文章 corpus · zhihu fixtures
-  drizzle/            migrations
+  content/            种子 JSON · 各账号的文章语料 · 知乎样例数据
+  drizzle/            数据库迁移
   scripts/            ingest-corpus · seed-demo-cache · cache-zhihu-demo
-  tests/              1175+ unit / integration / route / component tests
+  tests/              1175+ 单元 / 集成 / 路由 / 组件测试
 ```
 
-Hackathon planning docs, judge reviews, persona briefings, and rehearsal
-artifacts live locally under `Documents/`, `plans/`, and `.claude/` — those
-directories are gitignored intentionally (this repo is code + assets only).
+黑客松规划文档、评委评审、画像简报与彩排素材均存放在本地的
+`Documents/`、`plans/`、`.claude/` 目录下 —— 这些目录被有意 gitignore
+（本仓库仅包含代码 + 资源）。
 
 ---
 
-## License
+## 许可证
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT —— 见 [`LICENSE`](./LICENSE)。
 
-Third-party model and library licenses preserved in
-[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md). The 刘看山 IP appears
-under the 知乎 黑客松 2026 organizer-confirmed default authorization
-("比赛期间官方默认为作者授权，可以二改"); post-hackathon commercial use would
-require a separate licensing conversation with 知乎.
+第三方模型与库的许可证保存在
+[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。刘看山 IP 的使用遵循
+知乎黑客松 2026 组委会确认的默认授权
+（「比赛期间官方默认为作者授权，可以二改」）；黑客松之后若用于商业用途，
+需与知乎另行商谈授权。
 
 ---
 
-_Designed & built by **Gordon Yang** (tyang4@scu.edu) · Santa Clara University
-biomedical engineering · 2026._
+_由 **Gordon Yang**（tyang4@scu.edu）独立设计与开发 · 圣克拉拉大学
+生物医学工程 · 2026。_
