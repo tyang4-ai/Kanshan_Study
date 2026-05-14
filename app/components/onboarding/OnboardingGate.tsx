@@ -46,6 +46,11 @@ export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
 
   const sessionFullname = useZhihuSessionStore((s) => s.fullname);
   const hydrateZhihuSession = useZhihuSessionStore((s) => s.hydrate);
+  // r6 OAuth-bypass: this hook MUST be hoisted above the `if (hidden) return null`
+  // gate below — calling useZhihuSessionStore() inside onSkipOAuth (post-gate)
+  // creates a Rules-of-Hooks violation that crashes the tree on logout
+  // (React error #310 — hook count drops when hidden flips back to false).
+  const skipLogin = useZhihuSessionStore((s) => s.skipLogin);
   useEffect(() => {
     void hydrateZhihuSession();
   }, [hydrateZhihuSession]);
@@ -99,9 +104,8 @@ export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
   // workspace edits flow into the same persisted stores (editor-tabs,
   // corkboard, last-visit, persona-masks), so they stay browser-cached and
   // isolated per judge / per machine.
-  // `skipLogin` is hoisted to the top of the component with the other session
-  // selectors — keeping the hook above the `if (hidden) return null` gate
-  // prevents a Rules-of-Hooks violation (React error #310) when `hidden` flips.
+  // NB: `skipLogin` itself is hoisted above the `if (hidden) return null` gate
+  // (see top of component) to keep hook order stable across logout.
   const onSkipOAuth = () => {
     skipLogin();
     // setStep below will fire from the sessionFullname effect once the store
