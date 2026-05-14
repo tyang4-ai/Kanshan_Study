@@ -20,18 +20,25 @@ function toText(s: SelectionInput): string {
 
 export function VoiceDiffTab({ selection, bullets, mode }: VoiceDiffTabProps = {}) {
   const propText = toText(selection);
-  // r6 demo-day (2026-05-14): when the panel is opened from TitleBar's
-  // daily-4 看墨 button (no selection passed), or any other entry-point
-  // that doesn't thread the selection, read the editor's CURRENT selection
-  // directly so the panel + its canonical-fallback detection both see the
-  // text the user actually has selected.
+  // r6 demo-day (2026-05-14): triple-fallback so any entry-point sees a
+  // non-empty selection text:
+  //   1. selection prop (passed by RightToolbar's selection-required path)
+  //   2. editor.state.selection (current PM selection — works if editor
+  //      hasn't been blurred yet)
+  //   3. useEditorStore.lastSelectionText (sticky — set on every non-empty
+  //      onSelectionUpdate, NEVER cleared on blur/caret-collapse)
   const editor = useEditorStore((s) => s.editor);
+  const lastSelectionText = useEditorStore((s) => s.lastSelectionText);
   const fallbackText = (() => {
     if (propText) return propText;
-    if (!editor) return '';
-    const { from, to } = editor.state.selection;
-    if (from === to) return '';
-    return editor.state.doc.textBetween(from, to, ' ').trim();
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      if (from !== to) {
+        const live = editor.state.doc.textBetween(from, to, ' ').trim();
+        if (live) return live;
+      }
+    }
+    return lastSelectionText;
   })();
   return (
     <VoiceDiffPanel

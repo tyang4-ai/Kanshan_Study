@@ -336,8 +336,20 @@ export function TipTapEditor({
       }
       lastBlockPosRef.current = currentBlockPos;
 
-      if (!onSelectionChange) return;
       const { from, to, empty } = e.state.selection;
+      // r6 demo-day (2026-05-14): track the last non-empty selection text in
+      // useEditorStore.lastSelectionText. Sticky — only updated when there's
+      // an actual non-empty selection. VoiceDiffTab uses this as the final
+      // fallback so TitleBar's daily-4 看墨 button (which doesn't thread a
+      // selection prop AND blurs the editor, collapsing the PM selection)
+      // still finds the text the user had selected before the click.
+      if (!empty) {
+        const stickyText = e.state.doc.textBetween(from, to, ' ').trim();
+        if (stickyText) {
+          useEditorStore.getState().setLastSelectionText(stickyText);
+        }
+      }
+      if (!onSelectionChange) return;
       if (empty) {
         onSelectionChange(null);
         return;
