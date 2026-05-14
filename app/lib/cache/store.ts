@@ -72,6 +72,7 @@ export async function lookupCache<T = unknown>(
     limit 1
   `);
   const exactList = exactRows as unknown as Array<{ response: T }>;
+  console.log(`[cache] exact-lookup kind=${kind} intent.len=${intent.length} hits=${exactList.length}`);
   if (exactList.length > 0) {
     return { response: exactList[0].response, similarity: 1.0 };
   }
