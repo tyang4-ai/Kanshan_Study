@@ -132,7 +132,24 @@ export const useCorkboardStore = create<CorkboardState>()(
     }),
     {
       name: 'kanshan-corkboard',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      // v1 → v2 (2026-05-13): purge any sticky note whose annotation/snippet
+      // matches the radiogenomics-era pattern. Pre-pivot demos left these
+      // stuck in localStorage and the Corkboard.tsx cleanup pass was racing
+      // with the persisted state. Bumping the version forces this migration
+      // on every previously-persisted browser exactly once.
+      migrate: (persistedState, fromVersion) => {
+        if (!persistedState || typeof persistedState !== 'object') return persistedState;
+        if (fromVersion >= 2) return persistedState as { pins?: CorkboardPin[] };
+        const s = persistedState as { pins?: CorkboardPin[] };
+        if (!Array.isArray(s.pins)) return s;
+        const STALE_RE = /影像组学|radiomics|影像 AI/i;
+        const pinText = (p: CorkboardPin): string =>
+          (p.content?.annotation ?? p.content?.snippet ?? p.content?.title ?? '') as string;
+        const filtered = s.pins.filter((p) => !STALE_RE.test(pinText(p)));
+        return { ...s, pins: filtered };
+      },
     },
   ),
 );
