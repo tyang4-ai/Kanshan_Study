@@ -144,6 +144,17 @@ export function getMostRecentVisit(state: LastVisitState): VisitEntry | null {
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let lastServerSyncAt = 0;
 
+// 2026-05-13: same stale-fixture regex used by the v2→v3 local migration.
+// We apply it on server hydrate too so cross-device users whose server state
+// still has radiogenomics-era recall entries don't see them after the pivot.
+const STALE_VISIT_RE = /影像组学|radiomics|radiogenomics|untitled-1|test\.md|影像组学与基因组学/i;
+
+function filterStaleVisits(visits: VisitEntry[]): VisitEntry[] {
+  return visits.filter(
+    (v) => !STALE_VISIT_RE.test(v.filename) && !STALE_VISIT_RE.test(v.topicSnippet ?? ''),
+  );
+}
+
 export async function hydrateFromServer(): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
@@ -158,17 +169,23 @@ export async function hydrateFromServer(): Promise<void> {
     };
     if (!data || typeof data !== 'object') return;
     const local = useLastVisitStore.getState();
+    const cleanedServer = filterStaleVisits(data.lastVisits ?? []);
     const localLast = local.lastVisits[0]?.at ?? 0;
-    const serverLast = data.lastVisits?.[0]?.at ?? 0;
+    const serverLast = cleanedServer[0]?.at ?? 0;
     if (serverLast > localLast) {
-      // Server is newer — pull. (We don't reset `dismissed`; that's session UI.)
+      // Server is newer — pull (filtered). (We don't reset `dismissed`;
+      // that's session UI.)
       useLastVisitStore.setState({
-        lastVisits: (data.lastVisits ?? []).slice(0, 5),
+        lastVisits: cleanedServer.slice(0, 5),
         sessionCount: data.sessionCount ?? local.sessionCount,
         crossFoxEventCount: data.crossFoxEventCount ?? local.crossFoxEventCount,
         trendOutboundClicks: data.trendOutboundClicks ?? local.trendOutboundClicks,
       });
       lastServerSyncAt = data.updatedAt ?? Date.now();
+    } else if (data.lastVisits && cleanedServer.length < data.lastVisits.length) {
+      // Server had stale entries we just filtered out. Push the cleaned state
+      // back so other devices don't keep seeing them either.
+      schedulePushToServer(0);
     }
   } catch {
     /* offline / no auth / no db — fine, stays local */
