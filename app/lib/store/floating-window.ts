@@ -90,16 +90,16 @@ export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
         };
       }
       const tab: Tab = { id: tabId(kind), kind, title, props };
-      // First open in a session: re-fit the window to the current viewport so
-      // it spawns as wide as the resize clamp allows. Existing tabs (already
-      // open) keep whatever size the user dragged it to.
-      // r6 demo-day (2026-05-13): 看山 chat as the FIRST tab opens at the
-      // thinnest width (340 — the resize clamp floor) so users see the chat
-      // affordance without a wide panel covering the editor. All other
-      // first-opens still use computeDefaultSize. Subsequent opens (when
-      // other tabs already exist) keep whatever size the user dragged to.
       const isFirstOpen = state.tabs.length === 0;
+      // 看山 chat as the FIRST tab opens at the thinnest width (340) so the
+      // editor stays visible behind it. Any non-chat tab that opens later
+      // (including via 看山's own dispatch into 看水 / 看典) must upgrade the
+      // window back to default width — otherwise research / vault inherit the
+      // 340-px chat width and feel cramped.
+      const onlyChatOpen =
+        state.tabs.length > 0 && state.tabs.every((t) => t.kind === 'kanshan-chat');
       let size = state.size;
+      let resized = false;
       if (isFirstOpen) {
         if (kind === 'kanshan-chat') {
           const def = computeDefaultSize();
@@ -107,8 +107,12 @@ export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
         } else {
           size = computeDefaultSize();
         }
+        resized = true;
+      } else if (onlyChatOpen && kind !== 'kanshan-chat') {
+        size = computeDefaultSize();
+        resized = true;
       }
-      const pos = isFirstOpen ? computeDefaultPos(size) : state.pos;
+      const pos = resized ? computeDefaultPos(size) : state.pos;
       return { open: true, tabs: [...state.tabs, tab], activeTabId: tab.id, size, pos };
     }),
 
