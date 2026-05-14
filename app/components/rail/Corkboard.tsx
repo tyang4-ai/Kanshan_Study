@@ -63,38 +63,48 @@ export function Corkboard({
   const [composing, setComposing] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // R6 demo-day (2026-05-13): the per-component-instance useRef guard wasn't
-  // bulletproof — Corkboard remounts on rail-width changes / panel toggles,
-  // resetting the ref and triggering re-seed. Final fix: content-aware dedupe.
-  // Before adding any DEMO_SEED entry, check if its exact text already exists
-  // in the store. This is idempotent across any number of remounts.
+  // R6 demo-day v3 (2026-05-13): flag-first seed guard. Zustand persist
+  // hydration is ASYNC — on mount the store reads pins=[] before localStorage
+  // rehydration completes, so a content-dedup check sees nothing existing and
+  // adds the seed; then rehydration appends its old 3, giving 6 total. The
+  // robust fix: check the localStorage SEED_FLAG FIRST. If set, skip the seed
+  // entirely (re-seed has nothing to add anyway since rehydration will bring
+  // them back). If unset, wait one tick for hydration, then seed + set flag.
   const seedingDoneRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (seedingDoneRef.current) return;
+    // Clear legacy flags so future versions can detect a fresh upgrade.
+    try { for (const k of STALE_SEED_FLAGS) window.localStorage.removeItem(k); } catch { /* ignore */ }
+    // Primary guard: flag set means we've seeded once on this browser.
+    // Async rehydration will restore the prior pins; no need to add anything.
     try {
-      // Clear legacy flags so future versions can detect a fresh upgrade.
-      for (const k of STALE_SEED_FLAGS) window.localStorage.removeItem(k);
-      // Build a set of existing annotation/snippet/title text so we can
-      // recognize a seeded entry that's already present (from a prior mount,
-      // a v3 migration that preserved it as a user pin, or anywhere else).
-      const existingTexts = new Set<string>();
-      for (const p of pins) {
-        const txt = (p.content?.annotation ?? p.content?.snippet ?? p.content?.title ?? '').trim();
-        if (txt) existingTexts.add(txt);
+      if (window.localStorage.getItem(SEED_FLAG) === '1') {
+        seedingDoneRef.current = true;
+        return;
       }
-      for (const p of DEMO_SEED) {
-        if (existingTexts.has(p.annotation.trim())) continue;
-        addPostit(p.annotation, p.createdBy);
-        existingTexts.add(p.annotation.trim());
-      }
-      window.localStorage.setItem(SEED_FLAG, '1');
-      seedingDoneRef.current = true;
-    } catch {
-      /* localStorage blocked — accept the cold-open hit */
-    }
-    // Intentionally NOT depending on pins.length — that's what caused the
-    // oscillation that re-fired the seed during the addPostit cascade.
+    } catch { /* localStorage blocked — proceed to defensive seed */ }
+    // Wait a tick for Zustand persist hydration to settle, then dedupe by
+    // content + add only missing entries. Belt-and-suspenders for the rare
+    // case where SEED_FLAG was somehow lost but pins are still hydrated.
+    const t = window.setTimeout(() => {
+      try {
+        const current = useCorkboardStore.getState().pins;
+        const existing = new Set<string>();
+        for (const p of current) {
+          const txt = (p.content?.annotation ?? p.content?.snippet ?? p.content?.title ?? '').trim();
+          if (txt) existing.add(txt);
+        }
+        for (const p of DEMO_SEED) {
+          if (existing.has(p.annotation.trim())) continue;
+          addPostit(p.annotation, p.createdBy);
+          existing.add(p.annotation.trim());
+        }
+        window.localStorage.setItem(SEED_FLAG, '1');
+        seedingDoneRef.current = true;
+      } catch { /* ignore */ }
+    }, 50);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addPostit]);
 
