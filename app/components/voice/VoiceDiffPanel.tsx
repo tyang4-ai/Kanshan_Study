@@ -135,6 +135,11 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
   // the static ticker shows "~30 秒预计" + live elapsed.
   const [elapsed, setElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  // r6 FIX 2: tracks whether any SSE event has arrived since the run started.
+  // If false at 5.5s, we conclude the route hung (cache-only mode misses tend
+  // to throw fast; if it's been 5s and we haven't even seen the 'generic' first
+  // chunk, this is a hung lookup, not a slow live call).
+  const sawSseEventRef = useRef(false);
 
   const run = useCallback(async () => {
     abortRef.current?.abort();
@@ -143,6 +148,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     setState(INITIAL_STATE);
     setGenericLoaded(false);
     setElapsed(0);
+    sawSseEventRef.current = false;
     // Clear any prior toast — new run, fresh slate.
     useAiErrorStore.getState().dismiss();
     try {
@@ -157,6 +163,7 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
         return;
       }
       for await (const ev of readSse(res)) {
+        sawSseEventRef.current = true;
         try {
           const payload = JSON.parse(ev.data) as Record<string, unknown>;
           if (ev.event === 'generic') {
@@ -260,6 +267,36 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     const t = window.setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => window.clearInterval(t);
   }, [state.done]);
+
+  // r6 FIX 2 (emmett/史中/吴伟 R6 P0): client-side 5.5s hard timeout for the
+  // truly-hung-cache-only-miss case. Server has a 5s timeout in withCache; if
+  // it fires correctly the SSE stream's 'error' event arrives well within
+  // 5500ms. If NO SSE event has arrived at all by 5500ms (sawSseEventRef
+  // unset), the lookup itself stalled — fall back gracefully instead of
+  // letting the ticker spin to 30s+. Legit slow BYO-key calls send 'generic'
+  // within ~1s so the ref flips and this timeout is suppressed.
+  useEffect(() => {
+    if (state.done) return;
+    if (state.error) return;
+    const id = window.setTimeout(() => {
+      if (sawSseEventRef.current) return;
+      setState((s) => {
+        if (s.done) return s;
+        abortRef.current?.abort();
+        useAiErrorStore.getState().push({
+          message: '当前选段未命中预生成缓存，已切回演示脚本 · 请使用编辑器内引导的句子，或到「设置 → 实时模式」启用 BYO key',
+          severity: 'notice',
+        });
+        return {
+          ...s,
+          done: true,
+          error: '已 5s · 该选段未在预生成缓存中',
+          fallbackActive: true,
+        };
+      });
+    }, 5500);
+    return () => window.clearTimeout(id);
+  }, [state.done, state.error]);
 
   const handleAccept = (kind: 'generic' | 'voice') => {
     setAccepted(kind);

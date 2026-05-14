@@ -104,7 +104,11 @@ function runXinScan(editor: Editor): void {
   let sentenceText = '';
   const flushSentence = (endPos: number): void => {
     const trimmed = sentenceText.trim();
-    if (trimmed.length >= 6 && sentenceStart !== null) {
+    // r6 FIX 5 (emmett R6 P1): require ≥ 6 chars AND ≥ 3 CJK letters to skip
+    // punctuation-only fragments ("、、、"), all-quote tokens ("''"), and
+    // ascii-symbol stubs that previously triggered false positives.
+    const cjkCount = (trimmed.match(/\p{Script=Han}/gu) ?? []).length;
+    if (trimmed.length >= 6 && cjkCount >= 3 && sentenceStart !== null) {
       const flags = detectClaims(trimmed);
       if (!flags.safe) {
         const reasonParts: string[] = [];
@@ -122,7 +126,20 @@ function runXinScan(editor: Editor): void {
     sentenceStart = null;
     sentenceText = '';
   };
-  editor.state.doc.descendants((node, pos) => {
+  // r6 FIX 5 (emmett R6 P1): skip text inside heading + codeBlock nodes —
+  // those caused false-positives like "Step 7 — 看墨" + quote-punctuation
+  // tokens getting flagged. Track block-level skip via a parent-aware walk.
+  // We use the parent argument of descendants: when the immediate parent is
+  // a heading/codeBlock, don't append its text into the sentence buffer.
+  editor.state.doc.descendants((node, pos, parent) => {
+    const parentName = parent?.type?.name;
+    if (parentName === 'heading' || parentName === 'codeBlock' || parentName === 'horizontalRule') {
+      // Reset any in-progress sentence so we don't carry pre-heading text into
+      // a post-heading sentence (xin would attribute the wrong range).
+      sentenceStart = null;
+      sentenceText = '';
+      return true;
+    }
     if (!node.isText || !node.text) return true;
     const text = node.text;
     for (let i = 0; i < text.length; i++) {

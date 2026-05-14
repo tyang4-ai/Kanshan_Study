@@ -25,19 +25,44 @@ interface SearchBody {
   topK?: number;
 }
 
+// r6 FIX 3 (颜鑫 R6 P0): synonym expansion. The vault entries' titles +
+// snippets are bilingual (mix of 中文 + English oncology terms). A pure
+// substring match on 中文 query "胶质母细胞瘤" misses entries whose title is
+// "Stupp 2005 → 2025 二十年综述阅读笔记" or whose tags are ["GBM", "MGMT"].
+// Expand each known axis term to its English/中文 aliases so any of them in
+// the query routes to all related entries.
+const SYNONYM_GROUPS: string[][] = [
+  ['胶质母细胞瘤', 'gbm', 'glioblastoma', '胶母', '胶质瘤'],
+  ['mgmt', '甲基化', 'mmgmt'],
+  ['替莫唑胺', 'tmz', 'temozolomide'],
+  ['stupp', '放化疗', '同步放化疗'],
+  ['ttfields', '电场', '电场治疗', 'tumor treating fields', 'optune'],
+  ['idh', '野生型', 'wildtype', 'wild-type'],
+  ['who 分类', 'cns5', 'who cns', '中枢神经系统肿瘤分类'],
+];
+
+function expandSynonyms(q: string): string[] {
+  const ql = q.toLowerCase();
+  const expanded = new Set<string>([ql]);
+  for (const group of SYNONYM_GROUPS) {
+    if (group.some((s) => ql.includes(s))) {
+      for (const s of group) expanded.add(s);
+    }
+  }
+  return Array.from(expanded);
+}
+
 function fallback(query: string): SeedEntry[] {
   // Mock-mode (no DB / no embedder) seed — returns the same demo articles
   // to every guest so the UI has something to render. Production paths
   // (SUPABASE_DB_URL set) skip this entirely and query the guest's own rows.
   const all = meSeed as SeedEntry[];
   if (!query.trim()) return all;
-  const q = query.toLowerCase();
-  return all.filter(
-    (e) =>
-      e.title.toLowerCase().includes(q) ||
-      e.snippet.toLowerCase().includes(q) ||
-      e.tags.some((t) => t.toLowerCase().includes(q))
-  );
+  const needles = expandSynonyms(query);
+  return all.filter((e) => {
+    const hay = `${e.title} ${e.snippet} ${e.tags.join(' ')}`.toLowerCase();
+    return needles.some((n) => hay.includes(n));
+  });
 }
 
 export async function POST(req: NextRequest) {
