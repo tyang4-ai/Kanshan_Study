@@ -86,6 +86,10 @@ export async function POST(req: Request): Promise<Response> {
     const creds = proxyAuth(req);
     const cacheMode = creds.source === 'gated' ? ('cache-only' as const) : undefined;
     const intent = intentKey(body.history, body.userMessage);
+    // DEBUG: call lookupCache directly to see what it returns
+    const { lookupCache } = await import('@/lib/cache/store');
+    const directHit = await lookupCache<ReplayStep[]>('kanshan-chat', intent);
+    throw new Error(`DEBUG2 lookupCache.hit=${directHit !== null} sim=${directHit?.similarity} steps=${directHit?.response?.length} intent.len=${intent.length}`);
     steps = await withCache<ReplayStep[]>('kanshan-chat', intent, async () => {
       const reply = await runKanshanTurn(
         body.history,
