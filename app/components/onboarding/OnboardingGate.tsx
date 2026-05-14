@@ -99,7 +99,9 @@ export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
   // workspace edits flow into the same persisted stores (editor-tabs,
   // corkboard, last-visit, persona-masks), so they stay browser-cached and
   // isolated per judge / per machine.
-  const skipLogin = useZhihuSessionStore((s) => s.skipLogin);
+  // `skipLogin` is hoisted to the top of the component with the other session
+  // selectors — keeping the hook above the `if (hidden) return null` gate
+  // prevents a Rules-of-Hooks violation (React error #310) when `hidden` flips.
   const onSkipOAuth = () => {
     skipLogin();
     // setStep below will fire from the sessionFullname effect once the store

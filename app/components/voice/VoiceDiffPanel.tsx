@@ -268,18 +268,17 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     return () => window.clearInterval(t);
   }, [state.done]);
 
-  // r6 FIX 2 (emmett/史中/吴伟 R6 P0): client-side 5.5s hard timeout for the
-  // truly-hung-cache-only-miss case. Server has a 5s timeout in withCache; if
-  // it fires correctly the SSE stream's 'error' event arrives well within
-  // 5500ms. If NO SSE event has arrived at all by 5500ms (sawSseEventRef
-  // unset), the lookup itself stalled — fall back gracefully instead of
-  // letting the ticker spin to 30s+. Legit slow BYO-key calls send 'generic'
-  // within ~1s so the ref flips and this timeout is suppressed.
+  // r6 FIX 2 v2 (emmett/史中/吴伟 R6 P0): HARD 8s panel timeout. Earlier
+  // version gated on sawSseEventRef which the 'generic' chunk flipped true
+  // within ~1s — so the timeout suppressed itself while VOICE iterations
+  // hung at 22-33s+. For demo-day reliability we now hard-kill the panel
+  // after 8 seconds of NOT-done state, regardless of SSE traffic. Real BYO-
+  // key users who want full 30s voice iterations can rerun; demo judges
+  // never have to stare at a stalled "通用稿生成中 · 已 5s"。
   useEffect(() => {
     if (state.done) return;
     if (state.error) return;
     const id = window.setTimeout(() => {
-      if (sawSseEventRef.current) return;
       setState((s) => {
         if (s.done) return s;
         abortRef.current?.abort();
@@ -290,11 +289,11 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
         return {
           ...s,
           done: true,
-          error: '已 5s · 该选段未在预生成缓存中',
+          error: '已 8s · 该选段未在预生成缓存中',
           fallbackActive: true,
         };
       });
-    }, 5500);
+    }, 8000);
     return () => window.clearTimeout(id);
   }, [state.done, state.error]);
 

@@ -104,11 +104,18 @@ function runXinScan(editor: Editor): void {
   let sentenceText = '';
   const flushSentence = (endPos: number): void => {
     const trimmed = sentenceText.trim();
-    // r6 FIX 5 (emmett R6 P1): require ≥ 6 chars AND ≥ 3 CJK letters to skip
-    // punctuation-only fragments ("、、、"), all-quote tokens ("''"), and
-    // ascii-symbol stubs that previously triggered false positives.
+    // r6 FIX 5 v2 (emmett R6 P1 verifier): tightened bar to kill instruction-
+    // fragment false-positives. Need ≥ 16 chars AND ≥ 8 CJK letters AND must
+    // NOT start with an instruction-prefix verb ("做什么", "看什么", "选中",
+    // "按下", "点击" etc — these are demo-flow steps, not author claims).
     const cjkCount = (trimmed.match(/\p{Script=Han}/gu) ?? []).length;
-    if (trimmed.length >= 6 && cjkCount >= 3 && sentenceStart !== null) {
+    const isInstructionLead = /^(做什么|看什么|选中|按下|按右|按顶|点击|点右|点顶|拖|双击|输入|期望|说明|提示|图标|鼠标|然后|接着|接下来|本演示|本工具|本文档|完成后|粘贴|复制|预期|此处|每条|每张|每只)/.test(trimmed);
+    if (
+      trimmed.length >= 16
+      && cjkCount >= 8
+      && !isInstructionLead
+      && sentenceStart !== null
+    ) {
       const flags = detectClaims(trimmed);
       if (!flags.safe) {
         const reasonParts: string[] = [];
