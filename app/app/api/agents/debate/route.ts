@@ -96,7 +96,7 @@ export async function POST(req: Request): Promise<Response> {
         buffered.push({ event: 'turn', data: turn });
       }
       return buffered;
-    }, { mode: cacheMode });
+    }, { mode: cacheMode, liveTimeoutMs: 2500 });
   } catch (err) {
     const friendly = err instanceof CacheMissError
       ? '当前为缓存演示模式 · 该辩论未在预生成缓存中。请按编辑器内的引导文档操作，或到设置 → 实时模式开启自带密钥模式。'

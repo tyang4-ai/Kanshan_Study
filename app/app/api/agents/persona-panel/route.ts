@@ -186,7 +186,7 @@ async function roundsStream(
         }
       }
       return buffered;
-    }, { mode: cacheMode });
+    }, { mode: cacheMode, liveTimeoutMs: 2500 });
   } catch (err) {
     const friendly = err instanceof CacheMissError
       ? '当前为缓存演示模式 · 该读者反应未在预生成缓存中。请按编辑器内的引导文档操作，或到设置 → 实时模式开启自带密钥模式。'
@@ -239,7 +239,7 @@ async function followupStream(
       const msg = await runFollowup(selection, history, userMessage, chosenMask, apiKey, provider);
       buffered.push({ event: 'message', data: msg });
       return buffered;
-    }, { mode: cacheMode });
+    }, { mode: cacheMode, liveTimeoutMs: 2500 });
   } catch (err) {
     const fallbackMask = masks[0] ?? FIXED_MASKS[0];
     const friendly = err instanceof CacheMissError
