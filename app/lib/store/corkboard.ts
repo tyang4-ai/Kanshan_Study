@@ -132,23 +132,37 @@ export const useCorkboardStore = create<CorkboardState>()(
     }),
     {
       name: 'kanshan-corkboard',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
-      // v1 → v2 (2026-05-13): purge any sticky note whose annotation/snippet
-      // matches the radiogenomics-era pattern. Pre-pivot demos left these
-      // stuck in localStorage and the Corkboard.tsx cleanup pass was racing
-      // with the persisted state. Bumping the version forces this migration
-      // on every previously-persisted browser exactly once.
+      // v2 → v3 (2026-05-13 demo-day): pre-judging walkthroughs accumulated
+      // many duplicate kanshan-seeded pins from React strict-mode + repeated
+      // SEED_FLAG runs. v3 drops ALL kanshan-created notes (Corkboard.tsx's
+      // seed effect re-fires fresh on next mount) AND dedupes user notes by
+      // text. User-authored notes preserved.
       migrate: (persistedState, fromVersion) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
-        if (fromVersion >= 2) return persistedState as { pins?: CorkboardPin[] };
         const s = persistedState as { pins?: CorkboardPin[] };
         if (!Array.isArray(s.pins)) return s;
         const STALE_RE = /影像组学|radiomics|影像 AI/i;
         const pinText = (p: CorkboardPin): string =>
           (p.content?.annotation ?? p.content?.snippet ?? p.content?.title ?? '') as string;
-        const filtered = s.pins.filter((p) => !STALE_RE.test(pinText(p)));
-        return { ...s, pins: filtered };
+        if (fromVersion < 2) {
+          s.pins = s.pins.filter((p) => !STALE_RE.test(pinText(p)));
+        }
+        if (fromVersion < 3) {
+          // Drop ALL kanshan-created notes (re-seed will replenish) + dedupe user notes.
+          const userPins = s.pins.filter((p) => p.createdBy === 'user');
+          const seen = new Set<string>();
+          const dedupedUser: CorkboardPin[] = [];
+          for (const p of userPins) {
+            const key = pinText(p).trim().slice(0, 80);
+            if (key && seen.has(key)) continue;
+            seen.add(key);
+            dedupedUser.push(p);
+          }
+          s.pins = dedupedUser;
+        }
+        return s;
       },
     },
   ),

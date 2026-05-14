@@ -156,12 +156,25 @@ export const useEditorTabsStore = create<EditorTabsState>((set, get) => ({
     // iterations get renamed to the new GBM walkthrough title on hydrate so
     // returning judges never see the old tab strip text.
     const STALE_FILENAME_RE = /影像组学|untitled-1\.md|^test\.md$|影像组学与基因组学/i;
+    const STALE_CONTENT_RE = /影像组学的基因组学转向|radiomics|纹理特征训练|样本量的诅咒|可解释性的瓶颈/i;
     const NEW_FILENAME = '胶质母细胞瘤 · 家属该了解的.md';
     let renamed = false;
     for (const id of Object.keys(fromStorage.docs)) {
       const d = fromStorage.docs[id];
-      if (STALE_FILENAME_RE.test(d.filename)) {
-        fromStorage.docs[id] = { ...d, filename: NEW_FILENAME };
+      const filenameStale = STALE_FILENAME_RE.test(d.filename);
+      const contentStale = STALE_CONTENT_RE.test(d.htmlContent ?? '');
+      // r6 demo-day fix (2026-05-13): pre-pivot judges have localStorage with
+      // the 影像组学 body even though TASK A's filename rename renamed the
+      // tab. Reset BOTH filename + htmlContent to the GBM walkthrough when
+      // either marker fires — no user content lost because demo-doc tabs
+      // were never user-authored.
+      if (filenameStale || contentStale) {
+        fromStorage.docs[id] = {
+          ...d,
+          filename: NEW_FILENAME,
+          htmlContent: DEFAULT_DOC_HTML,
+          lastSavedAt: Date.now(),
+        };
         renamed = true;
       }
     }

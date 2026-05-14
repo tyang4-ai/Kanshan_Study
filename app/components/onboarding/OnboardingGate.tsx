@@ -281,8 +281,9 @@ export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
               style={{
                 ...buttonStyle,
                 background: 'transparent',
-                color: 'rgba(232,220,196,0.85)',
-                border: '1px solid rgba(168,155,126,0.45)',
+                color: '#1A1815',
+                border: '1px solid #2A2419',
+                fontWeight: 600,
               }}
               onClick={onSkipOAuth}
             >
