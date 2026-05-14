@@ -461,11 +461,16 @@ export function TipTapEditor({
   // R2 judge fix (史中 P0 2026-05-12): click-to-focus on the wrapper. If the
   // click lands on chrome (not inside ProseMirror), focus editor end. Clicks
   // inside .ProseMirror already pass through to TipTap's native handling.
+  // r6 demo-day fix (2026-05-13): the long GBM walkthrough doc is ~9000px;
+  // ProseMirror's default scrollIntoView on focus('end') auto-scrolled the
+  // editor-body container to the bottom of the doc on any click outside the
+  // text. Pass scrollIntoView:false so focus moves to end internally but the
+  // viewport stays put.
   const onWrapperClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     if (!editor) return;
     const target = e.target as HTMLElement | null;
     if (target?.closest('.ProseMirror')) return;
-    editor.commands.focus('end');
+    editor.commands.focus('end', { scrollIntoView: false });
   };
 
   return (

@@ -299,11 +299,12 @@ export function ResearchTab({ selection, preloadQuery, preloadScope, origin = 'm
       setXinGateOpen(true);
       return;
     }
-    if (isTrendsAcknowledged()) {
-      performInsert();
-      return;
-    }
-    setConfirmOpen(true);
+    // r6 demo-day fix (2026-05-13 — 周源 R6.5 P0): manual-origin research
+    // (从 看山 chat 或 直接搜索) used to fall through to the TrendsConfirmModal
+    // when the session-ack flag wasn't set — a dead gate left over from an
+    // earlier merged design. Manual inserts have no 看势 source so they go
+    // straight to performInsert. The xin-gate above handles all trend cases.
+    performInsert();
   };
 
   const handleConfirmInsert = () => {

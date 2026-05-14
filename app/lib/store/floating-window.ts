@@ -93,8 +93,21 @@ export const useFloatingWindowStore = create<FloatingWindowState>((set) => ({
       // First open in a session: re-fit the window to the current viewport so
       // it spawns as wide as the resize clamp allows. Existing tabs (already
       // open) keep whatever size the user dragged it to.
+      // r6 demo-day (2026-05-13): 看山 chat as the FIRST tab opens at the
+      // thinnest width (340 — the resize clamp floor) so users see the chat
+      // affordance without a wide panel covering the editor. All other
+      // first-opens still use computeDefaultSize. Subsequent opens (when
+      // other tabs already exist) keep whatever size the user dragged to.
       const isFirstOpen = state.tabs.length === 0;
-      const size = isFirstOpen ? computeDefaultSize() : state.size;
+      let size = state.size;
+      if (isFirstOpen) {
+        if (kind === 'kanshan-chat') {
+          const def = computeDefaultSize();
+          size = { w: 340, h: def.h };
+        } else {
+          size = computeDefaultSize();
+        }
+      }
       const pos = isFirstOpen ? computeDefaultPos(size) : state.pos;
       return { open: true, tabs: [...state.tabs, tab], activeTabId: tab.id, size, pos };
     }),
