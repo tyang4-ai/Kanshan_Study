@@ -217,7 +217,16 @@ export function ZhihuBadge() {
     }
     clear();
     setOpen(false);
-    useAiErrorStore.getState().push({ message: '已退出知乎账号' });
+    // r6 logout-flow (2026-05-13): without clearing the onboarding flag +
+    // hard reload, the workspace stays mounted post-logout with no way to
+    // re-login (OnboardingGate.hidden is sticky from first completion).
+    // Drop the flag + reload to re-show the gate; localStorage editor/
+    // corkboard/etc. persist across the reload so no real work is lost.
+    try {
+      window.localStorage.removeItem('kanshan-onboarding');
+      window.localStorage.removeItem('kanshan-demo-mode');
+    } catch { /* private mode — proceed anyway */ }
+    window.location.reload();
   };
 
   const accent = '#0084FF';

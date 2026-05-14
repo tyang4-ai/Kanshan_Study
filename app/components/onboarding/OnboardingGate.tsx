@@ -292,8 +292,8 @@ export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
           <div
             style={{
               marginTop: 10,
-              fontSize: 11,
-              color: 'rgba(232,220,196,0.6)',
+              fontSize: 11.5,
+              color: '#1A1815',
               fontFamily: '"Noto Serif SC", serif',
               lineHeight: 1.6,
               letterSpacing: 0.3,
