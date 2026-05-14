@@ -686,7 +686,11 @@ function ResearchProgressPanel({
 }) {
   const isLoading = status === 'loading';
   const isLive = status === 'live';
-  const elapsed = info.finishedAt ? info.finishedAt - info.startedAt : Date.now() - info.startedAt;
+  // R5 (颜鑫 P1 2026-05-13): elapsed used to fall back to Date.now() during
+  // loading state, which is an impure call in render. Since the elapsed seconds
+  // only render in the `isLive` branch (where finishedAt is guaranteed set),
+  // we can scope the math to that branch and drop the impure fallback.
+  const elapsed = info.finishedAt ? info.finishedAt - info.startedAt : 0;
   const scopeLabel = info.scope === 'quick' ? '快查' : info.scope === 'deep' ? '深考' : '尽考';
 
   // Single-line status text
@@ -814,9 +818,17 @@ function ManualQueryInput({
   // Local edit buffer — lets the user edit the value field without each
   // keystroke instantly clobbering the parent state.
   const [draft, setDraft] = useState(value);
-  // Keep draft in sync when the external value changes (e.g. orchestrator
-  // handoff or a new selection).
-  useEffect(() => { setDraft(value); }, [value]);
+  // R5 (颜鑫 P1 2026-05-13): useRef pattern to detect actual external prop
+  // change instead of unconditional setState in effect. Avoids re-rendering
+  // the search bar on every parent re-render where `value` is identity-stable.
+  const externalValueRef = useRef(value);
+  useEffect(() => {
+    if (value !== externalValueRef.current) {
+      externalValueRef.current = value;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraft(value);
+    }
+  }, [value]);
   const submit = () => {
     onChange(draft);
     onSubmit();

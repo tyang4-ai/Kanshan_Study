@@ -63,7 +63,23 @@ export async function chat(messages: ChatMessage[], opts: ChatOpts = {}): Promis
     // Exponential-ish backoff: 1.2s, 2.4s
     await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
   }
-  if (!res.ok) throw new Error(`Kimi ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    // R5 (李大海 P1 2026-05-13): when Kimi is unreachable, surface an amber
+    // notice toast so live-mode users get a clear "switch to DeepSeek or
+    // retry" hint instead of a silent SSE error. Best-effort dynamic import
+    // keeps the server-only kimi.ts module client-safe and won't break SSR.
+    if (typeof window !== 'undefined' && /^(?:401|403|429|5\d\d)$/.test(String(res.status))) {
+      try {
+        const mod = await import('@/lib/store/ai-error');
+        mod.useAiErrorStore.getState().push({
+          severity: 'notice',
+          message: `Kimi ${res.status} 暂时不可用 · 设置 → 实时模式 可切换到 DeepSeek 或稍后重试`,
+        });
+      } catch { /* store unavailable — fall through to throw */ }
+    }
+    throw new Error(`Kimi ${res.status}: ${errText}`);
+  }
   const json = (await res.json()) as { choices: Array<{ message: { content: string } }> };
   return json.choices[0].message.content;
 }

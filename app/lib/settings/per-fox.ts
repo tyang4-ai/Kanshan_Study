@@ -87,8 +87,8 @@ export const PER_FOX_SETTINGS: Record<FoxId, PerFoxSettings> = {
     rows: [
       { kind: 'chips', label: '关注领域', items: [
         { label: '医学 AI', on: true },
-        { label: '影像组学', on: true },
-        { label: '基因组学', on: true },
+        { label: '神经肿瘤', on: true },
+        { label: '临床合规', on: true },
         { label: '通用 AI', on: false },
         { label: '设计', on: false },
       ], key: 'domains' },

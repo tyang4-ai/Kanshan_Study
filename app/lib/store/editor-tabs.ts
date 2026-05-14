@@ -114,7 +114,7 @@ function migrateLegacy(accountId: string): PersistShape | null {
   const id = makeId();
   const doc: DocEntry = {
     id,
-    filename: '影像组学与基因组学.md',
+    filename: '胶质母细胞瘤 · 家属该了解的.md',
     htmlContent: legacy,
     lastSavedAt: Date.now(),
     dirty: false,
@@ -132,7 +132,7 @@ function seedInitial(): PersistShape {
     docs: {
       [id]: {
         id,
-        filename: '影像组学与基因组学.md',
+        filename: '胶质母细胞瘤 · 家属该了解的.md',
         htmlContent: DEFAULT_DOC_HTML,
         lastSavedAt: Date.now(),
         dirty: false,
@@ -152,6 +152,19 @@ export const useEditorTabsStore = create<EditorTabsState>((set, get) => ({
     // Idempotent: same account → no-op. Different account → reload.
     if (get().hydratedFor === accountId) return;
     const fromStorage = loadFromStorage(accountId) ?? migrateLegacy(accountId) ?? seedInitial();
+    // 2026-05-13 demo-pivot cleanup: stale 影像组学 filenames from earlier
+    // iterations get renamed to the new GBM walkthrough title on hydrate so
+    // returning judges never see the old tab strip text.
+    const STALE_FILENAME_RE = /影像组学|untitled-1\.md|^test\.md$|影像组学与基因组学/i;
+    const NEW_FILENAME = '胶质母细胞瘤 · 家属该了解的.md';
+    let renamed = false;
+    for (const id of Object.keys(fromStorage.docs)) {
+      const d = fromStorage.docs[id];
+      if (STALE_FILENAME_RE.test(d.filename)) {
+        fromStorage.docs[id] = { ...d, filename: NEW_FILENAME };
+        renamed = true;
+      }
+    }
     // If storage had no activeId, pick the most recently saved.
     let activeId = fromStorage.activeId;
     if (!activeId || !fromStorage.docs[activeId]) {
@@ -159,7 +172,7 @@ export const useEditorTabsStore = create<EditorTabsState>((set, get) => ({
       activeId = sorted[0]?.id ?? null;
     }
     set({ docs: fromStorage.docs, activeId, hydratedFor: accountId });
-    if (isBrowser() && fromStorage.activeId !== activeId) {
+    if (isBrowser() && (fromStorage.activeId !== activeId || renamed)) {
       saveToStorage(accountId, { docs: fromStorage.docs, activeId });
     }
   },

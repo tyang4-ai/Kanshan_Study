@@ -1,34 +1,34 @@
 {
-  "title": "影像组学外部验证 跨机构泛化的真实成绩",
-  "query": "影像组学外部验证",
+  "title": "胶质母细胞瘤 一线治疗 2025 — 现有证据与争议",
+  "query": "胶质母细胞瘤 一线治疗 2025",
   "scope": "deep",
   "outline": [
     "一 · 现状",
     "二 · 关键论文",
-    "三 · 数据集对照",
-    "四 · 限制 & 反例",
+    "三 · MGMT 分层证据",
+    "四 · 复发场景的反例",
     "五 · 参考"
   ],
   "sections": [
     {
       "heading": "一、现状概览",
-      "body": "<p>影像组学的\"外部验证\"问题在 2014 年 Aerts 那篇 NCOMM<sup data-cite-id=\"r-w-1\">[1]</sup> 之后已被反复确认：单中心训练的模型，换中心后 AUC 下滑 0.08—0.15 是常态<sup data-cite-id=\"r-w-2\">[2]</sup>。Park 2020 综述统计了 77 项研究，<span class=\"research-mark\">仅 6% 提供了真正独立的外部验证</span><sup data-cite-id=\"r-w-3\">[3]</sup>。</p>"
+      "body": "<p>2021 年 WHO 第五版中枢神经系统分类把 GBM 严格定义为 IDH-野生型、WHO 4 级<sup data-cite-id=\"r-w-1\">[1]</sup>。一线方案 Stupp（术后放疗 60Gy + 同步及辅助 TMZ × 6 周期）来自 2005 NEJM<sup data-cite-id=\"r-w-2\">[2]</sup> — 中位 OS 12.1 → 14.6 月，2 年 OS 10.4% → 26.5%。2017 年起 TTFields 加入维持期，EF-14 (Stupp JAMA 2017)<sup data-cite-id=\"r-w-3\">[3]</sup> 把中位 OS 推到 20.9 月、5 年 OS 13%。</p>"
     },
     {
       "heading": "二、关键论文",
-      "body": "<ul><li>Aerts H J W L et al., <i>Nat Commun</i> 2014<sup data-cite-id=\"r-w-1\">[1]</sup></li><li>Park J E et al., <i>Eur Radiol</i> 2020<sup data-cite-id=\"r-w-3\">[3]</sup></li><li>Wang H et al., <i>Radiology</i> 2023<sup data-cite-id=\"r-w-4\">[4]</sup></li><li>知乎 答主 <i>@影像 AI 老王</i> 的复盘文章<sup data-cite-id=\"r-z-laowang\">[@影像 AI 老王]</sup></li></ul>"
+      "body": "<ul><li>Stupp R et al., <i>NEJM</i> 2005 — Stupp 方案奠基<sup data-cite-id=\"r-w-2\">[2]</sup></li><li>Hegi M E et al., <i>NEJM</i> 2005 — MGMT 甲基化预测<sup data-cite-id=\"r-w-4\">[4]</sup></li><li>Stupp R et al., <i>JAMA</i> 2017 — EF-14 TTFields<sup data-cite-id=\"r-w-3\">[3]</sup></li><li>知乎 答主 <i>@神外主治-顾</i> 的临床速查<sup data-cite-id=\"r-z-gu\">[@神外主治-顾]</sup></li></ul>"
     },
     {
-      "heading": "三、数据集对照",
-      "body": "<p>常用的公开队列里，<span class=\"research-mark\">NSCLC-Radiomics</span>（422 例）与 <span class=\"research-mark\">LUNG1</span>（318 例）训练域接近，外部验证 AUC 通常停在 0.70—0.74<sup data-cite-id=\"r-v-3\">[v3]</sup>。换到 RIDER Lung CT 队列后掉到 0.62<sup data-cite-id=\"r-w-4\">[4]</sup>。</p>"
+      "heading": "三、MGMT 甲基化分层",
+      "body": "<p>Hegi 2005 显示 <span class=\"research-mark\">MGMT 启动子甲基化阳性 (mMGMT+) 的患者，2 年 OS 可达 46%</span>（未甲基化组仅 14%）<sup data-cite-id=\"r-w-4\">[4]</sup>。这是 GBM 临床上最稳定的预测性生物标志物，所有患者术后均应送检 MGMT。检测方法首选 MS-PCR 或焦磷酸测序<sup data-cite-id=\"r-v-3\">[v3]</sup>。</p>"
     },
     {
-      "heading": "四、限制与反例",
-      "body": "<p>反例值得记一笔：Hosny 2018 在四个独立队列上做联合训练，AUC 维持在 0.71—0.78<sup data-cite-id=\"r-w-5\">[5]</sup>——证明问题不是\"影像组学不行\"，而是\"单中心训练 + 全靠特征工程\"不行。</p>"
+      "heading": "四、复发场景的反例",
+      "body": "<p>反例值得记一笔：CheckMate 143 (Reardon JAMA Oncol 2020)<sup data-cite-id=\"r-w-5\">[5]</sup> 显示 nivolumab vs bevacizumab 在复发 GBM 中位 OS 9.8 vs 10.0 月，无统计学差异。说明免疫检查点抑制剂在 GBM 微环境里很难单独起效——肿瘤突变负荷低 + 免疫抑制性微环境 + CNS 屏障三重原因。</p>"
     },
     {
       "heading": "五、可下钻问题",
-      "body": "<ul><li>是否要补一段关于\"成像协议差异\"的子分析？</li><li>是否引入 IBSI 标准化建议？<sup data-cite-id=\"r-w-6\">[6]</sup></li><li>是否援引你 2024-11 那篇 TCIA 踩坑文做交叉引用？<sup data-cite-id=\"r-v-3\">[v3]</sup></li></ul>"
+      "body": "<ul><li>是否要补一段 5-ALA 荧光引导切除对 OS 的影响？</li><li>是否引入 EANO 2021 指南<sup data-cite-id=\"r-w-6\">[6]</sup>？</li><li>是否援引你 2024-08 那篇 IDH-wt GBM 病例做交叉引用？<sup data-cite-id=\"r-v-3\">[v3]</sup></li></ul>"
     }
   ],
   "sources": [
@@ -36,65 +36,65 @@
       "kind": "web",
       "id": "r-w-1",
       "label": "[1]",
-      "text": "Aerts et al. — Nature Communications, 2014",
-      "host": "nature.com",
-      "url": "https://www.nature.com/articles/ncomms5006"
+      "text": "Louis DN et al. — Neuro-Oncology, 2021 (WHO CNS5)",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/34185076/"
     },
     {
       "kind": "web",
       "id": "r-w-2",
       "label": "[2]",
-      "text": "Lambin et al. — Nat Rev Clin Oncol, 2017",
-      "host": "nature.com",
-      "url": "https://www.nature.com/articles/nrclinonc.2017.141"
+      "text": "Stupp R et al. — NEJM, 2005",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15758009/"
     },
     {
       "kind": "web",
       "id": "r-w-3",
       "label": "[3]",
-      "text": "Park et al. — Eur Radiol, 2020",
-      "host": "springer.com",
-      "url": "https://link.springer.com/article/10.1007/s00330-020-06802-z"
+      "text": "Stupp R et al. — JAMA, 2017 (EF-14 TTFields)",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29260225/"
     },
     {
       "kind": "web",
       "id": "r-w-4",
       "label": "[4]",
-      "text": "Wang et al. — Radiology, 2023",
-      "host": "pubs.rsna.org",
-      "url": "https://pubs.rsna.org/journal/radiology"
+      "text": "Hegi ME et al. — NEJM, 2005",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15758010/"
     },
     {
       "kind": "web",
       "id": "r-w-5",
       "label": "[5]",
-      "text": "Hosny et al. — PLOS Medicine, 2018",
-      "host": "journals.plos.org",
-      "url": "https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1002711"
+      "text": "Reardon DA et al. — JAMA Oncol, 2020 (CheckMate 143)",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32437507/"
     },
     {
       "kind": "web",
       "id": "r-w-6",
       "label": "[6]",
-      "text": "Zwanenburg et al. — IBSI standardization, Radiology 2020",
-      "host": "pubs.rsna.org",
-      "url": "https://pubs.rsna.org/doi/10.1148/radiol.2020191145"
+      "text": "Weller M et al. — Nat Rev Clin Oncol, 2021 (EANO guidelines)",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33293629/"
     },
     {
       "kind": "vault",
       "id": "r-v-3",
       "label": "[v3]",
-      "text": "TCIA 数据集踩坑指北 (2024-11)",
+      "text": "MGMT-甲基化预测 TMZ 反应 · 临床速查 (2024-11)",
       "host": "档案库",
-      "articleId": "v3"
+      "articleId": "note-mgmt-tmz-cheatsheet"
     },
     {
       "kind": "zhihu",
-      "id": "r-z-laowang",
-      "label": "[@影像 AI 老王]",
-      "text": "为什么我不再信外部 AUC",
+      "id": "r-z-gu",
+      "label": "[@神外主治-顾]",
+      "text": "Stupp 方案 2025 临床速查",
       "host": "zhihu.com",
-      "url": "https://www.zhihu.com/question/example"
+      "url": "https://www.zhihu.com/question/447832901/answer/2189765432"
     }
   ],
   "tokenCount": 1400

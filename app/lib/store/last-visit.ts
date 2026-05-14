@@ -81,7 +81,12 @@ export const useLastVisitStore = create<LastVisitState>()(
     }),
     {
       name: 'kanshan-last-visit',
-      version: 2,
+      version: 3,
+      // v2 → v3 (2026-05-13): demo-pivot cleanup. Wipe any entries that
+      // still reference 影像组学 / untitled-1.md / test.md from the prior
+      // radiogenomics demo iteration so returning judges don't see the old
+      // recall card. Filenames containing the new GBM walkthrough title
+      // pass through.
       // v1 → v2 migration: collapse old `lastFilename: string | null` into a
       // single-element `lastVisits` array, default the new counters to 0.
       migrate: (persistedState, fromVersion) => {
@@ -101,6 +106,23 @@ export const useLastVisitStore = create<LastVisitState>()(
             sessionCount: 0,
             crossFoxEventCount: 0,
             trendOutboundClicks: 0,
+          } as LastVisitState;
+        }
+        if (fromVersion < 3) {
+          // v2→v3: filter out stale radiogenomics-era entries so the bubble
+          // doesn't reach back into a previous demo iteration.
+          const STALE_RE = /影像组学|radiomics|radiogenomics|untitled-1|test\.md|影像组学与基因组学/i;
+          const rawVisits = Array.isArray(s.lastVisits) ? (s.lastVisits as VisitEntry[]) : [];
+          const lastVisits = rawVisits.filter(
+            (v) => !STALE_RE.test(v.filename) && !STALE_RE.test(v.topicSnippet ?? ''),
+          );
+          return {
+            lastVisits,
+            lastConcern: (s.lastConcern as string | null) ?? null,
+            dismissed: (s.dismissed as boolean) ?? false,
+            sessionCount: (s.sessionCount as number) ?? 0,
+            crossFoxEventCount: (s.crossFoxEventCount as number) ?? 0,
+            trendOutboundClicks: (s.trendOutboundClicks as number) ?? 0,
           } as LastVisitState;
         }
         return persistedState as LastVisitState;

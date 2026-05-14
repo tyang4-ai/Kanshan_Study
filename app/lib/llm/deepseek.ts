@@ -33,7 +33,22 @@ export async function chat(messages: ChatMessage[], opts: ChatOpts = {}): Promis
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    // R5 (李大海 P1 2026-05-13): surface an amber notice toast on auth/rate-limit/
+    // 5xx so live-mode users see "switch to Kimi or retry" instead of a silent
+    // SSE error. Best-effort dynamic import keeps the module SSR-safe.
+    if (typeof window !== 'undefined' && /^(?:401|403|429|5\d\d)$/.test(String(res.status))) {
+      try {
+        const mod = await import('@/lib/store/ai-error');
+        mod.useAiErrorStore.getState().push({
+          severity: 'notice',
+          message: `DeepSeek ${res.status} 暂时不可用 · 设置 → 实时模式 可切换到 Kimi 或稍后重试`,
+        });
+      } catch { /* store unavailable — fall through to throw */ }
+    }
+    throw new Error(`DeepSeek ${res.status}: ${errText}`);
+  }
   const json = (await res.json()) as { choices: Array<{ message: { content: string } }> };
   return json.choices[0].message.content;
 }

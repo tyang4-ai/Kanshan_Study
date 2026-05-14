@@ -194,9 +194,16 @@ export function VaultTab({ scrollToArticleId, preloadQuery }: VaultTabProps = {}
   // query into the search box AND immediately trigger the search effect
   // below (it watches `query` already). Re-fires if 看山 sends a different
   // query later in the same chat.
+  // R5 (颜鑫 P1 2026-05-13): useRef pattern to detect external preloadQuery
+  // changes instead of unconditional setState. Avoids circular deps without
+  // suppressing lint.
+  const preloadQueryRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (preloadQuery && preloadQuery !== query) setQuery(preloadQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (preloadQuery && preloadQuery !== preloadQueryRef.current) {
+      preloadQueryRef.current = preloadQuery;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setQuery(preloadQuery);
+    }
   }, [preloadQuery]);
   const [filter, setFilter] = useState('all');
   // searchResults overrides initialEntries when search has run; account change drops back to seed

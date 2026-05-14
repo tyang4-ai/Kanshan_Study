@@ -11,11 +11,15 @@ import { Pushpin } from '@/components/atoms/Pushpin';
 // mount so the 0:00 cold-open beat has visible working-memory cards.
 // The localStorage flag below ensures the seed runs at most once per
 // browser — if the user clears all their cards, we don't refill them.
-const SEED_FLAG = 'kanshan-corkboard-seeded';
+// Bumped to v2 on 2026-05-13 — the v1 seed had 影像组学 sticky notes from the
+// pre-pivot demo iteration; users with v1 set keep seeing stale content until
+// they manually wipe localStorage. v2 forces a re-seed with the new GBM notes.
+const SEED_FLAG = 'kanshan-corkboard-seeded-v2';
+const STALE_SEED_FLAGS = ['kanshan-corkboard-seeded'];
 const DEMO_SEED = [
-  { annotation: '调研一下 影像组学 选题 — 看势热榜 #01 有矛盾点', createdBy: 'user' as const },
-  { annotation: '明天考完试后写个总结（按 看墨 润色一遍再发）', createdBy: 'user' as const },
-  { annotation: '看典 D-25 「影像 AI 的幸存者偏差陷阱」 引用待补', createdBy: 'kanshan' as const },
+  { annotation: '调研一下 TTFields 医保覆盖 — 看势热榜 #02 有信息点', createdBy: 'user' as const },
+  { annotation: '今天咨询后补一段治疗选择对话（按 看墨 调一道再发）', createdBy: 'user' as const },
+  { annotation: '看典 D-12 「MGMT 甲基化速查」引用待补', createdBy: 'kanshan' as const },
 ];
 
 const VAULT_DRAG_MIME = 'application/kanshan-vault';
@@ -63,9 +67,28 @@ export function Corkboard({
     if (typeof window === 'undefined') return;
     try {
       if (window.localStorage.getItem(SEED_FLAG)) return;
-      if (pins.length > 0) {
-        // User already has pins (e.g., a returning visitor whose seed flag
-        // was lost) — just stamp the flag and skip.
+      // v2 (2026-05-13): if user has only stale v1 seed pins (radiogenomics
+      // era), clear them so the GBM v2 seed can render. Detect by either
+      // (a) having the legacy flag set without v2, OR (b) any sticky note
+      // text matching the radiogenomics pattern.
+      const hadLegacyFlag = STALE_SEED_FLAGS.some((k) => window.localStorage.getItem(k));
+      const STALE_RE = /影像组学|radiomics|影像 AI/i;
+      const pinAnnotation = (p: CorkboardPin): string =>
+        (p.content?.annotation ?? p.content?.snippet ?? p.content?.title ?? '') as string;
+      const hasStalePin = pins.some((p) => STALE_RE.test(pinAnnotation(p)));
+      if (hadLegacyFlag || hasStalePin) {
+        // Drop pre-existing notes that match the stale pattern; keep anything
+        // the user added themselves.
+        for (const p of pins) {
+          if (STALE_RE.test(pinAnnotation(p))) {
+            removePin(p.id);
+          }
+        }
+        // Clear legacy flags so we re-run the v2 seed below.
+        for (const k of STALE_SEED_FLAGS) window.localStorage.removeItem(k);
+      }
+      if (pins.filter((p) => !STALE_RE.test(pinAnnotation(p))).length > 0) {
+        // User has non-stale pins → just stamp v2 flag and skip seeding.
         window.localStorage.setItem(SEED_FLAG, '1');
         return;
       }

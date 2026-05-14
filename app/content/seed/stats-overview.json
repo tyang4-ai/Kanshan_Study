@@ -7,9 +7,9 @@
   ],
   "spark": [42, 38, 51, 60, 55, 48, 72, 80, 68, 75, 88, 92, 85, 79, 95, 110, 120, 98, 88, 105, 130, 142, 138, 122, 118, 145, 160, 152, 168, 175],
   "articles": [
-    { "title": "影像组学的基因组学转向", "reads": "52.4k", "likes": 2840, "trend": "↑" },
-    { "title": "为什么我不再做 ROC 曲线分析", "reads": "38.1k", "likes": 1920, "trend": "↑" },
-    { "title": "TCIA 数据集踩坑指北", "reads": "21.6k", "likes": 1102, "trend": "→" },
-    { "title": "Aerts 2014 重读札记", "reads": "14.2k", "likes": 798, "trend": "↓" }
+    { "title": "胶质母细胞瘤 · 家属该了解的", "reads": "52.4k", "likes": 2840, "trend": "↑" },
+    { "title": "MGMT 甲基化与 TMZ 收益 · 临床速查", "reads": "38.1k", "likes": 1920, "trend": "↑" },
+    { "title": "TTFields 副作用谈话要点", "reads": "21.6k", "likes": 1102, "trend": "→" },
+    { "title": "Stupp 2005 → 2025 二十年综述阅读笔记", "reads": "14.2k", "likes": 798, "trend": "↓" }
   ]
 }

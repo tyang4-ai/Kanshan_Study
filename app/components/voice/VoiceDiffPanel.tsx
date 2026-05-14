@@ -495,6 +495,78 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
         </details>
       )}
 
+      {/* R5 (吴伟 / emmett P1 2026-05-13): voice-fingerprint algorithm expand.
+          Click-to-expand showing the sub-score breakdown + weighting formula +
+          a human-readable explainer. Numbers are real (from scoreVoice in
+          lib/voice/scorer.ts); the explainer prose is human-written narrative.
+          Native <details> matches the trace footer pattern above. */}
+      {state.voiceScore && (
+        <details data-testid="voice-diff-algorithm" style={{
+          flexShrink: 0,
+          borderTop: '1px solid rgba(23,114,246,0.18)',
+          background: '#FFFCEC',
+          padding: '6px 14px',
+          fontSize: 10.5, color: '#5A4E33',
+          fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.4,
+        }}>
+          <summary style={{ cursor: 'pointer', userSelect: 'none', color: '#2A2419', fontWeight: 600 }}>
+            语风对齐算法 · 展开看分数构成
+          </summary>
+          <div style={{ marginTop: 8, lineHeight: 1.65, fontFamily: '"Noto Serif SC", serif', fontSize: 11.5 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4, color: '#2A2419' }}>分项得分 (来自 lib/voice/scorer.ts)</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'JetBrains Mono, monospace', fontSize: 10.5 }}>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid rgba(168,123,42,0.18)' }}>
+                  <td style={{ padding: '3px 0' }}>AI 味反向 (1 − aiTaste)</td>
+                  <td style={{ padding: '3px 0', textAlign: 'right' }}>{(1 - state.voiceScore.sub.aiTaste).toFixed(3)}</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid rgba(168,123,42,0.18)' }}>
+                  <td style={{ padding: '3px 0' }}>词频对齐 (Jaccard@top-30)</td>
+                  <td style={{ padding: '3px 0', textAlign: 'right' }}>{state.voiceScore.sub.wordAlignment.toFixed(3)}</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid rgba(168,123,42,0.18)' }}>
+                  <td style={{ padding: '3px 0' }}>句长方差 (KL-divergence)</td>
+                  <td style={{ padding: '3px 0', textAlign: 'right' }}>{state.voiceScore.sub.sentenceVar.toFixed(3)}</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid rgba(168,123,42,0.18)' }}>
+                  <td style={{ padding: '3px 0' }}>范围保真</td>
+                  <td style={{ padding: '3px 0', textAlign: 'right' }}>{(state.voiceScore.sub.scopeFidelity ?? 1).toFixed(3)}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '3px 0' }}>引用保真</td>
+                  <td style={{ padding: '3px 0', textAlign: 'right' }}>{(state.voiceScore.sub.citationFidelity ?? 1).toFixed(3)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style={{ marginTop: 10, fontWeight: 600, color: '#2A2419' }}>加权公式</div>
+            <code style={{
+              display: 'block',
+              padding: '4px 6px',
+              marginTop: 4,
+              background: 'rgba(168,123,42,0.08)',
+              fontSize: 10.5,
+              borderRadius: 2,
+            }}>
+              total = 0.4 · hardSignal + 0.4 · LLMJudge + 0.2 · embedding
+            </code>
+            {state.voiceScore.rationale && (
+              <div style={{ marginTop: 6, fontStyle: 'italic', color: '#7A6647' }}>
+                本次评分: {state.voiceScore.rationale}
+              </div>
+            )}
+            <div style={{ marginTop: 10, fontWeight: 600, color: '#2A2419' }}>怎么算的</div>
+            <ul style={{ margin: '4px 0 0 18px', padding: 0, lineHeight: 1.7 }}>
+              <li><strong>hardSignal</strong> · 来自 BGE-M3 编码的高频词分布对齐 + 句长方差 KL 距离，确定性分量，无 LLM 调用。</li>
+              <li><strong>LLMJudge</strong> · Kimi-K2 以答主 5 篇旧文做 in-context 判断改写文是否保留了答主声音；返回 0-1 分 + reason。</li>
+              <li><strong>embedding</strong> · 改写文 vs 答主语料 cosine 平均（pgvector HNSW 召回 top-5）。</li>
+            </ul>
+            <div style={{ marginTop: 8, fontSize: 10, color: 'rgba(122,102,71,0.78)' }}>
+              ACCEPT 阈值 ≥ 0.85；未达阈值则在 max 3 轮内继续迭代。
+            </div>
+          </div>
+        </details>
+      )}
+
       {/* Voice-source row */}
       <div data-testid="voice-sources" style={{
         flexShrink: 0,
