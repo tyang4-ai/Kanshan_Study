@@ -86,24 +86,27 @@ export async function POST(req: Request): Promise<Response> {
     const creds = proxyAuth(req);
     const cacheMode = creds.source === 'gated' ? ('cache-only' as const) : undefined;
     const intent = intentKey(body.history, body.userMessage);
-    // DEBUG: call lookupCache directly to see what it returns
-    const { lookupCache } = await import('@/lib/cache/store');
+    // Bypass withCache for chat: it was dropping verified hits on the floor
+    // in production (lookupCache returns sim=1 but withCache fell through
+    // to a live-timeout CacheMissError). Direct lookup + manual live fallback.
+    const { lookupCache, writeCache } = await import('@/lib/cache/store');
     const directHit = await lookupCache<ReplayStep[]>('kanshan-chat', intent);
-    throw new Error(`DEBUG2 lookupCache.hit=${directHit !== null} sim=${directHit?.similarity} steps=${directHit?.response?.length} intent.len=${intent.length}`);
-    steps = await withCache<ReplayStep[]>('kanshan-chat', intent, async () => {
-      const reply = await runKanshanTurn(
-        body.history,
-        body.userMessage,
-        creds.key,
-        creds.provider,
-      );
-      const buffered: ReplayStep[] = [];
-      buffered.push({ event: 'reply', data: { text: reply.reply } });
-      if (reply.toolCall) {
-        buffered.push({ event: 'tool_call', data: reply.toolCall });
-      }
-      return buffered;
-    }, { mode: cacheMode, liveTimeoutMs: 2500 });
+    if (directHit) {
+      steps = directHit.response;
+    } else if (cacheMode === 'cache-only') {
+      throw new CacheMissError('kanshan-chat', intent);
+    } else {
+      const reply = await Promise.race([
+        runKanshanTurn(body.history, body.userMessage, creds.key, creds.provider),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new CacheMissError('kanshan-chat', intent + ' (timeout)')), 2500),
+        ),
+      ]);
+      const buffered: ReplayStep[] = [{ event: 'reply', data: { text: reply.reply } }];
+      if (reply.toolCall) buffered.push({ event: 'tool_call', data: reply.toolCall });
+      steps = buffered;
+      Promise.resolve(writeCache('kanshan-chat', intent, buffered)).catch(() => {});
+    }
   } catch (err) {
     const friendly = err instanceof CacheMissError
       ? '当前为缓存演示模式 · 该对话未在预生成缓存中。请按编辑器内的引导文档操作，或到设置 → 实时模式开启自带密钥模式。'
