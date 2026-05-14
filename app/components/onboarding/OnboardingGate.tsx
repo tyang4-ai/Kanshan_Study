@@ -92,6 +92,21 @@ export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
     window.location.href = '/api/auth/zhihu/start';
   };
 
+  // r6 OAuth-bypass (2026-05-13): when 知乎 OAuth is unreachable (their side
+  // returns 404 on /me + 200-with-error-body on /oauth POST), judges can opt
+  // into pure演示模式. Skip seats a stable per-browser 演示用户 identity in
+  // Zustand state + a localStorage flag — no server cookie needed. All
+  // workspace edits flow into the same persisted stores (editor-tabs,
+  // corkboard, last-visit, persona-masks), so they stay browser-cached and
+  // isolated per judge / per machine.
+  const skipLogin = useZhihuSessionStore((s) => s.skipLogin);
+  const onSkipOAuth = () => {
+    skipLogin();
+    // setStep below will fire from the sessionFullname effect once the store
+    // updates, but call it directly too so the transition is instant.
+    setStep('demo-notice');
+  };
+
   const acknowledgeDemoNotice = () => {
     // The cache-demo welcome screen has no inputs — single button just
     // advances to vault-consent. Default the demo persona cookie so the
@@ -254,6 +269,31 @@ export function OnboardingGate({ bgUrl = null }: OnboardingGateProps = {}) {
             >
               使用知乎账号登录
             </button>
+            <button
+              type="button"
+              data-testid="onboarding-zhihu-skip"
+              style={{
+                ...buttonStyle,
+                background: 'transparent',
+                color: 'rgba(232,220,196,0.85)',
+                border: '1px solid rgba(168,155,126,0.45)',
+              }}
+              onClick={onSkipOAuth}
+            >
+              演示模式 · 跳过登录
+            </button>
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 11,
+              color: 'rgba(232,220,196,0.6)',
+              fontFamily: '"Noto Serif SC", serif',
+              lineHeight: 1.6,
+              letterSpacing: 0.3,
+            }}
+          >
+            <strong>演示模式</strong>：跳过登录直接进入工作台，所有编辑/便签/档案变更仅保存在<strong>本浏览器</strong>，不上传服务器。适合评委快速体验（如 知乎 OAuth 暂时不可用）。
           </div>
         </div>
       </div>
