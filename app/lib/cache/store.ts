@@ -62,6 +62,19 @@ export async function lookupCache<T = unknown>(
   kind: CacheKind | string,
   intent: string,
 ): Promise<LookupHit<T> | null> {
+  // Exact-text shortcut: verbatim match bypasses the embedding round-trip
+  // entirely. Critical for kanshan-chat where typed prompt = seed intent;
+  // BGE-M3 occasionally returns non-deterministic vectors so the cosine
+  // path can miss even on identical strings.
+  const exactRows = await db.execute(sql`
+    select response from demo_cache
+    where kind = ${kind} and intent_text = ${intent}
+    limit 1
+  `);
+  const exactList = exactRows as unknown as Array<{ response: T }>;
+  if (exactList.length > 0) {
+    return { response: exactList[0].response, similarity: 1.0 };
+  }
   const [emb] = await embed([intent]);
   const vec = JSON.stringify(emb);
   const rows = await db.execute(sql`
