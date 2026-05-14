@@ -78,6 +78,47 @@ export async function lookupCache<T = unknown>(
   return { response: top.response, similarity: sim };
 }
 
+/**
+ * r5 TASK C (7 judges P0): literal-substring fallback for cache-miss.
+ *
+ * Cosine similarity misses when the user's `intent` is a tight substring of a
+ * seeded intent (judge selected only the absolutist clause; seed has the full
+ * paragraph) or a one-char variant. This function does a plain `ILIKE` query
+ * against `intent_text` and returns the closest match by string length —
+ * approximation that "the cached intent that most resembles ours in length"
+ * is usually the right pick.
+ *
+ * Strict: only runs when the intent is ≥ 8 chars (avoid matching everything
+ * with a single-character query). LIMIT 3 + JS-side length-proximity pick.
+ */
+export async function lookupCacheSubstring<T = unknown>(
+  kind: CacheKind | string,
+  intent: string,
+): Promise<LookupHit<T> | null> {
+  if (intent.length < 8) return null;
+  // Build a relaxed needle: take 12-32 chars from the longest contiguous
+  // CJK/alphanumeric run, escape `%` and `_` for ILIKE.
+  const run = intent.match(/[\p{L}\p{N}\p{M}]{12,}/u)?.[0] ?? intent.slice(0, 24);
+  const needle = run.slice(0, 32).replace(/[%_\\]/g, '\\$&');
+  try {
+    const rows = await db.execute(sql`
+      select id, response, intent_text
+      from demo_cache
+      where kind = ${kind}
+        and (intent_text ilike ${'%' + needle + '%'} or ${intent} ilike '%' || intent_text || '%')
+      limit 3
+    `);
+    const list = rows as unknown as Array<{ id: string; response: T; intent_text: string }>;
+    if (list.length === 0) return null;
+    // Pick the closest-by-length match.
+    list.sort((a, b) => Math.abs(a.intent_text.length - intent.length) - Math.abs(b.intent_text.length - intent.length));
+    return { response: list[0].response, similarity: 0.9 };
+  } catch (err) {
+    console.warn('[cache] substring lookup failed:', (err as Error).message);
+    return null;
+  }
+}
+
 export async function writeCache(
   kind: CacheKind | string,
   intent: string,

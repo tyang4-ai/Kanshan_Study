@@ -1,12 +1,16 @@
 // withCache wrapper — the integration point for every agent that should
 // participate in the demo cache. Resolves mode from env + per-call override.
 
-import { lookupCache, writeCache, type CacheKind } from './store';
+import { lookupCache, lookupCacheSubstring, writeCache, type CacheKind } from './store';
 
 export type CacheMode = 'auto' | 'cache-only' | 'live-only';
 
 export interface WithCacheOptions {
   mode?: CacheMode; // per-call override (e.g. /live forces 'cache-only')
+  /** r5 TASK C: hard timeout (ms) for the live() path. When the deploy is
+   *  serving anonymous judges, a hung Kimi call shows up as 30-60s "生成中"
+   *  with no diff. 5000 by default for gated requests; undefined disables. */
+  liveTimeoutMs?: number;
 }
 
 export class CacheMissError extends Error {
@@ -48,6 +52,13 @@ export async function withCache<T>(
         try {
           const hit = await lookupCache<T>(kind, intent);
           if (hit) return hit.response;
+          // r5 TASK C (7 judges P0): cosine miss → try literal-substring
+          // fallback. A judge who triple-clicked and grabbed a fragment of a
+          // seeded sentence, or who typed a one-char variant ("替莫**唤**胺"),
+          // should still hit cache. Returns the closest substring match by
+          // length proximity.
+          const subHit = await lookupCacheSubstring<T>(kind, intent);
+          if (subHit) return subHit.response;
         } catch (err) {
           // cache-only mode can't tolerate a broken lookup — caller wants strict
           // cache-replay semantics, so propagate.
@@ -61,7 +72,20 @@ export async function withCache<T>(
       if (mode === 'cache-only') {
         throw new CacheMissError(kind, intent);
       }
-      const result = await live();
+      // r5 TASK C: hard-timeout race against live(). Public-mode deploy
+      // configures `liveTimeoutMs: 5000` so the worst-case judge experience
+      // is a fast "已切回演示脚本" toast instead of a 60s loading state.
+      const result = opts.liveTimeoutMs
+        ? await Promise.race([
+            live(),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new CacheMissError(kind, intent + ' (timeout)')),
+                opts.liveTimeoutMs,
+              ),
+            ),
+          ])
+        : await live();
       // Best-effort write; tolerate sync mocks returning undefined and embed outages.
       Promise.resolve(writeCache(kind, intent, result)).catch((e) => {
         console.warn('[cache] write failed', e);

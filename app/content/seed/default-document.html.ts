@@ -26,6 +26,7 @@ export const DEFAULT_DOC_HTML = `
 <li>如需查看真实生成体验：右下角"设置"→ "实时模式"开关 → 填入 Kimi 或 DeepSeek 密钥</li>
 <li>任意浮窗右上角的 <strong>?</strong> 图标可重新查看该面板的使用说明</li>
 <li>引用编号 <code>[N]</code> 在文中可点击 → 跳转到对应的看典条目</li>
+<li><strong>9 狐拓扑</strong>：本演示中 <strong>看心</strong>（合规规则）+ <strong>看典</strong>（档案检索）在你的浏览器端运行（图标右下角带 <strong>端</strong> 徽章），其余 7 只走云端 LLM；完整路由可在"设置 → 拓扑图"中查看。</li>
 </ul>
 <hr>
 <h2>Step 0 — 看山接到任务</h2>
@@ -95,24 +96,20 @@ export const DEFAULT_DOC_HTML = `
 <li>搜索框打开时墙面只剩匹配项；清空或关闭后恢复全墙视图</li>
 </ul>
 <hr>
-<h2>Step 4 — 开始写作：把准备好的段落粘贴进编辑器</h2>
-<p><strong>做什么</strong>：把光标移到下方的 "⬇⬇⬇ 粘贴到这里 ⬇⬇⬇" 标记之后，复制下方代码块的全部文字粘贴进去：</p>
-<pre><code>胶质母细胞瘤 (Glioblastoma, GBM) 是成人最常见的恶性原发性脑肿瘤,占所有原发脑瘤约 14.5%。2021 年 WHO 第五版中枢神经系统肿瘤分类把它定义为 IDH-野生型、WHO 4 级的弥漫性星形细胞瘤,这意味着只要分子标记符合，无论组织学是否典型,都按 GBM 处理 [1]。
-
-目前公认的一线方案仍然是 Stupp 方案：术后放疗 60 Gy 同步 + 辅助替莫唑胺 (TMZ) 6 个周期。这套方案来自 2005 年 NEJM 那篇里程碑论文,中位总生存 (OS) 从单纯放疗的 12.1 个月提高到 14.6 个月,2 年 OS 从 10.4% 提高到 26.5% [2]。
-
-对 MGMT 启动子甲基化阳性 (mMGMT+) 的患者,TMZ 的获益更明显 —— Hegi 等同期发表的 NEJM 文章显示,mMGMT+ 患者 2 年 OS 可达 46% [3]。这是目前临床上最稳定的疗效预测因子,所有患者术后都应送检 MGMT。
-
-肿瘤治疗电场 (TTFields, Optune) 是 2015 年起加入 Stupp 方案的辅助手段。EF-14 III 期研究 (Stupp et al. JAMA 2017) 显示,加用 TTFields 把中位 OS 从 16.0 月推到 20.9 月,5 年 OS 从 5% 升到 13%,绝对获益显著 [4]。
-
-对 MGMT 甲基化阳性的患者，替莫唑胺一定能根治胶质母细胞瘤，5 年存活率 100%。
-
-复发场景下,免疫检查点抑制剂在 III 期研究 (CheckMate 143) 中未能显示 OS 获益,贝伐珠单抗也只能缓解水肿、不延长生存 [5]。家属需要理解的是: GBM 现阶段是"延长有质量的时间"的疾病,不是"治愈"。</code></pre>
-<blockquote><p><strong>说明</strong>：上面段落里<strong>故意埋了一个绝对化声明</strong>（第五段），用来触发看心 Step 5；正文中的 <code>[1]</code>–<code>[5]</code> 是 CitationMark，会被自动渲染成可点击的上标，落到看典对应条目。</p></blockquote>
-<p><strong>看什么</strong>：编辑器渲染上述段落，每个 <code>[N]</code> 引用编号变成蓝色上标，鼠标悬停可显示文章简短信息。</p>
-<p>⬇⬇⬇ <strong>粘贴到这里</strong> ⬇⬇⬇</p>
+<h2>Step 4 — 开始写作：阅读已粘贴的段落（看心已经开始扫描）</h2>
+<p><strong>看什么</strong>：下面六段是 顾婉昔 已经粘进来的初稿正文 —— 它们是<strong>真实段落节点</strong>（不是代码块），看心会在文档加载完成后约 800 ms 内主动扫描全文，把不符合医学发表规范的句子标出来。第五段被<strong>故意</strong>埋了一个医学绝对化声明，用来触发 Step 5 的看心高亮。</p>
+<blockquote data-paste-block="true" data-gbm-passage="true">
+<p data-gbm-line="1">胶质母细胞瘤 (Glioblastoma, GBM) 是成人最常见的恶性原发性脑肿瘤,占所有原发脑瘤约 14.5%。2021 年 WHO 第五版中枢神经系统肿瘤分类把它定义为 IDH-野生型、WHO 4 级的弥漫性星形细胞瘤,这意味着只要分子标记符合，无论组织学是否典型,都按 GBM 处理 [1]。</p>
+<p data-gbm-line="2">目前公认的一线方案仍然是 Stupp 方案：术后放疗 60 Gy 同步 + 辅助替莫唑胺 (TMZ) 6 个周期。这套方案来自 2005 年 NEJM 那篇里程碑论文,中位总生存 (OS) 从单纯放疗的 12.1 个月提高到 14.6 个月,2 年 OS 从 10.4% 提高到 26.5% [2]。</p>
+<p data-gbm-line="3">对 MGMT 启动子甲基化阳性 (mMGMT+) 的患者,TMZ 的获益更明显 —— Hegi 等同期发表的 NEJM 文章显示,mMGMT+ 患者 2 年 OS 可达 46% [3]。这是目前临床上最稳定的疗效预测因子,所有患者术后都应送检 MGMT。</p>
+<p data-gbm-line="4">肿瘤治疗电场 (TTFields, Optune) 是 2015 年起加入 Stupp 方案的辅助手段。EF-14 III 期研究 (Stupp et al. JAMA 2017) 显示,加用 TTFields 把中位 OS 从 16.0 月推到 20.9 月,5 年 OS 从 5% 升到 13%,绝对获益显著 [4]。</p>
+<p data-gbm-line="5" data-gbm-absolutism="true">对 MGMT 甲基化阳性的患者，替莫唑胺一定能根治胶质母细胞瘤，5 年存活率 100%。</p>
+<p data-gbm-line="6">复发场景下,免疫检查点抑制剂在 III 期研究 (CheckMate 143) 中未能显示 OS 获益,贝伐珠单抗也只能缓解水肿、不延长生存 [5]。家属需要理解的是: GBM 现阶段是"延长有质量的时间"的疾病,不是"治愈"。</p>
+</blockquote>
+<p><strong>做什么</strong>：通读六段，特别留意第五段。Step 5 会教你如何与看心标记的句子交互。如果你想<strong>亲手测试粘贴流程</strong>，可以在下方空白处粘贴任意一段（看心会在你输入停顿后 800 ms 内扫描）：</p>
+<p>⬇⬇⬇ <strong>测试粘贴区（可选）</strong> ⬇⬇⬇</p>
 <p></p>
-<p>⬆⬆⬆ <strong>粘贴到这里</strong> ⬆⬆⬆</p>
+<p>⬆⬆⬆ <strong>测试粘贴区（可选）</strong> ⬆⬆⬆</p>
 <hr>
 <h2>Step 5 — 看心实时监控：高亮违规句</h2>
 <p><strong>看什么</strong>：粘贴完成后约 800 ms，<strong>看心</strong>自动扫描，在第五段（"对 MGMT 甲基化阳性的患者…"）画出<strong>红色波浪下划线 + 浅红背景</strong>。</p>

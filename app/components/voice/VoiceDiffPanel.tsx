@@ -308,6 +308,19 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
     citationFidelity >= 1;
   const recommendCol: 'voice' | 'generic' = voiceSafe ? 'voice' : 'generic';
 
+  // r5 TASK C (李笛 + emmett P0): hard gate. When termFidelity < 0.55, the
+  // rewrite has dropped or replaced enough source-bound terms (CRISPR injected
+  // into MGMT, "山峰" replacing TMZ) that we suppress the VOICE column entirely
+  // instead of just steering the recommendation. Threshold is conservative
+  // (legit rewrites land ≥ 0.7); anything below 0.55 is judged unsafe to show.
+  const voiceTermsSafe = state.voiceScore == null
+    || (state.voiceScore.termFidelity ?? 1) >= 0.55;
+
+  // r5 TASK C (吴伟 acceptance criterion): persistent green bar when this
+  // selection overlaps any 看心-flagged range. Stays visible from completion
+  // through accept, replacing the toast-only signal that R3 shipped.
+  const xinOverlapCount = state.done ? findXinFlagsInRange(selection).length : 0;
+
   return (
     <div
       data-testid="voice-diff-panel"
@@ -339,6 +352,61 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
         <span style={{ flex: 1, fontStyle: 'italic' }}>
           {selection || bullets || '— 这一段需要例子'}
         </span>
+      </div>
+
+      {/* r5 TASK H (周源 R4 standing, 史中, 吴伟 P1): retrieval-time disclaimer
+          + 一键清空 baseline affordance. Always visible above the diff. */}
+      <div
+        data-testid="voice-diff-disclaimer"
+        style={{
+          flexShrink: 0,
+          padding: '6px 14px 6px',
+          borderBottom: '1px solid rgba(23,114,246,0.10)',
+          fontSize: 10.5,
+          color: '#5A6270',
+          background: 'rgba(31,139,102,0.04)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          fontFamily: '"Noto Serif SC", serif',
+        }}
+      >
+        <span style={{ flex: 1, letterSpacing: 0.1 }}>
+          看墨基于 retrieval-time 比对 · 不对你的存稿做训练 · 看典里的 {state.voiceSources.length || '—'} 篇旧文仅在本次会话内被读取
+        </span>
+        <button
+          data-testid="voice-diff-clear-baseline"
+          type="button"
+          onClick={async () => {
+            try {
+              await fetch('/api/voice/baseline-clear', { method: 'POST' });
+              useAiErrorStore.getState().push({
+                message: '看墨已清空本会话的声纹基线缓存',
+                severity: 'notice',
+              });
+            } catch {
+              useAiErrorStore.getState().push({
+                message: '清空失败 · 请稍后重试',
+                severity: 'notice',
+              });
+            }
+          }}
+          style={{
+            border: '1px solid rgba(122,102,85,0.45)',
+            background: 'transparent',
+            color: '#5A6270',
+            fontFamily: '"Noto Serif SC", serif',
+            fontSize: 10,
+            padding: '2px 8px',
+            borderRadius: 4,
+            cursor: 'pointer',
+            letterSpacing: 0.3,
+            flexShrink: 0,
+          }}
+        >
+          一键清空
+        </button>
       </div>
 
       {state.fallbackActive && (
@@ -380,6 +448,49 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           }}
         >
           ⚠️ 对齐度低，建议人工核对术语和事实。已为你切换默认推荐到 GENERIC。
+        </div>
+      )}
+
+      {/* r5 TASK C (李笛 + emmett P0): term-fidelity hard suppression notice */}
+      {state.done && !voiceTermsSafe && (
+        <div
+          data-testid="voice-diff-term-suppression"
+          style={{
+            flexShrink: 0,
+            margin: '6px 14px 0',
+            fontSize: 11,
+            color: '#7A2A1F',
+            background: 'rgba(184,85,67,0.10)',
+            border: '1px solid rgba(184,85,67,0.55)',
+            borderRadius: 4,
+            padding: '6px 10px',
+            fontFamily: '"Noto Serif SC", serif',
+            lineHeight: 1.55,
+          }}
+        >
+          <strong>看墨改写时丢失了原文专业术语</strong>（termFidelity ={' '}
+          {(state.voiceScore?.termFidelity ?? 0).toFixed(2)}）· 已退回 GENERIC。语风稿不再展示，建议你重试或手工微调原句。
+        </div>
+      )}
+
+      {/* r5 TASK C (吴伟 acceptance criterion): persistent 已绕开看心标记 green bar */}
+      {state.done && xinOverlapCount > 0 && (
+        <div
+          data-testid="voice-diff-xin-bypass-bar"
+          style={{
+            flexShrink: 0,
+            margin: '6px 14px 0',
+            fontSize: 11,
+            color: '#1F5B47',
+            background: 'rgba(46,125,90,0.10)',
+            border: '1px solid rgba(46,125,90,0.55)',
+            borderRadius: 4,
+            padding: '5px 10px',
+            fontFamily: '"Noto Serif SC", serif',
+            letterSpacing: 0.2,
+          }}
+        >
+          ✓ 已绕开 看心 标记的 {xinOverlapCount} 处需出处片段 — 跨狐协作已生效
         </div>
       )}
 
@@ -440,23 +551,43 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
           }}
         >
           {state.done ? (
-            <motion.div
-              data-testid="voice-diff-voice-text"
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
-              // Dim VOICE column when scopeFidelity < 0.5 (persona-review
-              // 2026-05-10 王婉清 P1: system warned but still presented at
-              // full strength — the visual signal now matches the warning).
-              style={
-                !voiceSafe
-                  ? { opacity: 0.55, filter: 'grayscale(0.4)' }
-                  : undefined
-              }
-            >
-              <p>{renderVoiceMarks(state.voice, state.voiceSpans)}</p>
-              {signals.length > 0 && <SignalsRow signals={signals} />}
-            </motion.div>
+            !voiceTermsSafe ? (
+              // r5 TASK C hard gate: suppress VOICE column when termFidelity
+              // < 0.55. Replaces the rewrite text with an explicit notice so
+              // judges can't accidentally accept a CRISPR-injected GBM rewrite.
+              <div data-testid="voice-diff-voice-suppressed"
+                style={{
+                  padding: '10px 0',
+                  color: '#7A2A1F',
+                  fontSize: 11,
+                  fontFamily: '"Noto Serif SC", serif',
+                  lineHeight: 1.7,
+                }}>
+                <p style={{ marginBottom: 6, fontWeight: 600 }}>语风稿已被 看墨 自检拦下</p>
+                <p style={{ fontSize: 10.5, color: '#9A4A3D' }}>
+                  termFidelity {(state.voiceScore?.termFidelity ?? 0).toFixed(2)} &lt; 0.55 —
+                  本轮改写丢失了原文专业术语，不展示语风稿以避免误导。请重试或采用 GENERIC。
+                </p>
+              </div>
+            ) : (
+              <motion.div
+                data-testid="voice-diff-voice-text"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                // Dim VOICE column when scopeFidelity < 0.5 (persona-review
+                // 2026-05-10 王婉清 P1: system warned but still presented at
+                // full strength — the visual signal now matches the warning).
+                style={
+                  !voiceSafe
+                    ? { opacity: 0.55, filter: 'grayscale(0.4)' }
+                    : undefined
+                }
+              >
+                <p>{renderVoiceMarks(state.voice, state.voiceSpans)}</p>
+                {signals.length > 0 && <SignalsRow signals={signals} />}
+              </motion.div>
+            )
           ) : (
             <p data-testid="voice-diff-voice-ticker"
               style={{ color: '#1F8B66', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, lineHeight: 1.7 }}>
@@ -563,6 +694,28 @@ export function VoiceDiffPanel({ selection, bullets, mode, onAccept }: VoiceDiff
             <div style={{ marginTop: 8, fontSize: 10, color: 'rgba(122,102,71,0.78)' }}>
               ACCEPT 阈值 ≥ 0.85；未达阈值则在 max 3 轮内继续迭代。
             </div>
+
+            {/* r5 TASK H (史中 P1): matched-baseline excerpts. Show the top
+                voiceSources entries with a one-line excerpt each so judges can
+                trace "VOICE this rewrite is doing" back to specific old posts.
+                Sourced from state.voiceSources which the stream already populates. */}
+            {state.voiceSources.length > 0 && (
+              <>
+                <div style={{ marginTop: 12, fontWeight: 600, color: '#2A2419' }}>匹配示例（top 3 baseline）</div>
+                <ul data-testid="voice-matched-baselines" style={{ margin: '4px 0 0 18px', padding: 0, lineHeight: 1.65, fontSize: 10.5 }}>
+                  {state.voiceSources.slice(0, 3).map((src) => (
+                    <li key={`vbase-${src.id}`} style={{ marginBottom: 4 }}>
+                      <span style={{ color: '#1F5B47', fontWeight: 600 }}>《{src.title}》</span>
+                      <span style={{ color: 'rgba(122,102,71,0.85)', marginLeft: 6 }}>· {src.date}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ marginTop: 6, fontSize: 10, color: 'rgba(122,102,71,0.78)' }}>
+                  这次改写从这 {state.voiceSources.length} 篇旧文里抽出了高频收束方式逐字对齐 —
+                  风骨匹配 {(state.voiceScore.total).toFixed(2)}。
+                </div>
+              </>
+            )}
           </div>
         </details>
       )}

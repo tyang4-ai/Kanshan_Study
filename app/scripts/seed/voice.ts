@@ -49,6 +49,33 @@ export async function seedVoice(): Promise<number> {
     );
     count += 1;
   }
+  // (4) r5 TASK C (6 judges P0): seed *selection variants* of the
+  // absolutist GBM sentence so a judge who triple-clicks and grabs a
+  // partial selection still gets a cache hit. Each variant writes the
+  // same response payload (events from step 3) keyed under its own
+  // canonical-intent. The substring-lookup fallback in cache/store.ts
+  // also covers these, but explicit seeds give zero-cost cosine hits.
+  {
+    const lastSeededEvents = await collectVoiceFill(DEMO_USER_ID, '', 'polish', CLIMACTIC_PARAGRAPH);
+    const variants: string[] = [
+      // First clause only
+      '对 MGMT 甲基化阳性的患者，替莫唑胺一定能根治胶质母细胞瘤',
+      // Second clause only ("5 年存活率 100%。")
+      '替莫唑胺一定能根治胶质母细胞瘤，5 年存活率 100%。',
+      // With leading whitespace (paste-from-pre artifact)
+      '  对 MGMT 甲基化阳性的患者，替莫唑胺一定能根治胶质母细胞瘤，5 年存活率 100%。',
+      // Common one-char variant 替莫"唤"胺 (李大海 saw this exact miss)
+      '对 MGMT 甲基化阳性的患者，替莫唤胺一定能根治胶质母细胞瘤，5 年存活率 100%。',
+    ];
+    for (const selection of variants) {
+      await writeCache(
+        'voice-fill',
+        voiceFillKey({ userId: DEMO_USER_ID, mode: 'polish', bullets: '', selection }),
+        lastSeededEvents,
+      );
+      count += 1;
+    }
+  }
   return count;
 }
 

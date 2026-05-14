@@ -15,9 +15,22 @@ export interface CanonicalIntentInput {
 }
 
 function normalizeText(s: string): string {
+  // r5 TASK C (7 judges P0): cache-miss hardening.
   // \s matches all Unicode whitespace including NBSP, ideographic space, etc.
-  // Zero-width chars are rare in our inputs and not worth handling here.
-  return s.replace(/\s+/g, ' ').trim();
+  // We additionally:
+  //   - strip code-fence artifacts a judge might drag in when triple-clicking
+  //     across a `<pre><code>` boundary (backticks, leading 4-space indents)
+  //   - collapse repeated CJK punctuation pairs ("，，" → "，")
+  //   - strip zero-width chars (ZWSP / ZWJ / ZWNJ / BOM) which occasionally
+  //     ride along with paste-from-Notion / paste-from-Word workflows
+  //   - lowercase ASCII so a stray uppercase in MGMT vs mgmt doesn't miss
+  return s
+    .replace(/[​-‍﻿]/g, '')
+    .replace(/```+/g, '')
+    .replace(/[，。；：、！？]{2,}/g, (m) => m[0])
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 function sortKeys(value: unknown): unknown {

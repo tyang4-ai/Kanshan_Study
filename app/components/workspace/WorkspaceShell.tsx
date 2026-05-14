@@ -6,6 +6,7 @@ import { ContextMenu } from '@/components/menu/ContextMenu';
 import { TabbedFloatingWindow } from '@/components/floating/TabbedFloatingWindow';
 import { AiFailureToast } from '@/components/chrome/AiFailureToast';
 import { AuthErrorToast } from '@/components/chrome/AuthErrorToast';
+import { XinHoverCard } from '@/components/editor/XinHoverCard';
 import { DailyFoxPulse } from '@/components/onboarding/DailyFoxPulse';
 import { ReturningVisitorBubble } from '@/components/onboarding/ReturningVisitorBubble';
 import { useGlobalShortcuts } from './useGlobalShortcuts';
@@ -173,6 +174,8 @@ export function WorkspaceShell({ workspaceBgUrl = null, avatarUrls }: WorkspaceS
       <AiFailureToast />
 
       <AuthErrorToast />
+
+      <XinHoverCard />
 
       <DailyFoxPulse />
 

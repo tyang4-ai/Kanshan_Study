@@ -373,6 +373,61 @@ export function SettingsTab() {
             看山书房 · v0.2 · 2026-05-14 知乎黑客松提交版
           </div>
         </section>
+
+        {/* r5 TASK J (李大海 P1): 9 狐拓扑图 · 端侧 / 云端 分布 + 路由可见性 */}
+        <section data-testid="settings-topology" style={{ marginTop: 18 }}>
+          <h3 style={{ fontSize: 12, color: '#5A6270', letterSpacing: 1.5, marginBottom: 10, fontFamily: '"Noto Serif SC", serif' }}>
+            9 狐拓扑图 · 端侧 / 云端
+          </h3>
+          <div style={{ fontSize: 11, color: '#5A6270', lineHeight: 1.7, fontFamily: '"Noto Serif SC", serif', marginBottom: 10 }}>
+            9 只狐影 · 端侧 2 只 · 云端 7 只 · 路由全程可见
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(122,102,71,0.30)', textAlign: 'left', color: '#5A6270' }}>
+                <th style={{ padding: '4px 0', fontWeight: 600 }}>狐</th>
+                <th style={{ padding: '4px 0', fontWeight: 600 }}>位置</th>
+                <th style={{ padding: '4px 0', fontWeight: 600 }}>引擎</th>
+                <th style={{ padding: '4px 0', fontWeight: 600 }}>典型时延</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { name: '看心', loc: '端', engine: '规则匹配 (xin-detect.ts)', latency: '~0.5 ms', accent: '#1F5B47' },
+                { name: '看典', loc: '端', engine: 'JSON / BGE-M3 (可选 OPFS)', latency: '~80 ms', accent: '#1F5B47' },
+                { name: '看山', loc: '云', engine: 'Kimi-K2 (调度 + 工具路由)', latency: '~1.5 s', accent: '#7A6647' },
+                { name: '看水', loc: '云', engine: 'PubMed API + LLM 综述', latency: '~1.4 s', accent: '#7A6647' },
+                { name: '看势', loc: '云', engine: '知乎热榜 API + 相关度排序', latency: '~0.8 s', accent: '#7A6647' },
+                { name: '看墨', loc: '云', engine: 'DeepSeek-V3 + BGE-M3 reranker', latency: '~3 × 11 s 迭代', accent: '#7A6647' },
+                { name: '看文', loc: '云', engine: 'DeepSeek-V3 × 4 masks', latency: '~6 s 全部', accent: '#7A6647' },
+                { name: '看纹', loc: '云', engine: 'DeepSeek-V3 自定面具', latency: '~3 s', accent: '#7A6647' },
+                { name: '看辩', loc: '云', engine: 'DeepSeek-V3 (正/反双角色)', latency: '~4 s', accent: '#7A6647' },
+              ].map((row) => (
+                <tr key={row.name} style={{ borderBottom: '1px solid rgba(122,102,71,0.12)' }}>
+                  <td style={{ padding: '5px 0', fontFamily: '"Noto Serif SC", serif', fontWeight: 600 }}>{row.name}</td>
+                  <td style={{ padding: '5px 0' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 9,
+                      color: '#FBFAF7',
+                      background: row.accent,
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                      fontWeight: 600,
+                      letterSpacing: 0.4,
+                      fontFamily: '"Noto Serif SC", serif',
+                    }}>{row.loc}</span>
+                  </td>
+                  <td style={{ padding: '5px 0', color: '#5A6270' }}>{row.engine}</td>
+                  <td style={{ padding: '5px 0', color: 'rgba(122,102,71,0.85)' }}>{row.latency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 8, fontSize: 10, color: 'rgba(122,102,71,0.75)', fontFamily: '"Noto Serif SC", serif', lineHeight: 1.6 }}>
+            <strong>路由可见性</strong>：底部 OrchestrationStrip 实时显示每只狐影的状态与跨狐协作次数；任何一次工具调用都可以在浏览器 DevTools → Network 中查到对应的 `/api/agents/*` 请求。
+          </div>
+        </section>
       </div>
 
       <ComplianceLine>设置仅本地保存 · 不同步至云</ComplianceLine>

@@ -93,10 +93,11 @@ export function RightToolbar({ selection }: RightToolbarProps) {
       // FoxRail, which got removed in Y8-P2b). Keeping the original selector
       // name `fox-tails` so steps.ts doesn't need to know about the move.
       data-tour-id="fox-tails"
-      // R8-P2a (2026-05-11): narrow-viewport (< 1280px) clipping fix. The
-      // toolbar's `right: 12` clipped on 1024px laptop screens. Inline media
-      // queries aren't possible; the rule lives in globals.css scoped to this
-      // role + aria-label.
+      // r5 TASK G (emmett P1): dim advanced-5 to opacity 0.55 by default so
+      // judges read the daily-4 (top bar) as primary. Brighten on hover/focus
+      // so discovery isn't lost. Uses CSS variables so the hover transition
+      // is GPU-cheap.
+      data-rail="advanced-5"
       style={{
         position: 'absolute',
         right: 12,
@@ -113,7 +114,13 @@ export function RightToolbar({ selection }: RightToolbarProps) {
         maxHeight: '90vh',
         overflowY: 'auto',
         scrollbarWidth: 'none',
+        opacity: 0.55,
+        transition: 'opacity 0.18s ease',
       }}
+      onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.55'; }}
+      onFocus={(e) => { e.currentTarget.style.opacity = '1'; }}
+      onBlur={(e) => { e.currentTarget.style.opacity = '0.55'; }}
     >
       {AI_TOOLS.map((t) => (
         <AiButton key={t.id} tool={t} hasSelection={hasSel} selection={selection} />
@@ -164,7 +171,7 @@ function AiButton({ tool, hasSelection, selection }: { tool: AiItem; hasSelectio
         onMouseDown={(e) => e.preventDefault()}
         onClick={onClick}
         disabled={disabled}
-        title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
+        title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}${tool.foxId === 'xin' ? ' · 端侧规则匹配' : ''}`}
         aria-label={tool.label}
         aria-disabled={disabled}
         data-fox-id={tool.foxId}
@@ -172,6 +179,32 @@ function AiButton({ tool, hasSelection, selection }: { tool: AiItem; hasSelectio
         style={buttonStyle(hover, disabled, pulsing, FOX_BY_ID[tool.foxId].glow)}
       >
         {tool.icon}
+        {/* r5 TASK J (李大海 P1): 端 badge marks foxes that run in the
+            browser (rule-based xin / local-vector dian). Tiny corner glyph
+            so it doesn't compete with the fox initial. */}
+        {tool.foxId === 'xin' && (
+          <span
+            aria-hidden
+            data-testid="fox-edge-badge"
+            style={{
+              position: 'absolute',
+              right: -2,
+              bottom: -2,
+              fontSize: 8,
+              lineHeight: '11px',
+              padding: '0 3px',
+              borderRadius: 6,
+              background: '#1F5B47',
+              color: '#FBFAF7',
+              fontFamily: '"Noto Serif SC", serif',
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.35)',
+            }}
+          >
+            端
+          </span>
+        )}
       </button>
       {guideOpen && anchorRect && !disabled && (
         <FoxGuideCard foxId={tool.foxId} guideId={tool.guideId} anchorRect={anchorRect} onClose={() => setGuideOpen(false)} />

@@ -20,14 +20,22 @@ export function useGlobalShortcuts(selectionRef: RefObject<ShortcutSelection>) {
       if (e.isComposing || e.keyCode === 229) return;
       if (!e.ctrlKey || !e.shiftKey) return;
       const key = e.key.toLowerCase();
-      if (key !== 'm' && key !== 'r' && key !== 'f') return;
+      // r5 TASK F (颜鑫 P1): added 'k' for 看山 chat — demo-flow doc Step 0
+      // tells judges to press Ctrl+Shift+K to open the orchestration panel.
+      // 'k' is the only chord that doesn't require a selection.
+      if (key !== 'm' && key !== 'r' && key !== 'f' && key !== 'k') return;
       // Swallow the chord even if no selection — the literal letter must never
       // reach the contentEditable.
       e.preventDefault();
       e.stopPropagation();
+      const { openTab } = useFloatingWindowStore.getState();
+      if (key === 'k') {
+        // 看山 doesn't need a selection.
+        openTab('kanshan-chat', '看山 · 编排');
+        return;
+      }
       const sel = selectionRef.current;
       if (!sel) return;
-      const { openTab } = useFloatingWindowStore.getState();
       if (key === 'm') {
         openTab('voice-diff', '看墨 · 润色', { mode: 'polish', selection: sel });
       } else if (key === 'r') {

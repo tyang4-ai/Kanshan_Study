@@ -68,13 +68,19 @@ export async function POST(req: Request): Promise<Response> {
     // cache-only — never spend the project's own credits on a live LLM call.
     const cacheMode = creds.source === 'gated' ? ('cache-only' as const) : undefined;
     const intent = voiceFillKey({ userId: user.id, mode, bullets, selection });
+    // r5 TASK C: app-key fallback path also gets a 5s timeout so judges who
+    // somehow bypass the public-mode gate (e.g. KANSHAN_PUBLIC_MODE env
+    // misconfigured on Vercel) still get a fast cache-miss instead of a 60s
+    // hung Kimi call. BYO-key path (creds.source === 'user') gets no timeout
+    // because authenticated users explicitly chose live mode.
+    const liveTimeoutMs = creds.source === 'app' ? 5000 : undefined;
     steps = await withCache<ReplayStep[]>('voice-fill', intent, async () => {
       const buffered: ReplayStep[] = [];
       for await (const ev of voiceFillStream(user.id, bullets, mode, selection, baseline, creds.key, creds.provider)) {
         buffered.push({ event: ev.event, data: ev.data });
       }
       return buffered;
-    }, { mode: cacheMode });
+    }, { mode: cacheMode, liveTimeoutMs });
   } catch (err) {
     if (guestId) await releaseConcurrent(guestId);
     const isCacheMiss = err instanceof CacheMissError;

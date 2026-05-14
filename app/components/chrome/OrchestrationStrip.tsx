@@ -18,6 +18,8 @@
 import { useFloatingWindowStore } from '@/lib/store/floating-window';
 import { useOrchestrationStore } from '@/lib/store/orchestration';
 import { useProvenanceStore, getProvenanceSummary } from '@/lib/store/provenance';
+import { useRelMemStore } from '@/lib/store/relmem';
+import { useLastVisitStore } from '@/lib/store/last-visit';
 import { FOX_BY_ID, type FoxId } from '@/lib/foxes/registry';
 
 const TAB_KIND_TO_FOX: Record<string, FoxId> = {
@@ -39,6 +41,13 @@ export function OrchestrationStrip() {
   // Subscribe to provenance so the strip re-renders when entries change.
   useProvenanceStore((s) => s.entries);
   const summary = getProvenanceSummary();
+  // r5 TASK I (李笛 P2): subscribe to relational-memory annotations so the
+  // OrchestrationStrip surfaces echo/contradict chips inline with the fox row.
+  const relmem = useRelMemStore((s) => s.annotations);
+  // r5 TASK L (吴伟 P1): cross-fox events counter chip (右侧). Reads from
+  // useLastVisitStore.crossFoxEventCount which ticks every time one fox's
+  // action triggers a relatedTo annotation on another fox's prior entry.
+  const crossFoxEvents = useLastVisitStore((s) => s.crossFoxEventCount);
 
   // Determine which foxes are visibly active right now:
   //  - any fox whose floating window is open
@@ -140,6 +149,55 @@ export function OrchestrationStrip() {
           </span>
         );
       })}
+
+      {/* r5 TASK I: 看典 关系记忆 chips. Each annotation reads as
+          "看典 注意到这一句和《X》第 N 段呼应/相反 →" */}
+      {relmem.length > 0 && (
+        <>
+          <span style={{ flexShrink: 0, color: 'rgba(168,155,126,0.55)' }}>·</span>
+          {relmem.slice(0, 3).map((a) => (
+            <span
+              key={a.id}
+              data-testid="orchestration-relmem-chip"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                flexShrink: 0,
+                fontSize: 10.5,
+                color: a.kind === 'contradict' ? '#E89B7E' : '#A8D9C2',
+                fontStyle: 'italic',
+              }}
+              title={`${a.refExcerpt}（cos ${a.similarity.toFixed(2)}）`}
+            >
+              <span aria-hidden style={{ opacity: 0.6 }}>📎</span>
+              看典 {a.kind === 'contradict' ? '注意到这句与' : '注意到这句呼应'}《{a.refTitle.slice(0, 14)}{a.refTitle.length > 14 ? '…' : ''}》
+            </span>
+          ))}
+        </>
+      )}
+
+      {/* r5 TASK L: cross-fox events counter chip. Right-edge persistent count
+          of times one fox triggered a relatedTo annotation on another fox. */}
+      {crossFoxEvents > 0 && (
+        <span
+          data-testid="orchestration-crossfox-counter"
+          style={{
+            marginLeft: 'auto',
+            flexShrink: 0,
+            fontSize: 10,
+            color: '#A8D9C2',
+            border: '1px solid rgba(168,217,194,0.45)',
+            borderRadius: 10,
+            padding: '1px 8px',
+            fontFamily: 'JetBrains Mono, monospace',
+            letterSpacing: 0.3,
+          }}
+          title="本演示中已发生的跨狐协作次数（一只狐狸的动作触发了另一只的关联记录）"
+        >
+          跨狐 ×{crossFoxEvents}
+        </span>
+      )}
     </div>
   );
 }

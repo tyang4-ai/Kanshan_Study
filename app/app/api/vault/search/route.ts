@@ -56,7 +56,40 @@ export async function POST(req: NextRequest) {
 
   try {
     const { searchVault } = await import('@/lib/vault/search');
-    const hits = await searchVault(userId, query, body.topK ?? 7);
+    const topK = body.topK ?? 7;
+    const hits = await searchVault(userId, query, topK);
+    // r5 TASK D (5 judges P0: 周源/徐诗/李大海/emmett/颜鑫): the demo persona
+    // 顾婉昔's vault content lives in vault-guwanxi.json, NOT in the production
+    // `chunks` table — every authenticated judge gets `zhihu-${uid}` as their
+    // user_id, none of which has those chunks. Without this merge, the
+    // showcase Step-1 fan-out query "胶质母细胞瘤" returns empty from prod.
+    // Strategy: if the user's own chunks return fewer than topK hits, append
+    // the seed fallback (de-duped by id) so the headline demo query always
+    // surfaces 顾婉昔's 10 archive entries. Real users with rich vaults stay
+    // unaffected (their hits saturate topK before the merge kicks in).
+    if (hits.length < topK) {
+      const seedHits = fallback(query);
+      const seenIds = new Set(hits.map((h) => h.articleId));
+      const merged = [
+        ...hits,
+        ...seedHits
+          .filter((s) => !seenIds.has(s.id))
+          .slice(0, topK - hits.length)
+          .map((s) => ({
+            chunkId: `seed-${s.id}`,
+            articleId: s.id,
+            title: s.title,
+            date: s.date,
+            year: s.year,
+            content: s.snippet,
+            spineColor: s.spine ?? null,
+            borrows: s.borrows,
+            tags: s.tags,
+            score: 0.7,
+          })),
+      ];
+      return NextResponse.json({ hits: merged, source: merged.length > hits.length ? 'live+seed' : 'live' });
+    }
     return NextResponse.json({ hits, source: 'live' });
   } catch (err) {
     console.error('vault search failed, falling back to seed:', err);

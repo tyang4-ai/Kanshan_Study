@@ -764,7 +764,7 @@ export function VaultTab({ scrollToArticleId, preloadQuery }: VaultTabProps = {}
               fontStyle: 'italic',
             }}
           >
-            馆中无此书 · 请换一关键字
+            已切到看水 · 此话题档案库暂无条目
           </div>
         )}
         {grouped.map(([year, yearEntries]) => (

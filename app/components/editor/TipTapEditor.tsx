@@ -23,6 +23,7 @@ import { useLastVisitStore } from '@/lib/store/last-visit';
 import { useProvenanceStore } from '@/lib/store/provenance';
 import { detectClaims } from '@/lib/compliance/xin-detect';
 import { XinFlag, setXinFlags, type XinFlagRange } from './XinFlag';
+import { applyFixtureAnnotations, runLiveScan } from '@/lib/relmem/scanner';
 import { reflowBlockAt, blockStartFromSelection } from './markdown-reflow';
 import { LivePreview } from './LivePreview';
 import { buildCitationOnClick } from '@/lib/citation/click-router';
@@ -91,6 +92,59 @@ export function handleCitationSupClick(
   return true;
 }
 
+/** r5 TASK A: extracted from onUpdate so editor.on('create') can also call
+ *  it on cold doc load. Walks the doc, runs detectClaims per sentence, writes
+ *  flagged ranges to the XinFlag decoration plugin + matching entries into
+ *  useProvenanceStore. Pure visual; doesn't mutate the doc. */
+function runXinScan(editor: Editor): void {
+  const offenders: XinFlagRange[] = [];
+  const entries: Array<Omit<import('@/lib/store/provenance').ProvenanceEntry, 'id' | 'at'>> = [];
+  const sentenceTerminator = /[。！？!?]/;
+  let sentenceStart: number | null = null;
+  let sentenceText = '';
+  const flushSentence = (endPos: number): void => {
+    const trimmed = sentenceText.trim();
+    if (trimmed.length >= 6 && sentenceStart !== null) {
+      const flags = detectClaims(trimmed);
+      if (!flags.safe) {
+        const reasonParts: string[] = [];
+        if (flags.medical) reasonParts.push('医学强声明');
+        if (flags.financial) reasonParts.push('财务强声明');
+        if (flags.cherryPick) reasonParts.push('个例外推');
+        const reason = `看心 标记：${reasonParts.join(' / ')}`;
+        offenders.push({ from: sentenceStart, to: endPos, reason });
+        const excerpt = trimmed.slice(0, 80);
+        if (flags.medical) entries.push({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'live-scan' });
+        if (flags.financial) entries.push({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'live-scan' });
+        if (flags.cherryPick) entries.push({ kind: 'hedge', excerpt, fox: 'xin', relatedAction: 'live-scan' });
+      }
+    }
+    sentenceStart = null;
+    sentenceText = '';
+  };
+  editor.state.doc.descendants((node, pos) => {
+    if (!node.isText || !node.text) return true;
+    const text = node.text;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (sentenceStart === null) sentenceStart = pos + i;
+      sentenceText += ch;
+      if (sentenceTerminator.test(ch)) {
+        flushSentence(pos + i + 1);
+      }
+    }
+    return true;
+  });
+  flushSentence(editor.state.doc.content.size);
+  useProvenanceStore.getState().replaceLiveScan(entries);
+  setXinFlags(editor as unknown as { view: { state: { tr: unknown }; dispatch: (tr: unknown) => void } }, offenders);
+  // r5 TASK I: same debounce-tick also refreshes relational-memory annotations.
+  // Fixtures fire synchronously; live scan is best-effort + async.
+  const docText = editor.state.doc.textContent ?? '';
+  applyFixtureAnnotations(docText);
+  void runLiveScan(docText);
+}
+
 export function TipTapEditor({
   content = '<p></p>',
   marginSeeds = [],
@@ -118,6 +172,11 @@ export function TipTapEditor({
   // typing settles (~800ms) so the bottom stamp counters tick in real time
   // without re-running the regex set on every keystroke.
   const xinScanTimerRef = useRef<number | null>(null);
+  // r5 TASK A (周源/张荣乐/emmett/史中/吴伟P0): also run xin-scan once on
+  // editor.on('create') so the GBM paste-block in the demo doc is flagged
+  // BEFORE the user types anything. The old behavior only fired on onUpdate,
+  // leaving the headline absolutist sentence undetected on a cold judge load.
+  const ranInitialXinScanRef = useRef(false);
   // Obsidian-style live markdown: track the block-position the caret was in
   // on the previous tick. When it changes (caret moved to a different block),
   // reflow the previous block — that's the "click away → render" trigger.
@@ -209,69 +268,13 @@ export function TipTapEditor({
           });
         }, 3000);
 
-        // 看心 live-scan: debounced 800ms. After typing settles, run
-        // detectClaims over the editor's plain text, slice the document by
-        // sentence terminators, find offending sentences, and write them to
-        // the provenance store via replaceLiveScan (relatedAction='live-scan')
-        // so previous scan results are evicted. The bottom ComplianceStamp
-        // subscribes to the store and updates the counters in real time.
+        // 看心 live-scan: debounced 800ms. Same scanner as the editor.on('create')
+        // cold-load path (extracted to runXinScan); see helper above.
         if (xinScanTimerRef.current != null) {
           window.clearTimeout(xinScanTimerRef.current);
         }
         xinScanTimerRef.current = window.setTimeout(() => {
-          // Walk text nodes so we get both (a) sentence string and (b) its
-          // exact doc-position range. Then run detectClaims per sentence and
-          // collect offending ranges. Pure visual decoration — the editor
-          // doc itself is untouched.
-          const offenders: XinFlagRange[] = [];
-          const entries: Array<Omit<import('@/lib/store/provenance').ProvenanceEntry, 'id' | 'at'>> = [];
-          const sentenceTerminator = /[。！？!?]/;
-          // Buffer of (start-pos, text) for the current in-progress sentence.
-          let sentenceStart: number | null = null;
-          let sentenceText = '';
-          const flushSentence = (endPos: number): void => {
-            const trimmed = sentenceText.trim();
-            if (trimmed.length >= 6 && sentenceStart !== null) {
-              const flags = detectClaims(trimmed);
-              if (!flags.safe) {
-                const reasonParts: string[] = [];
-                if (flags.medical) reasonParts.push('医学强声明');
-                if (flags.financial) reasonParts.push('财务强声明');
-                if (flags.cherryPick) reasonParts.push('个例外推');
-                const reason = `看心 标记：${reasonParts.join(' / ')}`;
-                offenders.push({ from: sentenceStart, to: endPos, reason });
-                const excerpt = trimmed.slice(0, 80);
-                if (flags.medical) entries.push({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'live-scan' });
-                if (flags.financial) entries.push({ kind: 'flagged', excerpt, fox: 'xin', relatedAction: 'live-scan' });
-                if (flags.cherryPick) entries.push({ kind: 'hedge', excerpt, fox: 'xin', relatedAction: 'live-scan' });
-              }
-            }
-            sentenceStart = null;
-            sentenceText = '';
-          };
-          e.state.doc.descendants((node, pos) => {
-            if (!node.isText || !node.text) return true;
-            const text = node.text;
-            let cursor = 0;
-            for (let i = 0; i < text.length; i++) {
-              const ch = text[i];
-              if (sentenceStart === null) sentenceStart = pos + i;
-              sentenceText += ch;
-              if (sentenceTerminator.test(ch)) {
-                flushSentence(pos + i + 1);
-                cursor = i + 1;
-              }
-            }
-            // If a sentence ran past this text node, leave the buffer open;
-            // it'll continue when the next text node is visited.
-            void cursor;
-            return true;
-          });
-          // Anything left in the buffer at end-of-doc is a tail sentence.
-          flushSentence(e.state.doc.content.size);
-          useProvenanceStore.getState().replaceLiveScan(entries);
-          // Push the visual decorations onto the editor.
-          setXinFlags(e as unknown as { view: { state: { tr: unknown }; dispatch: (tr: unknown) => void } }, offenders);
+          runXinScan(e as Editor);
         }, 800);
       }
       try {
@@ -382,6 +385,11 @@ export function TipTapEditor({
   // Fires on (a) initial mount once the active doc lands, and (b) every
   // subsequent tab switch. Within a single tab, onUpdate is the writer and
   // this effect is a no-op (lastSyncedIdRef gates re-application).
+  //
+  // r5 TASK A (post-doc-sync xin scan): emitUpdate:false means the regular
+  // onUpdate debounce never fires when the demo doc lands. Trigger runXinScan
+  // explicitly after setContent so the GBM paste-block is flagged within a
+  // tick of the doc being visible.
   useEffect(() => {
     if (!editor || !activeDoc || !activeId) return;
     if (lastSyncedIdRef.current === activeId) return;
@@ -390,7 +398,26 @@ export function TipTapEditor({
     if (incoming.trim() !== editor.getHTML().trim()) {
       editor.commands.setContent(incoming, { emitUpdate: false });
     }
+    // Fire scan once on next tick so ProseMirror has the new doc state.
+    window.setTimeout(() => {
+      try { runXinScan(editor as Editor); } catch { /* defensive */ }
+    }, 50);
+    ranInitialXinScanRef.current = true;
   }, [editor, activeId, activeDoc]);
+
+  // r5 TASK A: also run scan once on bare editor.on('create') for code paths
+  // that mount the editor with `content` prop directly (tests, alternate shells).
+  // No-op when the tab-sync path above already ran the scan.
+  useEffect(() => {
+    if (!editor) return;
+    const onCreate = (): void => {
+      if (ranInitialXinScanRef.current) return;
+      try { runXinScan(editor as Editor); } catch { /* defensive */ }
+      ranInitialXinScanRef.current = true;
+    };
+    editor.on('create', onCreate);
+    return () => { editor.off('create', onCreate); };
+  }, [editor]);
 
   // Defense-in-depth: ProseMirror's `handleClickOn` runs only when the click
   // hits a node-with-content; clicks that land on a mark-only sup may slip

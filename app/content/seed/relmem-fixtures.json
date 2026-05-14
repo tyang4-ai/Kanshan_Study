@@ -1,0 +1,37 @@
+[
+  {
+    "kind": "echo",
+    "matchSubstring": "Stupp",
+    "refTitle": "Stupp 2005 → 2025 二十年综述阅读笔记",
+    "refExcerpt": "二十年来真正改变 OS 曲线的只有两件事：2015 年 TTFields 上市 + 2021 年 WHO CNS5 把 IDH-野生型独立出来。",
+    "similarity": 0.87
+  },
+  {
+    "kind": "echo",
+    "matchSubstring": "MGMT",
+    "refTitle": "MGMT-甲基化预测 TMZ 反应 · 临床速查",
+    "refExcerpt": "Hegi NEJM 2005 显示 mMGMT+ 患者 2 年 OS 46% vs 非甲基化 14%。所有 GBM 患者术后均送检。",
+    "similarity": 0.91
+  },
+  {
+    "kind": "contradict",
+    "matchSubstring": "一定能根治",
+    "refTitle": "家属沟通话术 · 当家属问\"还能活多久\"",
+    "refExcerpt": "我的做法：给区间而非点估计 (\"大约半数的患者能在确诊后存活 15-25 个月\")，从不用\"治愈\"/\"根治\"。",
+    "similarity": 0.83
+  },
+  {
+    "kind": "echo",
+    "matchSubstring": "TTFields",
+    "refTitle": "TTFields 副作用谈话要点（带教笔记）",
+    "refExcerpt": "EF-14 III 期最常见副作用是头皮皮炎 (52%)，多为 1-2 级；约 30% 患者因依从性中断治疗。",
+    "similarity": 0.84
+  },
+  {
+    "kind": "echo",
+    "matchSubstring": "IDH",
+    "refTitle": "2024-08 · 一例 IDH-野生型 GBM 术后 18 月 OS",
+    "refExcerpt": "57 岁男性，5-ALA 引导切除 95%，mMGMT+ 给了 TMZ 一个真实工作的窗口，术后 18 个月仍稳定。",
+    "similarity": 0.89
+  }
+]

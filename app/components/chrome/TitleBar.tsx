@@ -100,6 +100,24 @@ export function TitleBar({ avatarUrls = EMPTY_AVATAR_URLS }: TitleBarProps = {})
         <ToolbarIcon kind="debate" onClick={onOpenDebate} tourId="debate-button" title="看文 · 看纹辩论"/>
         <ToolbarIcon kind="stats" onClick={onOpenStats} tourId="stats-button" title="看镜 · 数据看板"/>
         <span style={{ width: 1, height: 16, background: 'rgba(168,155,126,0.25)' }} aria-hidden />
+        {/* r5 TASK G (emmett P1): "常用" chip makes the daily-4 hierarchy
+            explicit. Pairs with RightToolbar's opacity-dim default on advanced-5. */}
+        <span
+          aria-hidden
+          style={{
+            fontSize: 9,
+            color: 'rgba(168,155,126,0.7)',
+            letterSpacing: 1.5,
+            fontFamily: '"Noto Serif SC", serif',
+            border: '1px solid rgba(168,155,126,0.35)',
+            borderRadius: 8,
+            padding: '0 6px',
+            lineHeight: '14px',
+            marginRight: 2,
+          }}
+        >
+          常用
+        </span>
         {/* Tool cluster (daily 4 + settings) — surfaces dispatched by 看山,
             also user-launchable for direct access. Daily 4 = mo/shi/dian/shui
             (voice-diff / trends / vault / research). */}
@@ -108,6 +126,30 @@ export function TitleBar({ avatarUrls = EMPTY_AVATAR_URLS }: TitleBarProps = {})
         <ToolbarIcon kind="vault" onClick={onOpenVault} title="看典 · 档案库"/>
         <ToolbarIcon kind="research" onClick={onOpenResearch} title="看水 · 考据卷"/>
         <ToolbarIcon kind="settings" onClick={onOpenSettings} tourId="settings-button" title="看山书房 · 设置"/>
+        {/* r5 TASK J gap-close (李大海 P1): visible topology summary so the
+            "9 狐 · 端 2 / 云 7" answer is on chrome at all times, not just inside
+            Settings. Click forwards to Settings 拓扑图 section. */}
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          data-testid="topology-chip"
+          title="9 只狐影 · 端侧 2 只（看心 · 看典） · 云端 7 只 · 路由可见 — 点击查看完整拓扑"
+          style={{
+            background: 'transparent',
+            border: '1px solid rgba(31,91,71,0.55)',
+            borderRadius: 10,
+            color: '#8FCDB5',
+            fontFamily: '"Noto Serif SC", serif',
+            fontSize: 10,
+            padding: '0 7px',
+            lineHeight: '15px',
+            cursor: 'pointer',
+            letterSpacing: 0.4,
+            marginLeft: 2,
+          }}
+        >
+          9 狐 · 端 2 · 云 7
+        </button>
         <ManualLink />
         <BudgetChip />
         <DemoPersonaBadge avatarUrls={avatarUrls} />
@@ -279,6 +321,9 @@ export function ZhihuBadge() {
 }
 
 export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKind; onClick: () => void; tourId?: string; title?: string }) {
+  // r5 TASK J (李大海 P1): 端 badge marks foxes that run in the browser.
+  // dian (vault) is local-vector retrieval; other daily-4/advanced-5 are云端.
+  const isEdgeFox = kind === 'vault';
   // r4 user 2026-05-12: 4 ACTION slots have designed PNG icons in
   // public/icons/ (vault / stats / trends / settings). 4 fox-themed slots
   // (voice-diff = 看墨, research = 看水, persona / debate = 看文) keep their
@@ -303,7 +348,7 @@ export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKin
       onClick={onClick}
       data-tour-id={tourId}
       aria-label={title ?? kind}
-      title={title}
+      title={isEdgeFox ? `${title} · 端侧（本地向量检索）` : title}
       style={{
         background: 'transparent',
         border: 'none',
@@ -313,6 +358,7 @@ export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKin
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
+        position: 'relative',
       }}
     >
       {/* Uniform 20×20 outer box. Bold/filled icons (ai-touched sparkle) get
@@ -340,6 +386,29 @@ export function ToolbarIcon({ kind, onClick, tourId, title }: { kind: ToolbarKin
           {title && <title>{title}</title>}
           {svgPaths[kind]}
         </svg>
+      )}
+      {isEdgeFox && (
+        <span
+          aria-hidden
+          data-testid="fox-edge-badge"
+          style={{
+            position: 'absolute',
+            right: -3,
+            bottom: -3,
+            fontSize: 7,
+            lineHeight: '10px',
+            padding: '0 2px',
+            borderRadius: 5,
+            background: '#1F5B47',
+            color: '#FBFAF7',
+            fontFamily: '"Noto Serif SC", serif',
+            fontWeight: 600,
+            letterSpacing: 0.3,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.35)',
+          }}
+        >
+          端
+        </span>
       )}
     </button>
   );
